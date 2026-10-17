@@ -1,0 +1,69 @@
+import styled from 'styled-components';
+import Header from './Header';
+import Sidebar from './Sidenav';
+import Topbar from './Topbar.tsx';
+
+import { AppModule, ModuleKey } from '../../config/moduleConfig';
+
+const Wrapper = styled.div`
+    width: 100%;
+    height: 100%;
+`;
+
+const Body = styled.div`
+    display: flex;
+    height: calc(100vh - ${({ theme }) => theme.layout.headerHeight});
+`;
+
+const ContentArea = styled.div`
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: ${({ theme }) => theme.colors.content};
+`;
+
+const Main = styled.main`
+    flex: 1;
+    overflow: auto;
+`;
+
+type Props = {
+    modules: AppModule[];
+    activeModule: ModuleKey;
+    onModuleChange: (moduleKey: ModuleKey) => void;
+    children: React.ReactNode;
+};
+
+export default function MainLayout({
+                                       modules,
+                                       activeModule,
+                                       onModuleChange,
+                                       children
+                                   }: Props) {
+
+    const currentModule = modules.find(
+        (module) => module.key === activeModule
+    );
+
+    return (
+        <Wrapper>
+            <Header />
+
+            <Body>
+                <Sidebar
+                    modules={modules}
+                    activeModule={activeModule}
+                    onModuleChange={onModuleChange}
+                />
+
+                <ContentArea>
+                    <Topbar items={currentModule?.topbarItems ?? []} />
+
+                    <Main>
+                        {children}
+                    </Main>
+                </ContentArea>
+            </Body>
+        </Wrapper>
+    );
+}
