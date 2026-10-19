@@ -10,7 +10,7 @@ visuellen Tests. API-/Fachlogiktests sind separat in HANDOFF.md dokumentiert.
 Vorbereitung: Ein Administrator meldet sich an und legt in den Einstellungen ein
 eigenes Testkonto an. Die Fachprüfungen mit diesem Konto durchführen, damit der eigene
 Arbeitsbereich unverändert bleibt. Die vollständige bisherige Prüfliste steht zusätzlich
-in der Haupt-README.
+in [manual-check.md](manual-check.md).
 
 ## Fachfunktionen
 
@@ -54,4 +54,3 @@ in der Haupt-README.
 Nur tatsächlich ausgeführte Punkte als geprüft dokumentieren, mit Datum und Datenmodus.
 Das Testkonto kann anschließend deaktiviert werden; eine automatische Löschung seiner Daten
 ist nicht vorgesehen. Ticketsystem bleibt zurückgestellt.
-

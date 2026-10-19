@@ -22,6 +22,9 @@ Dokumentationsschritts.
 - **PostgreSQL 18.6 ist lokal installiert und angebunden.** Vorerst alles auf demselben
   Windows-PC, ohne Docker-Pflicht. Produktives Deployment bleibt offen.
 - Benutzeroberfläche und Kommunikation überwiegend auf Deutsch. Bestehende Funktionen erhalten.
+- Die Haupt-README enthält auf Wunsch nur Installation und Einrichtung einschließlich
+  PostgreSQL, erstem Anwendungskonto und lokalem Start. Funktionsübersicht unter
+  `docs/frontend.md`, ausführliche manuelle Prüfliste unter `docs/manual-check.md`.
 
 ## Bereits implementierte Frontend-Funktionen
 
@@ -255,7 +258,7 @@ Frühere Prüfung vom 18. Oktober, in diesem Durchlauf nicht erneut ausgeführt:
 Eine vollständige visuelle Browserprüfung durch den Agenten wurde nicht ausgeführt.
 Der Anwender hat lokalen Backend-/Frontend-Start, Anmeldung und den Erhalt von Kunden/Projekten
 nach Backend-Neustart mit echtem PostgreSQL als funktionierend bestätigt.
-Die vollständige manuelle Prüfliste in der Haupt-README bleibt offen.
+Die vollständige manuelle Prüfliste in `docs/manual-check.md` bleibt offen.
 
 ## Arbeitsumgebung und bekannte Besonderheiten
 

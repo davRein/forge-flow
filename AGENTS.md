@@ -48,6 +48,6 @@ Java uses four-space indentation, typed DTO records and interfaces, Jakarta vali
 
 ## Testing & Change Guidelines
 
-Frontend tests use `*.test.ts` next to the tested unit; register new suites/dependencies in `frontend/scripts/test.mjs`. Spring integration tests live in `backend/src/test/`. Manual browser checks are documented in `README.md`; distinguish them from automated tests, and do not claim visual verification unless a browser was actually available.
+Frontend tests use `*.test.ts` next to the tested unit; register new suites/dependencies in `frontend/scripts/test.mjs`. Spring integration tests live in `backend/src/test/`. The root `README.md` covers installation and setup only. Feature descriptions are in `docs/frontend.md`; manual browser checks are in `docs/manual-check.md` and `docs/browser-check.md`. Distinguish them from automated tests, and do not claim visual verification unless a browser was actually available.
 
 Git history was unavailable during the initial work; inspect the current checkout before assuming Git capabilities. Use focused commits with imperative subjects, for example `Fix task status updates`. Pull requests should describe behavior and verification, link issues, and include screenshots for UI changes. Do not describe the in-memory reference backend as a database integration or durable persistence.
