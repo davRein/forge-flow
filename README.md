@@ -1,17 +1,17 @@
-# Dev Suite – Installation und Einrichtung
+# Dev Suite – Installation and Setup
 
-Die folgenden Schritte gelten für den lokalen Betrieb unter Windows mit PowerShell.
-Alle Projektbefehle im Hauptordner `D:\Projects\Vite\dev-suite` ausführen.
-Bei einer bereits eingerichteten Installation die entsprechenden Schritte überspringen.
+These steps cover local installation on Windows using PowerShell.
+Run all project commands from the repository root, `D:\Projects\Vite\dev-suite`.
+Skip any steps that have already been completed.
 
-## 1. Voraussetzungen
+## 1. Prerequisites
 
-- Node.js 22 mit npm.
-- Java JDK 21; `JAVA_HOME` muss auf das JDK zeigen.
-- Maven 3.9; Java und Maven müssen im `PATH` verfügbar sein.
-- PostgreSQL 18 mit Server und Kommandozeilenwerkzeugen (`psql`, `pg_dump`, `pg_restore`).
+- Node.js 22 with npm.
+- Java JDK 21; `JAVA_HOME` must point to the JDK.
+- Maven 3.9; Java and Maven must be available on your `PATH`.
+- PostgreSQL 18 with the server and command-line tools (`psql`, `pg_dump`, `pg_restore`).
 
-Installation im Terminal prüfen:
+Verify the installed tools in your terminal:
 
 ```powershell
 node --version
@@ -20,21 +20,21 @@ java -version
 mvn.cmd -version
 ```
 
-## 2. PostgreSQL einrichten
+## 2. Set Up PostgreSQL
 
-Den [PostgreSQL-Windows-Installer](https://www.postgresql.org/download/windows/) verwenden.
-Server und Command Line Tools auswählen; pgAdmin ist optional. In Stack Builder müssen
-für diese Anwendung keine weiteren Pakete installiert werden. Den Port auf `5432` belassen,
-ein Passwort für das Administratorkonto `postgres` vergeben und den PostgreSQL-Dienst starten.
+Use the [PostgreSQL Windows installer](https://www.postgresql.org/download/windows/).
+Select the server and Command Line Tools; pgAdmin is optional. No additional packages
+from Stack Builder are required for this application. Keep port `5432`, set a password
+for the `postgres` administrator account, and start the PostgreSQL service.
 
-In PowerShell den tatsächlichen Installationspfad setzen und als Administrator verbinden:
+In PowerShell, set your installation path and connect as the database administrator:
 
 ```powershell
-$taskPgBin = 'D:\Program Files\PostgreSQL\18\bin' # ggf. anpassen
+$taskPgBin = 'D:\Program Files\PostgreSQL\18\bin' # Adjust to your installation path
 & "$taskPgBin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d postgres -W
 ```
 
-In **psql** ein eigenes Datenbankkonto und die Datenbank anlegen:
+In **psql**, create a dedicated database account and the application database:
 
 ```sql
 CREATE ROLE forgeflow LOGIN;
@@ -43,83 +43,84 @@ CREATE DATABASE forgeflow OWNER forgeflow;
 \q
 ```
 
-`\password forgeflow` fragt das neue Datenbankpasswort verdeckt ab. Es ist ein psql-Befehl,
-kein SQL für das pgAdmin-Abfragefenster. Die Anwendung verwendet das Konto `forgeflow`.
+`\password forgeflow` prompts for the new database password without displaying it.
+This is a psql command and does not work in the pgAdmin query editor.
+The application uses the `forgeflow` account.
 
-Verbindung mit dessen Passwort prüfen:
+Verify the connection using that account's password:
 
 ```powershell
 & "$taskPgBin\psql.exe" -h 127.0.0.1 -p 5432 -U forgeflow -d forgeflow -W -c 'SELECT current_database(), current_user;'
 ```
 
-Beide Werte müssen `forgeflow` sein. Tabellen und Migrationen richtet das Backend beim
-Start automatisch ein; sie müssen nicht von Hand angelegt werden.
+Both values must be `forgeflow`. The backend creates the tables and applies migrations
+automatically at startup; no manual table creation is required.
 
-## 3. Projekt vorbereiten
+## 3. Prepare the Project
 
 ```powershell
 npm.cmd ci
 ```
 
-Die Datei `frontend/.env.local` mit folgendem Inhalt anlegen bzw. anpassen:
+Create or update `frontend/.env.local` with the following contents:
 
 ```dotenv
 VITE_DATA_MODE=api
 VITE_API_BASE_URL=/api/v1
 ```
 
-Datenbankpasswörter und Passwort-Hashes gehören nicht in diese Datei.
+Do not put database passwords or password hashes in this file.
 
-## 4. Erstes Anwendungskonto einrichten
+## 4. Create the First Application Account
 
-Nur bei einer neuen Anwendungsdatenbank erforderlich. Backend kompilieren und einen
-BCrypt-Hash für das gewünschte Anmeldepasswort erzeugen:
+This is only required for a new application database. Compile the backend and generate
+a BCrypt hash for your chosen application login password:
 
 ```powershell
 mvn.cmd -f backend/pom.xml compile dependency:build-classpath "-Dmdep.outputFile=target/classpath.txt"
 java -cp ("backend/target/classes;" + (Get-Content -Raw backend/target/classpath.txt).Trim()) de.forgeflow.auth.HashPassword
 ```
 
-Das Passwort muss mindestens 12 Zeichen haben und darf höchstens 72 UTF-8-Bytes belegen.
-Danach im selben Terminal konfigurieren:
+The password must contain at least 12 characters and occupy no more than 72 UTF-8 bytes.
+Then configure the backend in the same terminal:
 
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = 'postgres'
 $env:DB_URL = 'jdbc:postgresql://127.0.0.1:5432/forgeflow'
 $env:DB_USER = 'forgeflow'
-$taskDbSecret = Read-Host 'Datenbankpasswort für forgeflow' -AsSecureString
+$taskDbSecret = Read-Host 'Database password for forgeflow' -AsSecureString
 $env:DB_PASSWORD = [System.Net.NetworkCredential]::new('', $taskDbSecret).Password
 $env:AUTH_USER_ID = 'initial-admin'
-$env:AUTH_USER_EMAIL = Read-Host 'E-Mail für das Anwendungskonto'
+$env:AUTH_USER_EMAIL = Read-Host 'Email for the application account'
 $env:AUTH_USER_NAME = 'Administrator'
-$env:AUTH_PASSWORD_HASH = Read-Host 'Vollständigen erzeugten BCrypt-Hash einfügen'
+$env:AUTH_PASSWORD_HASH = Read-Host 'Paste the complete generated BCrypt hash'
 $env:APP_ORIGIN = 'http://localhost:5173'
 $env:COOKIE_SECURE = 'false'
 mvn.cmd -f backend/pom.xml spring-boot:run
 ```
 
-Bei der Hash-Abfrage die erzeugte Zeile mit `$2a$`, `$2b$` oder `$2y$` einfügen.
-Beim späteren Login das ursprüngliche Passwort eingeben. Datenbankpasswort und
-Anmeldepasswort der Anwendung sind voneinander unabhängig; es gibt kein Standardpasswort.
+At the hash prompt, paste the generated line starting with `$2a$`, `$2b$`, or `$2y$`.
+Use the original password when logging in later. The database password and application
+login password are independent; there is no default application password.
 
-Nach erfolgreichem Start das Backend mit **Strg+C** beenden.
+After a successful startup, stop the backend with **Ctrl+C**.
 
-## 5. Lokalen Start einrichten
+## 5. Configure Local Startup
 
 ```powershell
 npm.cmd run setup:local
 npm.cmd run start:local
 ```
 
-Das Setup prüft die Datenbankverbindung und speichert das Verbindungspasswort unter
-`backend/.local/` verschlüsselt für denselben Windows-Benutzer auf demselben PC.
-Bei abweichendem PostgreSQL-Pfad kann dieser explizit angegeben werden:
+Setup checks the database connection and stores the connection password in `backend/.local/`,
+encrypted for the same Windows user on the same PC.
+If needed, specify the PostgreSQL installation path explicitly:
 `npm.cmd run setup:local -- -PostgresBin 'D:\Program Files\PostgreSQL\18\bin'`.
 
-Die Anwendung unter **http://localhost:5173** öffnen. Das Backend nutzt Port `3001`;
-beide Ports müssen vor dem gemeinsamen Start frei sein. Mit **Strg+C** werden beide beendet.
-Künftig genügt `npm.cmd run start:local`. Nach Datenbankpasswortänderungen das Setup wiederholen.
+Open **http://localhost:5173**. The backend uses port `3001`; both ports must be available
+before starting the application. **Ctrl+C** stops both processes.
+For subsequent starts, run `npm.cmd run start:local`. Run setup again after changing the database password.
 
-`COOKIE_SECURE=false` gilt für lokale HTTP-Entwicklung. Die Startskripte sind für Windows;
-für direkte Backend-Konfiguration siehe [backend/README.md](backend/README.md).
-Details zur lokalen Konfiguration und Sicherung: [docs/local-operation.md](docs/local-operation.md).
+`COOKIE_SECURE=false` is intended for local HTTP development. The startup scripts require Windows;
+for direct backend configuration, see [backend/README.md](backend/README.md).
+For local configuration and backup details, see [docs/local-operation.md](docs/local-operation.md).
