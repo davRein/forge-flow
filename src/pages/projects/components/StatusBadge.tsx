@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { getBadgeTextColor } from '../../../styles/colorUtils';
 
 const Badge = styled.div<{ $color: string; $pulse?: boolean }>`
     display: inline-flex;
@@ -12,7 +13,7 @@ const Badge = styled.div<{ $color: string; $pulse?: boolean }>`
     font-weight: 700;
 
     background: ${({ $color }) => `${$color}20`};
-    color: ${({ $color }) => $color};
+    color: ${({ $color, theme }) => getBadgeTextColor($color, theme.mode)};
 
     border: 1px solid ${({ $color }) => `${$color}55`};
 

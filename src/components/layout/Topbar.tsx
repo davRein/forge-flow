@@ -1,4 +1,6 @@
 import styled from 'styled-components';
+import { NavLink } from 'react-router-dom';
+import { AppModule, ModuleKey } from '../../config/moduleConfig';
 
 const Container = styled.nav`
     height: 50px;
@@ -12,7 +14,8 @@ const Container = styled.nav`
     padding: 0 20px;
 `;
 
-const NavItem = styled.button`
+const NavItem = styled(NavLink)`
+    text-decoration: none;
     background: transparent;
     border: none;
     color: ${({ theme }) => theme.colors.textSecondary};
@@ -21,21 +24,22 @@ const NavItem = styled.button`
     border-radius: 6px;
     cursor: pointer;
 
-    &:hover {
+    &.active, &:hover {
         background: ${({ theme }) => theme.colors.primary};
-        color: ${({ theme }) => theme.colors.text};
+        color: ${({ theme }) => theme.colors.onPrimary};
     }
 `;
 
 type Props = {
-    items: string[];
+    items: AppModule['topbarItems'];
+    moduleKey: ModuleKey;
 };
 
-export default function Topbar({ items }: Props) {
+export default function Topbar({ items, moduleKey }: Props) {
     return (
         <Container>
             {items.map((item) => (
-                <NavItem key={item}>{item}</NavItem>
+                <NavItem key={item.key} to={`/${moduleKey}/${item.key}`}>{item.label}</NavItem>
             ))}
         </Container>
     );

@@ -9,6 +9,9 @@ import { ProjectTab } from '../types/projectTabs.types';
 
 import { getProjectStatus } from '../../../utils/getProjectStatus';
 import { useTasks } from '../tabs/tasks/hooks/useTasks';
+import type { useEpics } from '../tabs/epics/hooks/useEpics';
+import type { useSprints } from '../tabs/sprints/hooks/useSprints';
+import type { useProjectFiles } from '../tabs/files/hooks/useProjectFiles';
 
 const Container = styled.div`
     background: ${({ theme }) => theme.colors.header};
@@ -34,13 +37,25 @@ type Props = {
     customer: Customer | undefined;
     activeTab: ProjectTab;
     onTabChange: (tab: ProjectTab) => void;
+    taskState: ReturnType<typeof useTasks>;
+    epicState: ReturnType<typeof useEpics>;
+    sprintState: ReturnType<typeof useSprints>;
+    fileState: ReturnType<typeof useProjectFiles>;
+    onEdit: () => void;
+    onDelete: () => void;
 };
 
 export default function ProjectDetails({
                                            project,
                                            customer,
                                            activeTab,
-                                           onTabChange
+                                           onTabChange,
+                                           taskState,
+                                           epicState,
+                                           sprintState,
+                                           fileState,
+                                           onEdit,
+                                           onDelete
                                        }: Props) {
     if (!project) {
         return (
@@ -50,8 +65,11 @@ export default function ProjectDetails({
         );
     }
 
+    return <SelectedProjectDetails project={project} customer={customer} activeTab={activeTab} onTabChange={onTabChange} taskState={taskState} epicState={epicState} sprintState={sprintState} fileState={fileState} onEdit={onEdit} onDelete={onDelete} />;
+}
+
+function SelectedProjectDetails({ project, customer, activeTab, onTabChange, taskState, epicState, sprintState, fileState, onEdit, onDelete }: Props & { project: Project }) {
     const status = getProjectStatus(project);
-    const taskState = useTasks(project.id);
 
     return (
         <Container>
@@ -76,9 +94,15 @@ export default function ProjectDetails({
             <Content>
                 <ProjectTabContent
                     activeTab={activeTab}
+                    onTabChange={onTabChange}
                     project={project}
                     customer={customer}
                     taskState={taskState}
+                    epicState={epicState}
+                    sprintState={sprintState}
+                    fileState={fileState}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
                 />
             </Content>
         </Container>

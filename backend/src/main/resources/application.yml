@@ -1,0 +1,26 @@
+server:
+  address: 127.0.0.1
+  port: ${PORT:3001}
+  servlet:
+    session:
+      timeout: 8h
+      cookie:
+        name: FORGEFLOW_SESSION
+        http-only: true
+        same-site: strict
+        secure: ${COOKIE_SECURE:true}
+spring:
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+forgeflow:
+  origin: ${APP_ORIGIN:http://localhost:5173}
+  user:
+    id: ${AUTH_USER_ID:initial-admin}
+    email: ${AUTH_USER_EMAIL:}
+    name: ${AUTH_USER_NAME:Administrator}
+    password-hash: ${AUTH_PASSWORD_HASH:}

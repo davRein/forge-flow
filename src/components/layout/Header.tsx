@@ -1,5 +1,11 @@
 import styled from 'styled-components';
 
+import { useAuth } from '../../hooks/authContext';
+import { useState, useSyncExternalStore } from 'react';
+import { useWorkspacePersistence } from '../../hooks/workspaceContext';
+import Dialog from '../ui/Dialog';
+import { ErrorText, SecondaryButton } from '../ui/formStyles';
+
 const Container = styled.header`
     height: ${({ theme }) => theme.layout.headerHeight};
     background: ${({ theme }) => theme.colors.header};
@@ -83,7 +89,11 @@ const Right = styled.div`
     color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
-export default function Header() {
+export default function Header({ unsavedSettings = false }: { unsavedSettings?: boolean }) {
+    const auth = useAuth();
+    const store = useWorkspacePersistence();
+    const workspace = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+    const [confirmLogout, setConfirmLogout] = useState(false);
     return (
         <Container>
             <Logo>
@@ -96,8 +106,18 @@ export default function Header() {
             </Logo>
 
             <Right>
-                <div>Login</div>
+                {auth.user ? <><span>{auth.user.name || auth.user.email}</span><SecondaryButton disabled={auth.busy} onClick={() => {
+                    if (unsavedSettings || workspace.status === 'saving' || workspace.error) setConfirmLogout(true);
+                    else void auth.logout();
+                }}>Abmelden</SecondaryButton>
+                    {auth.error && <ErrorText role="alert">{auth.error}</ErrorText>}</> : <span>Lokale Sitzung</span>}
             </Right>
+            {confirmLogout && <Dialog title="Mit ungespeicherten Änderungen abmelden?" onClose={() => { if (!auth.busy) setConfirmLogout(false); }}>
+                <p>Es gibt noch nicht bestätigte Änderungen. Beim Abmelden werden lokale Daten und offene Entwürfe entfernt.</p>
+                {auth.error && <ErrorText role="alert">{auth.error}</ErrorText>}
+                <SecondaryButton disabled={auth.busy} onClick={() => setConfirmLogout(false)}>Zurück</SecondaryButton>{' '}
+                <SecondaryButton disabled={auth.busy} onClick={() => void auth.logout()}>Trotzdem abmelden</SecondaryButton>
+            </Dialog>}
         </Container>
     );
 }

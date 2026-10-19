@@ -1,32 +1,109 @@
-import { useState } from 'react';
+﻿import { HashRouter, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from 'styled-components';
-
+import { useMemo } from 'react';
 import GlobalStyle from './styles/global';
-import theme from './styles/theme';
-
+import { themes } from './styles/theme';
 import MainLayout from './components/layout/MainLayout';
-
-import { modules, ModuleKey } from './config/moduleConfig';
-
+import { modules } from './config/moduleConfig';
 import ProjectsPage from './pages/projects/ProjectsPage';
+import WikiPage from './pages/wiki/WikiPage';
+import DevToolsPage from './pages/devTools/DevToolsPage';
+import { Container, Title } from './pages/projects/styles/pageStyles';
+import { useAppSettings } from './hooks/useAppSettings';
+import type { SettingsRepository } from './services/settings/settingsRepository';
+import { sessionSettingsRepository } from './services/settings/sessionSettingsRepository';
+import { PrimaryButton } from './pages/projects/styles/projectStyles';
+import AuthProvider from './components/AuthProvider';
+import WorkspaceProvider, { WorkspaceStatus } from './components/WorkspaceProvider';
+import LoginPage from './pages/auth/LoginPage';
+import { useAuth } from './hooks/authContext';
+import { apiClient, apiEnabled } from './services/api/runtime';
+import { createApiSettingsRepository } from './services/settings/apiSettingsRepository';
+import { createApiWorkspaceRepository, localWorkspaceRepository } from './services/workspace/workspaceRepository';
 
-function App() {
-    const [activeModule, setActiveModule] =
-        useState<ModuleKey>('projectManager');
+type SettingsState = ReturnType<typeof useAppSettings>;
+
+function AppContent({ settings, updateSettings, resetSettings, status, error, retry, persistence }: SettingsState) {
+    const { pathname } = useLocation();
+    const navigate = useNavigate();
+    const [, moduleKey, pageKey] = pathname.split('/');
+    const matchedModule = modules.find((module) => module.key === moduleKey);
+    const matchedPage = matchedModule?.topbarItems.find((item) => item.key === pageKey);
+    const validRoute = !!matchedPage && pathname.split('/').length === 3;
+    const currentModule = validRoute && matchedModule ? matchedModule : modules[0];
+    const currentPage = validRoute && matchedPage ? matchedPage
+        : currentModule.topbarItems.find((item) => item.key === settings.defaultProjectView)!;
+    const projectStartPath = `/projectManager/${settings.defaultProjectView}`;
+
+    if (status === 'loading') {
+        return <Container role="status"><Title>Einstellungen werden geladen …</Title></Container>;
+    }
+    if (error?.operation === 'load') {
+        return (
+            <Container>
+                <Title>Einstellungen nicht verfügbar</Title>
+                <p role="alert">{error.message}</p>
+                <PrimaryButton style={{ marginTop: 16 }} onClick={retry}>Erneut versuchen</PrimaryButton>
+            </Container>
+        );
+    }
 
     return (
-        <ThemeProvider theme={theme}>
-            <GlobalStyle />
+        <MainLayout
+            modules={modules}
+            activeModule={currentModule.key}
+            unsavedSettings={status === 'saving' || error?.operation === 'save'}
+            onModuleChange={(key) => {
+                const module = modules.find((entry) => entry.key === key)!;
+                navigate(key === 'projectManager' ? projectStartPath : `/${key}/${module.topbarItems[0].key}`,
+                    { state: { projectOverview: true } });
+            }}
+        >
+            <WorkspaceStatus />
+            {!validRoute && <Navigate to={projectStartPath} state={{ projectOverview: true }} replace />}
+            <div hidden={currentModule.key !== 'projectManager'}>
+                <ProjectsPage
+                    section={currentModule.key === 'projectManager' ? currentPage.key : settings.defaultProjectView}
+                    settings={settings}
+                    onSettingsChange={updateSettings}
+                    onSettingsReset={resetSettings}
+                    settingsStatus={status}
+                    settingsError={error}
+                    settingsPersistence={persistence}
+                    onSettingsRetry={retry}
+                />
+            </div>
+            <div hidden={currentModule.key !== 'wiki'}>
+                <WikiPage section={currentModule.key === 'wiki' ? currentPage.key : 'home'} active={currentModule.key === 'wiki'} />
+            </div>
+            <div hidden={currentModule.key !== 'devTools'}>
+                <DevToolsPage section={currentModule.key === 'devTools' ? currentPage.key : 'json'} />
+            </div>
+        </MainLayout>
+    );
+}
 
-            <MainLayout
-                modules={modules}
-                activeModule={activeModule}
-                onModuleChange={setActiveModule}
-            >
-                <ProjectsPage />
-            </MainLayout>
+type AppProps = { userId?: string | null; settingsRepository?: SettingsRepository };
+
+function SignedInApp({ userId = null, settingsRepository }: AppProps) {
+    const auth = useAuth();
+    const ownerId = auth.user?.id ?? userId;
+    const repository = useMemo(() => settingsRepository ?? (apiEnabled && ownerId ? createApiSettingsRepository(apiClient, ownerId) : sessionSettingsRepository), [settingsRepository, ownerId]);
+    const workspaceRepository = useMemo(() => apiEnabled ? createApiWorkspaceRepository(apiClient) : localWorkspaceRepository, []);
+    const settingsState = useAppSettings({ userId: ownerId, repository });
+    return (
+        <ThemeProvider theme={themes[settingsState.settings.themeMode]}>
+            <GlobalStyle />
+            <WorkspaceProvider repository={workspaceRepository}><HashRouter><AppContent {...settingsState} /></HashRouter></WorkspaceProvider>
         </ThemeProvider>
     );
 }
 
-export default App;
+function AuthGate(props: AppProps) {
+    const auth = useAuth();
+    return apiEnabled && auth.status !== 'authenticated' ? <LoginPage /> : <SignedInApp key={`${auth.user?.id ?? 'local'}:${auth.epoch}`} {...props} />;
+}
+
+export default function App(props: AppProps) {
+    return <ThemeProvider theme={themes.dark}><GlobalStyle /><AuthProvider><AuthGate {...props} /></AuthProvider></ThemeProvider>;
+}

@@ -1,239 +1,112 @@
-import { useState } from 'react';
-
-import { projects } from '../../../data/projects';
-import { customers } from '../../../data/customers';
-
-import { Customer, Project } from '../types/project.types';
-
-const NEW_CUSTOMER_VALUE = -1;
+﻿import { useRef, useState } from 'react';
+import { useWorkspaceField } from '../../../hooks/workspaceContext';
+import { Customer, CustomerDraft, Project, ProjectDraft } from '../types/project.types';
 
 export function useProjects() {
-    const [projectList, setProjectList] =
-        useState<Project[]>(projects);
+    const [projectList, setProjectList] = useWorkspaceField('projects');
+    const [customerList, setCustomerList] = useWorkspaceField('customers');
+    const nextProjectId = useRef(Math.max(0, ...projectList.map((project) => project.id)) + 1);
+    const nextCustomerId = useRef(Math.max(0, ...customerList.map((customer) => customer.id)) + 1);
+    const [selectedProjectId, setSelectedProjectId] = useState<number | null>(projectList[0]?.id ?? null);
+    const [projectEditor, setProjectEditor] = useState<{ id: number | null; draft: ProjectDraft } | null>(null);
+    const [customerEditor, setCustomerEditor] = useState<{ id: number | null; draft: CustomerDraft; selectForProject: boolean } | null>(null);
+    const [projectError, setProjectError] = useState('');
+    const [customerError, setCustomerError] = useState('');
 
-    const [customerList, setCustomerList] =
-        useState<Customer[]>(
-            customers.map((customer) => ({
-                id: customer.id,
-                name: customer.name,
-                street: '',
-                city: '',
-                country: '',
-                email: '',
-                website: '',
-                phone: '',
-                industry: ''
-            }))
-        );
+    const selectedProject = projectList.find((project) => project.id === selectedProjectId);
+    const customer = customerList.find((entry) => entry.id === selectedProject?.customerId);
 
-    const [selectedProjectId, setSelectedProjectId] =
-        useState(projects[0].id);
-
-    const [showCreateForm, setShowCreateForm] =
-        useState(false);
-
-    const [showCustomerModal, setShowCustomerModal] =
-        useState(false);
-
-    const [newProjectName, setNewProjectName] =
-        useState('');
-
-    const [newCustomerId, setNewCustomerId] =
-        useState(customerList[0].id);
-
-    const [newDeadline, setNewDeadline] =
-        useState('');
-
-    const [newPlanningCompleted, setNewPlanningCompleted] =
-        useState(false);
-
-    const [newCustomerName, setNewCustomerName] =
-        useState('');
-
-    const [newCustomerStreet, setNewCustomerStreet] =
-        useState('');
-
-    const [newCustomerCity, setNewCustomerCity] =
-        useState('');
-
-    const [newCustomerCountry, setNewCustomerCountry] =
-        useState('');
-
-    const [newCustomerEmail, setNewCustomerEmail] =
-        useState('');
-
-    const [newCustomerWebsite, setNewCustomerWebsite] =
-        useState('');
-
-    const [newCustomerPhone, setNewCustomerPhone] =
-        useState('');
-
-    const [newCustomerIndustry, setNewCustomerIndustry] =
-        useState('');
-
-    const selectedProject = projectList.find(
-        (project) => project.id === selectedProjectId
-    );
-
-    const customer = customerList.find(
-        (customer) => customer.id === selectedProject?.customerId
-    );
-
-
-    function resetProjectForm() {
-        setNewProjectName('');
-        setNewCustomerId(customerList[0]?.id ?? 1);
-        setNewDeadline('');
-        setNewPlanningCompleted(false);
+    function openProjectEditor(project?: Project) {
+        setProjectError('');
+        setProjectEditor({ id: project?.id ?? null, draft: project ? {
+            name: project.name, customerId: project.customerId,
+            deadline: project.deadline, planningCompleted: project.planningCompleted
+        } : { name: '', customerId: customerList[0]?.id ?? 0, deadline: '', planningCompleted: false } });
     }
 
-    function resetCustomerForm() {
-        setNewCustomerName('');
-        setNewCustomerStreet('');
-        setNewCustomerCity('');
-        setNewCustomerCountry('');
-        setNewCustomerEmail('');
-        setNewCustomerWebsite('');
-        setNewCustomerPhone('');
-        setNewCustomerIndustry('');
+    function closeProjectEditor() {
+        setProjectEditor(null);
+        setProjectError('');
     }
 
-    function closeProjectForm() {
-        resetProjectForm();
-        setShowCreateForm(false);
+    function changeProject(draft: ProjectDraft) {
+        setProjectEditor((current) => current ? { ...current, draft } : null);
+        setProjectError('');
     }
 
-    function closeCustomerModal() {
-        resetCustomerForm();
-        setShowCustomerModal(false);
-    }
-
-    function handleCreateProject() {
-        if (!newProjectName.trim() || !newDeadline) {
+    function saveProject() {
+        if (!projectEditor) return;
+        const { draft, id } = projectEditor;
+        if (!draft.name.trim() || !draft.deadline || !customerList.some((entry) => entry.id === draft.customerId)) {
+            setProjectError('Bitte Projektname, einen vorhandenen Kunden und eine Deadline angeben.');
             return;
         }
+        const project: Project = { ...draft, id: id ?? nextProjectId.current++, name: draft.name.trim() };
+        setProjectList((current) => id === null ? [...current, project] : current.map((entry) => entry.id === id ? project : entry));
+        setSelectedProjectId(project.id);
+        closeProjectEditor();
+        return true;
+    }
 
-        const nextId =
-            projectList.length > 0
-                ? Math.max(
-                ...projectList.map(
-                    (project) => project.id
-                )
-            ) + 1
-                : 1;
+    function deleteProject(id: number) {
+        setProjectList((current) => current.filter((project) => project.id !== id));
+        if (selectedProjectId === id) setSelectedProjectId(projectList.find((project) => project.id !== id)?.id ?? null);
+        if (projectEditor?.id === id) closeProjectEditor();
+    }
 
-        const newProject: Project = {
-            id: nextId,
-            customerId: Number(newCustomerId),
-            name: newProjectName.trim(),
-            planningCompleted: newPlanningCompleted,
-            deadline: newDeadline
+    function openCustomerEditor(customer?: Customer, selectForProject = false) {
+        setCustomerError('');
+        setCustomerEditor({ id: customer?.id ?? null, selectForProject, draft: customer ? {
+            name: customer.name, street: customer.street, city: customer.city, country: customer.country,
+            email: customer.email, website: customer.website ?? '', phone: customer.phone, industry: customer.industry
+        } : { name: '', street: '', city: '', country: '', email: '', website: '', phone: '', industry: '' } });
+    }
+
+    function closeCustomerEditor() {
+        setCustomerEditor(null);
+        setCustomerError('');
+    }
+
+    function changeCustomer(draft: CustomerDraft) {
+        setCustomerEditor((current) => current ? { ...current, draft } : null);
+        setCustomerError('');
+    }
+
+    function saveCustomer() {
+        if (!customerEditor) return;
+        const { draft, id, selectForProject } = customerEditor;
+        if ([draft.name, draft.street, draft.city, draft.country, draft.email, draft.phone, draft.industry].some((value) => !value.trim())) {
+            setCustomerError('Bitte alle Pflichtfelder ausfüllen.');
+            return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())) {
+            setCustomerError('Bitte eine gültige E-Mail-Adresse angeben.');
+            return;
+        }
+        const customer: Customer = {
+            id: id ?? nextCustomerId.current++, name: draft.name.trim(), street: draft.street.trim(),
+            city: draft.city.trim(), country: draft.country.trim(), email: draft.email.trim(),
+            website: draft.website?.trim() ?? '', phone: draft.phone.trim(), industry: draft.industry.trim()
         };
-
-        setProjectList((currentProjects) => [
-            ...currentProjects,
-            newProject
-        ]);
-
-        setSelectedProjectId(newProject.id);
-
-        closeProjectForm();
+        setCustomerList((current) => id === null ? [...current, customer] : current.map((entry) => entry.id === id ? customer : entry));
+        if (selectForProject) {
+            setProjectEditor((current) => current ? { ...current, draft: { ...current.draft, customerId: customer.id } } : null);
+        }
+        closeCustomerEditor();
     }
 
-    function handleCustomerChange(value: number) {
-        if (value === NEW_CUSTOMER_VALUE) {
-            setShowCustomerModal(true);
-            return;
-        }
-
-        setNewCustomerId(value);
-    }
-
-    function handleCreateCustomer() {
-        if (
-            !newCustomerName.trim() ||
-            !newCustomerStreet.trim() ||
-            !newCustomerCity.trim() ||
-            !newCustomerCountry.trim() ||
-            !newCustomerEmail.trim() ||
-            !newCustomerPhone.trim() ||
-            !newCustomerIndustry.trim()
-        ) {
-            return;
-        }
-
-        const nextId =
-            customerList.length > 0
-                ? Math.max(
-                ...customerList.map(
-                    (customer) => customer.id
-                )
-            ) + 1
-                : 1;
-
-        const newCustomer: Customer = {
-            id: nextId,
-            name: newCustomerName.trim(),
-            street: newCustomerStreet.trim(),
-            city: newCustomerCity.trim(),
-            country: newCustomerCountry.trim(),
-            email: newCustomerEmail.trim(),
-            website: newCustomerWebsite.trim(),
-            phone: newCustomerPhone.trim(),
-            industry: newCustomerIndustry.trim()
-        };
-
-        setCustomerList((currentCustomers) => [
-            ...currentCustomers,
-            newCustomer
-        ]);
-
-        setNewCustomerId(newCustomer.id);
-
-        closeCustomerModal();
+    function deleteCustomer(id: number) {
+        if (projectList.some((project) => project.customerId === id)) return;
+        setCustomerList((current) => current.filter((entry) => entry.id !== id));
+        if (customerEditor?.id === id) closeCustomerEditor();
+        setProjectEditor((current) => current?.draft.customerId === id
+            ? { ...current, draft: { ...current.draft, customerId: customerList.find((entry) => entry.id !== id)?.id ?? 0 } }
+            : current);
     }
 
     return {
-        projectList,
-        customerList,
-        selectedProject,
-        selectedProjectId,
-        setSelectedProjectId,
-        customer,
-
-        showCreateForm,
-        setShowCreateForm,
-        showCustomerModal,
-
-        newProjectName,
-        setNewProjectName,
-        newCustomerId,
-        newDeadline,
-        setNewDeadline,
-        newPlanningCompleted,
-        setNewPlanningCompleted,
-
-        newCustomerName,
-        setNewCustomerName,
-        newCustomerStreet,
-        setNewCustomerStreet,
-        newCustomerCity,
-        setNewCustomerCity,
-        newCustomerCountry,
-        setNewCustomerCountry,
-        newCustomerEmail,
-        setNewCustomerEmail,
-        newCustomerWebsite,
-        setNewCustomerWebsite,
-        newCustomerPhone,
-        setNewCustomerPhone,
-        newCustomerIndustry,
-        setNewCustomerIndustry,
-
-        handleCustomerChange,
-        handleCreateProject,
-        handleCreateCustomer,
-        closeProjectForm,
-        closeCustomerModal
+        projectList, customerList, selectedProject, selectedProjectId, setSelectedProjectId, customer,
+        projectEditor, projectError, openProjectEditor, closeProjectEditor, changeProject, saveProject, deleteProject,
+        customerEditor, customerError, openCustomerEditor, closeCustomerEditor, changeCustomer, saveCustomer, deleteCustomer
     };
 }

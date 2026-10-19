@@ -8,6 +8,7 @@ export type Task = {
     id: number;
     code: string;
     projectId: number;
+    epicId?: number;
     title: string;
     description?: string;
     status: TaskStatusKey;

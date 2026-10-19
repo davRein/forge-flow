@@ -41,7 +41,7 @@ const GoToButton = styled.button`
 
     cursor: pointer;
 
-    color: ${({ theme }) => theme.colors.text};
+    color: ${({ theme }) => theme.colors.onPrimary};
     background: ${({ theme }) => theme.colors.primary};
 
     font-size: 16px;

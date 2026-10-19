@@ -32,13 +32,15 @@ type Props = {
     activeModule: ModuleKey;
     onModuleChange: (moduleKey: ModuleKey) => void;
     children: React.ReactNode;
+    unsavedSettings?: boolean;
 };
 
 export default function MainLayout({
                                        modules,
                                        activeModule,
                                        onModuleChange,
-                                       children
+                                       children,
+                                       unsavedSettings = false
                                    }: Props) {
 
     const currentModule = modules.find(
@@ -47,7 +49,7 @@ export default function MainLayout({
 
     return (
         <Wrapper>
-            <Header />
+            <Header unsavedSettings={unsavedSettings} />
 
             <Body>
                 <Sidebar
@@ -57,7 +59,7 @@ export default function MainLayout({
                 />
 
                 <ContentArea>
-                    <Topbar items={currentModule?.topbarItems ?? []} />
+                    <Topbar items={currentModule?.topbarItems ?? []} moduleKey={activeModule} />
 
                     <Main>
                         {children}

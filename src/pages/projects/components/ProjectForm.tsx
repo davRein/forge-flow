@@ -1,150 +1,57 @@
-import { Customer } from '../types/project.types';
-
+﻿import { Customer, ProjectDraft } from '../types/project.types';
 import {
-    CheckboxRow,
-    CloseButton,
-    Field,
-    FormActions,
-    FormCard,
-    FormGrid,
-    FormHeader,
-    Input,
-    PrimaryButton,
-    Required,
-    SecondaryButton,
-    Select
+    CheckboxRow, CloseButton, ErrorText, Field, FormActions, FormCard,
+    FormGrid, FormHeader, Input, PrimaryButton, Required, SecondaryButton, Select
 } from '../styles/projectStyles';
-
-const NEW_CUSTOMER_VALUE = -1;
 
 type Props = {
     customers: Customer[];
-
-    projectName: string;
-    setProjectName: (value: string) => void;
-
-    customerId: number;
-    onCustomerChange: (value: number) => void;
-
-    deadline: string;
-    setDeadline: (value: string) => void;
-
-    planningCompleted: boolean;
-    setPlanningCompleted: (value: boolean) => void;
-
+    draft: ProjectDraft;
+    isEditing: boolean;
+    error: string;
+    onChange: (draft: ProjectDraft) => void;
+    onNewCustomer: () => void;
     onSave: () => void;
     onClose: () => void;
 };
 
-export default function ProjectForm({
-                                        customers,
-
-                                        projectName,
-                                        setProjectName,
-
-                                        customerId,
-                                        onCustomerChange,
-
-                                        deadline,
-                                        setDeadline,
-
-                                        planningCompleted,
-                                        setPlanningCompleted,
-
-                                        onSave,
-                                        onClose
-                                    }: Props) {
-
+export default function ProjectForm({ customers, draft, isEditing, error, onChange, onNewCustomer, onSave, onClose }: Props) {
     return (
-        <FormCard>
+        <FormCard as="form" onSubmit={(event) => { event.preventDefault(); onSave(); }}>
             <FormHeader>
-                <h2>Neues Projekt</h2>
-
-                <CloseButton onClick={onClose}>
-                    ×
-                </CloseButton>
+                <h2>{isEditing ? 'Projekt bearbeiten' : 'Neues Projekt'}</h2>
+                <CloseButton type="button" aria-label="Projektformular schließen" onClick={onClose}>×</CloseButton>
             </FormHeader>
-
             <FormGrid>
                 <Field>
                     Projektname <Required>*</Required>
-
-                    <Input
-                        value={projectName}
-                        onChange={(event) =>
-                            setProjectName(event.target.value)
-                        }
-                        placeholder="z. B. Website Relaunch"
-                    />
+                    <Input required autoFocus value={draft.name} onChange={(event) => onChange({ ...draft, name: event.target.value })} placeholder="z. B. Website Relaunch" />
                 </Field>
-
                 <Field>
                     Kunde <Required>*</Required>
-
-                    <Select
-                        value={customerId}
-                        onChange={(event) =>
-                            onCustomerChange(
-                                Number(event.target.value)
-                            )
-                        }
-                    >
-                        {customers.map((customer) => (
-                            <option
-                                key={customer.id}
-                                value={customer.id}
-                            >
-                                {customer.name}
-                            </option>
-                        ))}
-
-                        <option value={NEW_CUSTOMER_VALUE}>
-                            + New Customer ...
-                        </option>
+                    <Select required value={draft.customerId || ''} onChange={(event) => {
+                        const customerId = Number(event.target.value);
+                        if (customerId === -1) onNewCustomer();
+                        else onChange({ ...draft, customerId });
+                    }}>
+                        <option value="" disabled>Bitte Kunden auswählen</option>
+                        {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
+                        <option value={-1}>+ Neuen Kunden anlegen …</option>
                     </Select>
                 </Field>
-
                 <Field>
                     Deadline <Required>*</Required>
-
-                    <Input
-                        type="date"
-                        value={deadline}
-                        onChange={(event) =>
-                            setDeadline(event.target.value)
-                        }
-                    />
+                    <Input type="date" required value={draft.deadline} onChange={(event) => onChange({ ...draft, deadline: event.target.value })} />
                 </Field>
             </FormGrid>
-
             <CheckboxRow>
-                <input
-                    type="checkbox"
-                    checked={planningCompleted}
-                    onChange={(event) =>
-                        setPlanningCompleted(
-                            event.target.checked
-                        )
-                    }
-                />
-
+                <input type="checkbox" checked={draft.planningCompleted} onChange={(event) => onChange({ ...draft, planningCompleted: event.target.checked })} />
                 Planung abgeschlossen
             </CheckboxRow>
-
+            {error && <ErrorText role="alert">{error}</ErrorText>}
             <FormActions>
-                <SecondaryButton
-                    type="button"
-                    onClick={onClose}
-                >
-                    Abbrechen
-                </SecondaryButton>
-
-                <PrimaryButton
-                    type="button"
-                    onClick={onSave}
-                >
-                    Speichern
-                </PrimaryButton>
+                <SecondaryButton type="button" onClick={onClose}>Abbrechen</SecondaryButton>
+                <PrimaryButton type="submit">Speichern</PrimaryButton>
             </FormActions>
         </FormCard>
     );

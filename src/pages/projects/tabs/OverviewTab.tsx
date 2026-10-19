@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { getBadgeTextColor } from '../../../styles/colorUtils';
 
 import { taskStatuses } from '../../../data/taskStatuses';
 
@@ -59,7 +60,7 @@ const StatusBadge = styled.span<{ $color: string }>`
     font-size: 12px;
     font-weight: 700;
 
-    color: ${({ $color }) => $color};
+    color: ${({ $color, theme }) => getBadgeTextColor($color, theme.mode)};
     background: ${({ $color }) => `${$color}20`};
 
     border: 1px solid ${({ $color }) => `${$color}55`};
@@ -155,7 +156,7 @@ const Badge = styled.span<{ $color: string }>`
     font-size: 12px;
     font-weight: 700;
 
-    color: ${({ $color }) => $color};
+    color: ${({ $color, theme }) => getBadgeTextColor($color, theme.mode)};
     background: ${({ $color }) => `${$color}20`};
 
     border: 1px solid ${({ $color }) => `${$color}55`};

@@ -6,6 +6,8 @@ export const Container = styled.div`
 
 export const HeaderRow = styled.div`
     display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
     align-items: center;
     justify-content: space-between;
 
@@ -22,7 +24,7 @@ export const IconButton = styled.button`
 
     cursor: pointer;
 
-    color: ${({ theme }) => theme.colors.text};
+    color: ${({ theme }) => theme.colors.onPrimary};
     background: ${({ theme }) => theme.colors.primary};
 
     font-size: 18px;

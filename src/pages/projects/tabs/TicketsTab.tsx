@@ -1,7 +1,7 @@
 export default function TicketsTab() {
     return (
         <div>
-            Tickets kommen hier rein.
+            Das Ticketsystem ist vorerst zurückgestellt.
         </div>
     );
 }

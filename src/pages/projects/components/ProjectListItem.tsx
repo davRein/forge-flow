@@ -7,7 +7,7 @@ import { getProjectStatus } from '../../../utils/getProjectStatus';
 
 const Container = styled.button<{ $active: boolean }>`
     width: 100%;
-    border: none;
+    border: 1px solid ${({ theme, $active }) => $active ? theme.colors.primary : 'transparent'};
     cursor: pointer;
 
     padding: 14px;
@@ -17,7 +17,7 @@ const Container = styled.button<{ $active: boolean }>`
     color: ${({ theme }) => theme.colors.text};
 
     background: ${({ $active, theme }) =>
-    $active ? theme.colors.primary : 'transparent'};
+    $active ? `${theme.colors.primary}15` : 'transparent'};
 
     display: flex;
     align-items: center;
@@ -25,7 +25,7 @@ const Container = styled.button<{ $active: boolean }>`
     gap: 10px;
 
     &:hover {
-        background: ${({ theme }) => theme.colors.primary};
+        background: ${({ theme }) => `${theme.colors.primary}25`};
     }
 `;
 

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
-import { tasks as initialTasks } from '../../../../../data/tasks';
+import { useWorkspaceField } from '../../../../../hooks/workspaceContext';
 
 import {
     Task,
@@ -9,15 +9,14 @@ import {
 } from '../../../types/task.types';
 
 import { Activity } from '../../../types/activity.types';
+import type { Epic } from '../../../types/epic.types';
 
-export function useTasks(projectId: number) {
+export function useTasks(projectId: number, defaultPriority: TaskPriorityKey = 'medium') {
 
-    const [taskList, setTaskList] = useState<Task[]>(
-        initialTasks as Task[]
-    );
-
-    const [activityList, setActivityList] =
-        useState<Activity[]>([]);
+    const [taskList, setTaskList] = useWorkspaceField('tasks');
+    const [activityList, setActivityList] = useWorkspaceField('activities');
+    const nextTaskId = useRef(Math.max(0, ...taskList.map((task) => task.id)) + 1);
+    const nextActivityId = useRef(Math.max(0, ...activityList.map((activity) => activity.id)) + 1);
 
     const [showForm, setShowForm] =
         useState(false);
@@ -38,7 +37,8 @@ export function useTasks(projectId: number) {
         useState<TaskStatusKey>('todo');
 
     const [priority, setPriority] =
-        useState<TaskPriorityKey>('medium');
+        useState<TaskPriorityKey>(defaultPriority);
+    const [epicId, setEpicId] = useState<number | undefined>();
 
     const projectTasks = taskList.filter(
         (task) => task.projectId === projectId
@@ -46,7 +46,7 @@ export function useTasks(projectId: number) {
 
     const selectedTask =
         taskList.find(
-            (task) => task.id === selectedTaskId
+            (task) => task.id === selectedTaskId && task.projectId === projectId
         );
 
     function resetForm() {
@@ -57,7 +57,8 @@ export function useTasks(projectId: number) {
         setDescription('');
 
         setStatus('todo');
-        setPriority('medium');
+        setPriority(defaultPriority);
+        setEpicId(undefined);
     }
 
     function closeForm() {
@@ -71,6 +72,11 @@ export function useTasks(projectId: number) {
         setSelectedTaskId(taskId);
     }
 
+    function startCreateTask() {
+        resetForm();
+        setShowForm(true);
+    }
+
     function closeTask() {
         setSelectedTaskId(null);
     }
@@ -80,14 +86,7 @@ export function useTasks(projectId: number) {
         message: string
     ) {
 
-        const nextId =
-            activityList.length > 0
-                ? Math.max(
-                ...activityList.map(
-                    (activity) => activity.id
-                )
-            ) + 1
-                : 1;
+        const nextId = nextActivityId.current++;
 
         const now =
             new Date()
@@ -114,14 +113,7 @@ export function useTasks(projectId: number) {
             return;
         }
 
-        const nextId =
-            taskList.length > 0
-                ? Math.max(
-                ...taskList.map(
-                    (task) => task.id
-                )
-            ) + 1
-                : 1;
+        const nextId = nextTaskId.current++;
 
         const now =
             new Date()
@@ -133,6 +125,7 @@ export function useTasks(projectId: number) {
             code: `FF-${nextId}`,
 
             projectId,
+            epicId,
 
             title: title.trim(),
 
@@ -160,6 +153,7 @@ export function useTasks(projectId: number) {
     }
 
     function deleteTask(taskId: number) {
+        if (selectedTaskId === taskId) closeTask();
 
         const taskToDelete =
             taskList.find(
@@ -192,6 +186,7 @@ export function useTasks(projectId: number) {
 
         setStatus(task.status);
         setPriority(task.priority);
+        setEpicId(task.epicId);
 
         setShowForm(true);
     }
@@ -222,6 +217,7 @@ export function useTasks(projectId: number) {
 
                             status,
                             priority,
+                            epicId,
 
                             updatedAt: now
                         }
@@ -256,22 +252,20 @@ export function useTasks(projectId: number) {
         taskId: number,
         newStatus: TaskStatusKey
     ) {
+        const movedTask = projectTasks.find((task) => task.id === taskId);
+        if (!movedTask || movedTask.status === newStatus) return;
 
         setTaskList((currentTasks) =>
             currentTasks.map((task) =>
                 task.id === taskId
                     ? {
                         ...task,
-                        status: newStatus
+                        status: newStatus,
+                        updatedAt: new Date().toISOString().split('T')[0]
                     }
                     : task
             )
         );
-
-        const movedTask =
-            taskList.find(
-                (task) => task.id === taskId
-            );
 
         if (movedTask) {
             addActivity(
@@ -281,11 +275,48 @@ export function useTasks(projectId: number) {
         }
     }
 
+    function removeProjectTasks(deletedProjectId: number) {
+        setTaskList((current) => current.filter((task) => task.projectId !== deletedProjectId));
+        setActivityList((current) => current.filter((activity) => activity.projectId !== deletedProjectId));
+        if (projectId === deletedProjectId) {
+            closeForm();
+            closeTask();
+        }
+    }
+
+    function assignTasksToEpic(epic: Epic, taskIds: number[]) {
+        if (epic.projectId !== projectId) return;
+        const selectedIds = new Set(taskIds);
+        const now = new Date().toISOString().split('T')[0];
+        setTaskList((current) => current.map((task) => {
+            if (task.projectId !== projectId) return task;
+            const nextEpicId = selectedIds.has(task.id) ? epic.id : task.epicId === epic.id ? undefined : task.epicId;
+            return nextEpicId === task.epicId ? task : { ...task, epicId: nextEpicId, updatedAt: now };
+        }));
+        if (editingTaskId !== null) {
+            const editedTask = projectTasks.find((task) => task.id === editingTaskId);
+            if (editedTask) {
+                setEpicId(selectedIds.has(editedTask.id) ? epic.id : editedTask.epicId === epic.id ? undefined : editedTask.epicId);
+            }
+        }
+    }
+
+    function clearEpicAssignments(deletedEpicId: number) {
+        const now = new Date().toISOString().split('T')[0];
+        setTaskList((current) => current.map((task) => task.projectId === projectId && task.epicId === deletedEpicId
+            ? { ...task, epicId: undefined, updatedAt: now } : task));
+        if (epicId === deletedEpicId) setEpicId(undefined);
+    }
+
     return {
 
         projectTasks,
 
-        activityList,
+        activityList: activityList.filter((activity) => activity.projectId === projectId),
+        removeProjectTasks,
+        assignTasksToEpic,
+        clearEpicAssignments,
+        addActivity,
 
         selectedTask,
 
@@ -296,6 +327,7 @@ export function useTasks(projectId: number) {
         setShowForm,
 
         closeForm,
+        startCreateTask,
 
         editingTaskId,
 
@@ -310,6 +342,8 @@ export function useTasks(projectId: number) {
 
         priority,
         setPriority,
+        epicId,
+        setEpicId,
 
         createTask,
         saveTask,

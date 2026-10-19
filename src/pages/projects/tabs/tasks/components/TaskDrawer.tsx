@@ -1,9 +1,11 @@
 import styled from 'styled-components';
+import { getBadgeTextColor } from '../../../../../styles/colorUtils';
 
 import { taskPriorities } from '../../../../../data/taskPriorities';
 import { taskStatuses } from '../../../../../data/taskStatuses';
 
 import { Task } from '../../../types/task.types';
+import type { Sprint } from '../../../types/sprint.types';
 
 const Backdrop = styled.div`
     position: fixed;
@@ -53,7 +55,7 @@ const CloseButton = styled.button`
     border: none;
     background: transparent;
 
-    color: #ef4444;
+    color: ${({ theme }) => theme.colors.danger};
 
     cursor: pointer;
 
@@ -106,7 +108,7 @@ const Badge = styled.span<{ $color: string }>`
     font-size: 12px;
     font-weight: 700;
 
-    color: ${({ $color }) => $color};
+    color: ${({ $color, theme }) => getBadgeTextColor($color, theme.mode)};
     background: ${({ $color }) => `${$color}20`};
 
     border: 1px solid ${({ $color }) => `${$color}55`};
@@ -114,10 +116,12 @@ const Badge = styled.span<{ $color: string }>`
 
 type Props = {
     task: Task;
+    epics: { id: number; title: string }[];
+    sprints: Sprint[];
     onClose: () => void;
 };
 
-export default function TaskDrawer({ task, onClose }: Props) {
+export default function TaskDrawer({ task, epics, sprints, onClose }: Props) {
     const taskStatus = taskStatuses[task.status];
     const taskPriority = taskPriorities[task.priority];
 
@@ -149,6 +153,14 @@ export default function TaskDrawer({ task, onClose }: Props) {
                     <SectionTitle>Details</SectionTitle>
 
                     <MetaGrid>
+                        <MetaBox>
+                            <Label>Sprint</Label>
+                            {sprints.find((sprint) => sprint.status !== 'completed' && sprint.taskIds.includes(task.id))?.title ?? 'Kein Sprint'}
+                        </MetaBox>
+                        <MetaBox>
+                            <Label>Epic</Label>
+                            {epics.find((epic) => epic.id === task.epicId)?.title ?? 'Kein Epic'}
+                        </MetaBox>
                         <MetaBox>
                             <Label>Status</Label>
                             <Badge $color={taskStatus.color}>

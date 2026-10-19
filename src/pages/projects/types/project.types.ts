@@ -23,3 +23,6 @@ export type ProjectStatus = {
     color: string;
     pulse: boolean;
 };
+
+export type ProjectDraft = Omit<Project, 'id'>;
+export type CustomerDraft = Omit<Customer, 'id'>;

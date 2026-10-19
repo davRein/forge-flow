@@ -11,21 +11,36 @@ import FilesTab from '../tabs/FilesTab';
 import SettingsTab from '../tabs/SettingsTab';
 
 import { useTasks } from '../tabs/tasks/hooks/useTasks';
+import type { useEpics } from '../tabs/epics/hooks/useEpics';
+import type { useSprints } from '../tabs/sprints/hooks/useSprints';
+import type { useProjectFiles } from '../tabs/files/hooks/useProjectFiles';
 
 type TaskState = ReturnType<typeof useTasks>;
 
 type Props = {
     activeTab: ProjectTab;
+    onTabChange: (tab: ProjectTab) => void;
     project: Project;
     customer: Customer | undefined;
     taskState: TaskState;
+    epicState: ReturnType<typeof useEpics>;
+    sprintState: ReturnType<typeof useSprints>;
+    fileState: ReturnType<typeof useProjectFiles>;
+    onEdit: () => void;
+    onDelete: () => void;
 };
 
 export default function ProjectTabContent({
                                               activeTab,
+                                              onTabChange,
                                               project,
                                               customer,
-                                              taskState
+                                              taskState,
+                                              epicState,
+                                              sprintState,
+                                              fileState,
+                                              onEdit,
+                                              onDelete
                                           }: Props) {
     switch (activeTab) {
         case 'overview':
@@ -41,7 +56,10 @@ export default function ProjectTabContent({
         case 'board':
             return (
                 <BoardTab
+                    key={project.id}
                     taskState={taskState}
+                    epics={epicState.projectEpics}
+                    sprints={sprintState.projectSprints}
                 />
             );
 
@@ -53,20 +71,22 @@ export default function ProjectTabContent({
                 <TasksTab
                     project={project}
                     taskState={taskState}
+                    epics={epicState.projectEpics}
+                    sprints={sprintState.projectSprints}
                 />
             );
 
         case 'epics':
-            return <EpicsTab />;
+            return <EpicsTab key={project.id} epicState={epicState} tasks={taskState.projectTasks} />;
 
         case 'sprints':
-            return <SprintsTab />;
+            return <SprintsTab key={project.id} sprintState={sprintState} tasks={taskState.projectTasks} onOpenTasks={() => onTabChange('tasks')} />;
 
         case 'files':
-            return <FilesTab />;
+            return <FilesTab key={project.id} fileState={fileState} />;
 
         case 'settings':
-            return <SettingsTab />;
+            return <SettingsTab project={project} customer={customer} onEdit={onEdit} onDelete={onDelete} />;
 
         default:
             return null;

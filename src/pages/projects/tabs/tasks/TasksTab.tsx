@@ -3,8 +3,10 @@ import styled from 'styled-components';
 import { Project } from '../../types/project.types';
 import { useTasks } from './hooks/useTasks';
 
-import TaskForm from './components/TaskForm';
+import TaskEditor from './components/TaskEditor';
 import TaskList from './components/TaskList';
+import type { Epic } from '../../types/epic.types';
+import type { Sprint } from '../../types/sprint.types';
 
 
 type TaskState = ReturnType<typeof useTasks>;
@@ -29,7 +31,7 @@ const Button = styled.button`
     padding: 8px 12px;
     cursor: pointer;
 
-    color: ${({ theme }) => theme.colors.text};
+    color: ${({ theme }) => theme.colors.onPrimary};
     background: ${({ theme }) => theme.colors.primary};
 
     font-weight: 700;
@@ -38,37 +40,27 @@ const Button = styled.button`
 type Props = {
     project: Project;
     taskState: TaskState;
+    epics: Epic[];
+    sprints: Sprint[];
 };
 
-export default function TasksTab({ taskState }: Props) {
+export default function TasksTab({ taskState, epics, sprints }: Props) {
     return (
         <Container>
             <HeaderRow>
                 <h3>Tasks</h3>
 
-                <Button onClick={() => taskState.setShowForm(true)}>
+                <Button onClick={taskState.startCreateTask}>
                     + Task
                 </Button>
             </HeaderRow>
 
-            {taskState.showForm && (
-                <TaskForm
-                    title={taskState.title}
-                    setTitle={taskState.setTitle}
-                    status={taskState.status}
-                    setStatus={taskState.setStatus}
-                    priority={taskState.priority}
-                    setPriority={taskState.setPriority}
-                    onSave={taskState.saveTask}
-                    onCancel={taskState.closeForm}
-                    isEditing={taskState.editingTaskId !== null}
-                    description={taskState.description}
-                    setDescription={taskState.setDescription}
-                />
-            )}
+            <TaskEditor taskState={taskState} epics={epics} />
 
             <TaskList
                 tasks={taskState.projectTasks}
+                epics={epics}
+                sprints={sprints}
                 onDeleteTask={taskState.deleteTask}
                 onEditTask={taskState.startEditTask}
             />

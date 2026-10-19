@@ -17,12 +17,13 @@ const NavItem = styled.button<{ $active: boolean }>`
     margin-bottom: 10px;
     text-align: left;
 
-    color: ${({ theme }) => theme.colors.text};
+    color: ${({ theme, $active }) => $active ? theme.colors.onPrimary : theme.colors.text};
     background: ${({ $active, theme }) =>
     $active ? theme.colors.primary : 'transparent'};
 
     &:hover {
         background: ${({ theme }) => theme.colors.primary};
+        color: ${({ theme }) => theme.colors.onPrimary};
     }
 `;
 
@@ -39,6 +40,7 @@ export default function Sidebar({ modules, activeModule, onModuleChange }: Props
                 <NavItem
                     key={module.key}
                     $active={module.key === activeModule}
+                    aria-current={module.key === activeModule ? 'page' : undefined}
                     onClick={() => onModuleChange(module.key)}
                 >
                     {module.label}

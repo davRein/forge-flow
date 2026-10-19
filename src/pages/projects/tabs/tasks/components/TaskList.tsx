@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import styled from 'styled-components';
+import { getBadgeTextColor } from '../../../../../styles/colorUtils';
 
 import { taskPriorities } from '../../../../../data/taskPriorities';
 import { taskStatuses } from '../../../../../data/taskStatuses';
 
 import { Task, TaskPriorityKey, TaskStatusKey } from '../../../types/task.types';
+import type { Sprint } from '../../../types/sprint.types';
 
 type SortMode = 'updated' | 'priority' | 'status';
 type StatusFilter = 'all' | TaskStatusKey;
@@ -116,7 +118,7 @@ const Badge = styled.span<{ $color: string }>`
     font-size: 12px;
     font-weight: 700;
 
-    color: ${({ $color }) => $color};
+    color: ${({ $color, theme }) => getBadgeTextColor($color, theme.mode)};
     background: ${({ $color }) => `${$color}20`};
     border: 1px solid ${({ $color }) => `${$color}55`};
 `;
@@ -146,7 +148,7 @@ const Code = styled.span`
 const DeleteButton = styled.button`
     border: none;
     background: transparent;
-    color: #ef4444;
+    color: ${({ theme }) => theme.colors.danger};
     cursor: pointer;
     font-size: 18px;
 `;
@@ -157,12 +159,16 @@ const EmptyText = styled.p`
 
 type Props = {
     tasks: Task[];
+    epics: { id: number; title: string }[];
+    sprints: Sprint[];
     onDeleteTask: (taskId: number) => void;
     onEditTask: (task: Task) => void;
 };
 
 export default function TaskList({
                                      tasks,
+                                     epics,
+                                     sprints,
                                      onDeleteTask,
                                      onEditTask
                                  }: Props) {
@@ -302,6 +308,9 @@ export default function TaskList({
                                     <TaskTitle>
                                         {task.title}
                                     </TaskTitle>
+
+                                    <Description>Epic: {epics.find((epic) => epic.id === task.epicId)?.title ?? 'Kein Epic'}</Description>
+                                    <Description>Sprint: {sprints.find((sprint) => sprint.status !== 'completed' && sprint.taskIds.includes(task.id))?.title ?? 'Kein Sprint'}</Description>
 
                                     {task.description && (
                                         <Description>

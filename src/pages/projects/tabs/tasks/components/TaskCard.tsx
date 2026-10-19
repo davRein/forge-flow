@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { getBadgeTextColor } from '../../../../../styles/colorUtils';
 import { useDraggable } from '@dnd-kit/core';
 
 import { taskPriorities } from '../../../../../data/taskPriorities';
@@ -106,14 +107,14 @@ const DeleteButton = styled.button`
     border: none;
     background: transparent;
 
-    color: #ef4444;
+    color: ${({ theme }) => theme.colors.danger};
 
     cursor: pointer;
 
     font-size: 18px;
 
     &:hover {
-        color: #ff6b6b;
+        color: ${({ theme }) => theme.colors.dangerHover};
     }
 `;
 
@@ -151,7 +152,7 @@ const Badge = styled.span<{ $color: string }>`
     font-size: 12px;
     font-weight: 700;
 
-    color: ${({ $color }) => $color};
+    color: ${({ $color, theme }) => getBadgeTextColor($color, theme.mode)};
 
     background: ${({ $color }) => `${$color}20`};
 
