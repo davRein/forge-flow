@@ -4,6 +4,7 @@ import java.util.Map;
 import de.forgeflow.workspace.WorkspaceDtos.*;
 
 public interface WorkspaceStorage {
+    default String kind() { return "reference"; }
     record Attachment(byte[] bytes) { public Attachment { bytes = bytes.clone(); } @Override public byte[] bytes() { return bytes.clone(); } }
     Envelope load(String ownerId);
     String save(String ownerId, String expectedRevision, Data data, Map<Long, Attachment> incoming);

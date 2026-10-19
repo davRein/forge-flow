@@ -3,7 +3,7 @@
   "info": {
     "title": "ForgeFlow API",
     "version": "1.0.0",
-    "description": "Spring-Boot-Vertrag. Workspace-Änderungen sind atomare Transaktionen je Benutzerkonto. Keine Datenbank angebunden."
+    "description": "Spring-Boot-Vertrag. Workspace-Änderungen sind atomare Transaktionen je Benutzerkonto. Optionaler PostgreSQL-Speicher mit JPA/Flyway; Standardprofil memory bleibt ohne Datenbank nutzbar. Kontoverwaltung mit stabilen Benutzerkennungen, Sitzungswiderruf und geschütztem Administratorkonto."
   },
   "servers": [
     {
@@ -40,7 +40,7 @@
             }
           },
           "default": {
-            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428 und 429.",
+            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428, 429 und 503.",
             "content": {
               "application/json": {
                 "schema": {
@@ -68,7 +68,7 @@
             }
           },
           "default": {
-            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428 und 429.",
+            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428, 429 und 503.",
             "content": {
               "application/json": {
                 "schema": {
@@ -111,7 +111,7 @@
             }
           },
           "default": {
-            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428 und 429.",
+            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428, 429 und 503.",
             "content": {
               "application/json": {
                 "schema": {
@@ -143,7 +143,7 @@
             }
           },
           "default": {
-            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428 und 429.",
+            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428, 429 und 503.",
             "content": {
               "application/json": {
                 "schema": {
@@ -169,7 +169,7 @@
             "description": "Sitzung serverseitig beendet und Cookie gelöscht."
           },
           "default": {
-            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428 und 429.",
+            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428, 429 und 503.",
             "content": {
               "application/json": {
                 "schema": {
@@ -208,7 +208,7 @@
             }
           },
           "default": {
-            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428 und 429.",
+            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428, 429 und 503.",
             "content": {
               "application/json": {
                 "schema": {
@@ -242,7 +242,7 @@
             "description": "Einstellungen gespeichert."
           },
           "default": {
-            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428 und 429.",
+            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428, 429 und 503.",
             "content": {
               "application/json": {
                 "schema": {
@@ -282,7 +282,7 @@
             }
           },
           "default": {
-            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428 und 429.",
+            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428, 429 und 503.",
             "content": {
               "application/json": {
                 "schema": {
@@ -364,7 +364,7 @@
             }
           },
           "default": {
-            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428 und 429.",
+            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428, 429 und 503.",
             "content": {
               "application/json": {
                 "schema": {
@@ -419,7 +419,7 @@
             }
           },
           "default": {
-            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428 und 429.",
+            "description": "Fehler mit stabilem Code, insbesondere 400, 401, 403, 409, 413, 422, 428, 429 und 503.",
             "content": {
               "application/json": {
                 "schema": {
@@ -429,6 +429,221 @@
             }
           }
         }
+      }
+    },
+    "/me/profile": {
+      "put": {
+        "operationId": "updateMyProfile",
+        "description": "Profil des eigenen Kontos ändern. Eine neue E-Mail-Adresse verlangt das aktuelle Passwort und beendet andere Sitzungen. Bei E-Mail-Änderung wird die aktuelle Sitzung samt CSRF erneuert; reine Namensänderungen erhalten die Sitzung.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profil und erneuerte Sitzung.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Strukturierter Fehler, insbesondere 400, 401, 403, 404, 409, 429 und 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/password": {
+      "post": {
+        "operationId": "changeMyPassword",
+        "description": "Aktuelles Passwort prüfen, neues Passwort mit BCrypt speichern und alle bisherigen Sitzungen ungültig machen. Anschließend erneut anmelden.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Passwort geändert; Sitzung beendet."
+          },
+          "default": {
+            "description": "Strukturierter Fehler, insbesondere 400, 401, 403, 404, 409, 429 und 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "operationId": "listUsers",
+        "description": "Nur Administratoren: Konten ohne Passwort-Hashes oder Sitzungsinformationen auflisten.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Kontoliste.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Strukturierter Fehler, insbesondere 400, 401, 403, 404, 409, 429 und 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createUser",
+        "description": "Nur Administratoren: eigenes leeres Benutzerkonto ohne Administratorrechte anlegen. Keine öffentliche Registrierung.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewUser"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Konto angelegt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Strukturierter Fehler, insbesondere 400, 401, 403, 404, 409, 429 und 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{id}/active": {
+      "put": {
+        "operationId": "setUserActive",
+        "description": "Nur Administratoren: normales Konto aktivieren oder deaktivieren. Deaktivierung erhält die Daten und widerruft Sitzungen. Das Administratorkonto ist geschützt.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountActive"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Aktueller Kontostatus.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Strukturierter Fehler, insbesondere 400, 401, 403, 404, 409, 429 und 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ]
       }
     }
   },
@@ -485,12 +700,21 @@
           },
           "name": {
             "type": "string"
+          },
+          "administrator": {
+            "type": "boolean",
+            "description": "Berechtigung zur Kontoverwaltung."
+          },
+          "active": {
+            "type": "boolean"
           }
         },
         "required": [
           "id",
           "email",
-          "name"
+          "name",
+          "administrator",
+          "active"
         ]
       },
       "Csrf": {
@@ -1337,6 +1561,98 @@
         "required": [
           "version",
           "settings"
+        ]
+      },
+      "ProfileUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "currentPassword": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 72,
+            "writeOnly": true,
+            "description": "Bei Änderung der E-Mail-Adresse erforderlich."
+          }
+        },
+        "required": [
+          "name",
+          "email"
+        ]
+      },
+      "PasswordChange": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 72,
+            "writeOnly": true
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 72,
+            "writeOnly": true,
+            "description": "Mindestens 12 Unicode-Zeichen, höchstens 72 UTF-8-Bytes; kein NUL."
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ]
+      },
+      "NewUser": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 72,
+            "writeOnly": true,
+            "description": "Mindestens 12 Unicode-Zeichen, höchstens 72 UTF-8-Bytes; kein NUL."
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "password"
+        ]
+      },
+      "AccountActive": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "active"
         ]
       }
     }

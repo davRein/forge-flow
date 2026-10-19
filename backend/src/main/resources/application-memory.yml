@@ -1,0 +1,7 @@
+# Start without an installed database. Data is lost when the backend stops.
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+  flyway:
+    enabled: false

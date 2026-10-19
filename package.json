@@ -3,32 +3,18 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": ["frontend"],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "test": "node scripts/test.mjs",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^7.18.2",
-    "styled-components": "^6.4.1"
-  },
-  "devDependencies": {
-    "@dnd-kit/core": "^6.3.1",
-    "@eslint/js": "^9.13.0",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@types/styled-components": "^5.1.36",
-    "@vitejs/plugin-react": "^4.3.3",
-    "eslint": "^9.13.0",
-    "eslint-plugin-react-hooks": "^5.0.0",
-    "eslint-plugin-react-refresh": "^0.4.14",
-    "globals": "^15.11.0",
-    "typescript": "~5.6.2",
-    "typescript-eslint": "^8.11.0",
-    "vite": "^5.4.10"
+    "setup:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/configure-local.ps1",
+    "start:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1",
+    "backup:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/backup-local.ps1",
+    "restore:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restore-local.ps1",
+    "test:local-scripts": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-local-scripts.ps1",
+    "test:postgres": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-postgres-local.ps1",
+    "dev": "npm run dev --workspace frontend --",
+    "build": "npm run build --workspace frontend --",
+    "lint": "npm run lint --workspace frontend --",
+    "test": "npm run test --workspace frontend --",
+    "preview": "npm run preview --workspace frontend --"
   }
 }

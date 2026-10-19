@@ -10,6 +10,8 @@ server:
         same-site: strict
         secure: ${COOKIE_SECURE:true}
 spring:
+  profiles:
+    default: memory
   servlet:
     multipart:
       max-file-size: 20MB

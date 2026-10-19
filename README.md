@@ -1,23 +1,48 @@
-﻿# Dev Suite
+# Dev Suite
 
 Anwendung mit React 18, TypeScript, Vite und styled-components sowie vorbereitetem Java-/Spring-Boot-Backend.
 
 ## Entwicklung
 
+Frontend und Backend liegen getrennt unter `frontend/` und `backend/`.
+`frontend/` enthält React-Code, öffentliche Assets, Vite-/TypeScript-/ESLint-Konfiguration,
+die Frontend-Umgebungsdateien und die Frontend-Tests. Gemeinsame Betriebsskripte bleiben
+unter `scripts/`, Dokumentation unter `docs/`.
+
+Die folgenden npm-Befehle werden weiterhin im Projektverzeichnis ausgeführt. npm Workspaces
+verwalten die Frontend-Abhängigkeiten über die gemeinsame `package-lock.json` und
+`node_modules/` im Hauptordner. Für eine Installation exakt nach Lockdatei `npm ci` verwenden.
+Die Befehle `dev`, `lint`, `test`, `build` und `preview` funktionieren auch direkt in `frontend/`.
+
+Frontend und Backend liegen getrennt unter `frontend/` und `backend/`.
+`frontend/` enthält React-Code, öffentliche Assets, Vite-/TypeScript-/ESLint-Konfiguration,
+die Frontend-Umgebungsdateien und die Frontend-Tests. Gemeinsame Betriebsskripte bleiben
+unter `scripts/`, Dokumentation unter `docs/`.
+
+Die folgenden npm-Befehle werden weiterhin im Projektverzeichnis ausgeführt. npm Workspaces
+verwalten die Frontend-Abhängigkeiten über die gemeinsame `package-lock.json` und
+`node_modules/` im Hauptordner. Für eine Installation exakt nach Lockdatei `npm ci` verwenden.
+Die Befehle `dev`, `lint`, `test`, `build` und `preview` funktionieren auch direkt in `frontend/`.
+
 - `npm install` installiert die Abhängigkeiten.
 - `npm run dev` startet die lokale Entwicklungsumgebung.
 - `npm run lint` prüft den Code mit ESLint.
 - `npm test` prüft Sprint-Planung, Dateiaktionen, Wiki, Dev Tools, benutzerspezifische Einstellungen und Projektgrenzen mit dem Node-Test-Runner.
-- `npm run build` prüft TypeScript und erstellt `dist/`.
+- `npm run build` prüft TypeScript und erstellt `frontend/dist/`.
 - `npm run preview` zeigt den Produktionsbuild an.
 
 Unter Windows kann `npm.cmd` verwendet werden, falls PowerShell `npm.ps1` blockiert.
 
+Für den eingerichteten lokalen PostgreSQL-Betrieb: einmal `npm.cmd run setup:local`,
+danach `npm.cmd run start:local`. `npm.cmd run backup:local` erstellt eine Datenbanksicherung.
+Die [lokale Betriebsanleitung](docs/local-operation.md) beschreibt verschlüsselte
+Verbindungseinstellungen, Start/Stop, Sicherung und Wiederherstellung in eine neue Datenbank.
+
 ## Backend-Vorbereitung
 
 Der lokale Modus (`VITE_DATA_MODE=local`, Vorgabe) bleibt ohne Server mit Beispieldaten nutzbar.
-Der API-Modus (`VITE_DATA_MODE=api` in `.env.local`) verwendet die zentrale HTTP-Schicht und
-verlangt eine vom Backend bestätigte Anmeldung. Vite nach Änderungen an `.env.local` neu starten.
+Der API-Modus (`VITE_DATA_MODE=api` in `frontend/.env.local`) verwendet die zentrale HTTP-Schicht und
+verlangt eine vom Backend bestätigte Anmeldung. Vite nach Änderungen an `frontend/.env.local` neu starten.
 
 Das Gerüst unter `backend/` verwendet Java 21, Spring Boot, Spring Security und serverseitige
 BCrypt-Prüfung. Es bietet Cookie-Sitzungen mit CSRF-Schutz, kontobezogene Einstellungen und
@@ -25,11 +50,17 @@ Workspace-Synchronisation für Projekte, Kunden, Aufgaben, Epics, Sprints, Aktiv
 und Wiki. Lade-/Speicherfehler und parallele Änderungen werden in der Oberfläche angezeigt.
 Dev-Tools-Eingaben und offene Entwürfe bleiben lokal.
 
-**Noch keine Datenbank:** Der Referenzserver speichert Fachdaten und Dateien im Arbeitsspeicher;
-ein Backend-Neustart verwirft diese Daten und Sitzungen. Es gibt kein eingebautes Passwort.
-Benutzerkennung, E-Mail und BCrypt-Hash müssen für den Start konfiguriert werden.
+Unter Einstellungen stehen Profil- und Passwortänderung sowie für den Administrator
+Benutzeranlage und Aktivierung/Deaktivierung bereit. Konto-Deaktivierung erhält die Daten.
+Die [Browser-Prüfliste](docs/browser-check.md) enthält die noch offene visuelle Verifikation.
 
-- [Backend starten und später an eine Datenbank anbinden](backend/README.md)
+**Zwei Backend-Profile:** Ohne installierte Datenbank startet standardmäßig `memory` mit
+flüchtigen Fachdaten und Dateien. Das optionale Profil `postgres` speichert Konten, Fachdaten,
+Dateien und Einstellungen über JPA/Flyway in PostgreSQL. PostgreSQL kann später direkt auf
+dem lokalen PC installiert werden; Docker ist nicht erforderlich. Sitzungen bleiben in beiden
+Profilen flüchtig. Es gibt kein eingebautes Passwort; das erste Konto wird aus Startvariablen eingerichtet.
+
+- [Backend starten und PostgreSQL später lokal einrichten](backend/README.md)
 - [Endpunkte und Frontend-Architektur](docs/backend-api.md)
 - [OpenAPI-Vertrag](docs/openapi.json)
 
@@ -127,7 +158,8 @@ Browser-Zwischenablage voraus; andernfalls wird auf manuelles Kopieren hingewies
 Aufgaben, Epics, Sprints, Dateien, Aktivitäten, Wiki-Inhalte und Artikelentwürfe bleiben innerhalb der laufenden
 Sitzung beim Wechsel zwischen Projekten, Ansichten und Modulen erhalten. Alle Änderungen liegen
 im lokalen Modus im Frontend-Speicher und werden beim Neuladen verworfen. Im API-Modus werden
-gespeicherte Fachdaten vom Backend geladen. Die Datenbank-Anbindung folgt nach dieser Vorbereitung.
+gespeicherte Fachdaten vom Backend geladen. Dauerhafte Speicherung verlangt das Backend-Profil
+`postgres` und einen eingerichteten PostgreSQL-Server; im Standardprofil `memory` bleiben die Daten flüchtig.
 
 Das Ticketsystem ist auf Wunsch vorerst zurückgestellt.
 
@@ -264,9 +296,9 @@ Die Tests liegen als `sprintLogic.test.ts`, `fileLogic.test.ts`, `wikiLogic.test
 `jsonLogic.test.ts`, `calculatorLogic.test.ts`, `converterLogic.test.ts`, `restLogic.test.ts` und
 `settingsStore.test.ts` neben der getesteten Logik. REST-Tests verwenden simulierte Antworten
 einschließlich Streams, Fehlern und Abbruch; es werden keine externen Server kontaktiert.
-Weitere Tests unter `src/services/` prüfen API-/CSRF-Verhalten, Sitzungswechsel, Synchronisation,
+Weitere Tests unter `frontend/src/services/` prüfen API-/CSRF-Verhalten, Sitzungswechsel, Synchronisation,
 Dateiübertragung und Konflikte. Spring-Integrationstests liegen unter `backend/src/test/`.
 `npm test` verwendet den vorhandenen TypeScript-Compiler und den eingebauten Node-Test-Runner ohne
-weitere Abhängigkeiten. Temporäre JavaScript-Dateien werden unter `node_modules/.tmp/feature-tests/` erzeugt. `npm run build`
+weitere Abhängigkeiten. Temporäre JavaScript-Dateien werden unter `frontend/node_modules/.tmp/feature-tests/` erzeugt. `npm run build`
 prüft auch die Typen der Tests. Vor der Abgabe sind zusätzlich ESLint, Produktionsbuild und eine
 manuelle Browserprüfung vorgesehen.

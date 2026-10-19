@@ -2,11 +2,13 @@ package de.forgeflow.workspace;
 
 import java.util.*;
 import org.springframework.stereotype.Repository;
+import org.springframework.context.annotation.Profile;
 import de.forgeflow.api.ApiFailure;
 import de.forgeflow.workspace.WorkspaceDtos.*;
 
-// Reference adapter without database. Replace this bean with a transactional Spring Data implementation.
+// Default reference adapter. The postgres profile selects JpaWorkspaceStorage instead.
 @Repository
+@Profile("!postgres")
 public class MemoryWorkspaceStorage implements WorkspaceStorage {
     private final Map<String, Envelope> workspaces = new HashMap<>();
     private final Map<String, Map<Long, Attachment>> attachments = new HashMap<>();

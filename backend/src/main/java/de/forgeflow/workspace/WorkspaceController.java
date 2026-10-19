@@ -26,8 +26,8 @@ public class WorkspaceController {
     public WorkspaceController(WorkspaceStorage storage, Accounts accounts, JsonMapper json, Validator validator) {
         this.storage = storage; this.accounts = accounts; this.json = json; this.validator = validator;
     }
-    private String owner(Authentication auth) { return accounts.findByEmail(auth.getName()).orElseThrow(() -> new ApiFailure(401, "UNAUTHENTICATED", "Bitte anmelden.")).id(); }
-    @GetMapping("/health") Map<String, String> health() { return Map.of("status", "ok", "storage", "reference"); }
+    private String owner(Authentication auth) { return accounts.findById(auth.getName()).filter(Accounts.User::active).orElseThrow(() -> new ApiFailure(401, "UNAUTHENTICATED", "Bitte anmelden.")).id(); }
+    @GetMapping("/health") Map<String, String> health() { return Map.of("status", "ok", "storage", storage.kind()); }
     @GetMapping("/workspace") ResponseEntity<Envelope> workspace(Authentication auth) {
         Envelope record = storage.load(owner(auth)); return ResponseEntity.ok().eTag(record.revision()).body(record);
     }
