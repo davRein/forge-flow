@@ -27,7 +27,8 @@ Vorgaben über denselben Speicherweg. Ein Speicherfehler erhält die Auswahl und
   "settings": {
     "themeMode": "dark",
     "defaultProjectView": "dashboard",
-    "defaultTaskPriority": "medium"
+    "defaultTaskPriority": "medium",
+    "language": "de"
   }
 }
 ```
@@ -41,12 +42,50 @@ folgen derzeit der zuletzt beim Server eingegangenen Änderung.
 Im normalen API-Betrieb werden beide aus der echten Sitzung und dem HTTP-Adapter abgeleitet.
 Beim Abmelden während unbestätigter Änderungen wird vor dem Verwerfen lokaler Daten nachgefragt.
 
-## Spätere Datenbank-Anbindung
+## Einstellungsmenü und Sprache
 
-Das Spring-Gerüst implementiert die Endpunkte bereits über `WorkspaceStorage.loadSettings` und
-`saveSettings`. Aktuell speichert der Referenzadapter im Backend-Arbeitsspeicher. Beim Neustart
-gehen diese Werte verloren. Für dauerhafte Speicherung wird dieser Adapter durch ein Spring-Data-
-Repository mit eindeutiger `user_id`, Formatversion, Einstellungswerten und Änderungszeitpunkt ersetzt.
+Der Einstellungstab hat ein eigenes Menü mit Nutzerverwaltung, Optik, Projektmanager
+und Sprache. `?category=users|appearance|projects|language` erlaubt Direktlinks;
+ohne gültige Kategorie wird Optik angezeigt. Kontoentwürfe bleiben beim Wechsel
+zwischen den Kategorien erhalten. Auf schmalen Bildschirmen steht das Menü oben.
+
+`settings.language` unterstützt `de` und `en`. Fehlende/ungültige Werte im gespeicherten
+Client-Format übernehmen die aktuelle Browservorgabe, sonst `en`. Der Server akzeptiert ausschließlich diese
+beiden Sprachcodes; alte Requests ohne Sprachfeld bleiben gültig und verwenden Deutsch.
+Der Sprachwechsel übersetzt die Einstellungen einschließlich ihrer Kontoformulare,
+Wiki und Dev Tools sowie gemeinsame Navigation und Statusmeldungen. Benutzereingaben, Wiki-Inhalte, JSON-Werte
+und REST-Antworten werden nicht übersetzt. Alle Einstellungen zurücksetzen setzt auch
+die Sprache auf Englisch zurück.
+
+### Sprache vor der Anmeldung
+
+Der Login einschließlich Sitzungsprüfung, Formularbeschriftungen, Fehlern und Hinweisen
+verwendet denselben Übersetzungsdienst. Die zuletzt angewendete Kontosprache bzw. manuelle
+Auswahl wird zusätzlich als `de` oder `en` unter `forgeflow.language` im Local Storage
+dieses Browsers und dieser Website gespeichert. So bleibt insbesondere eine englische
+Auswahl nach Abmeldung, Neuladen oder erneutem Browseraufruf erhalten. Es werden dort
+keine Kontokennungen, Zugangsdaten oder Sitzungstokens abgelegt. Bei gesperrtem oder vollem
+Browserspeicher funktioniert der Sprachwechsel für die laufende Seite weiter; nach deren
+Schließen kann die Auswahl dann nicht dauerhaft erhalten bleiben.
+
+Ohne gemerkte Sprache gilt Englisch. Nur wenn die primäre Browser-Locale eine explizite
+Region `DE`, `AT` oder `CH` enthält, wird Deutsch vorausgewählt, auch beispielsweise bei
+`fr-CH` oder `en-DE`. Ein bloßes `de` ohne Region reicht nicht; unbekannte/ungültige Angaben
+führen zu Englisch. Dies ist ein Browserregionshinweis, keine Bestimmung des tatsächlichen
+Aufenthaltsorts. Keine GPS-Freigabe, IP-Geolokalisierung oder zusätzliche Netzwerkanfrage.
+
+Nach der Anmeldung hat eine gültige gespeicherte Kontosprache Vorrang und aktualisiert
+auch die Vorgabe für den nächsten Login in diesem Browser. Ohne Kontoeinstellungen gilt
+die Browserauswahl. Einstellungen werden beim Laden nicht automatisch zum Server geschrieben.
+Das HTML-Attribut `lang` folgt der aktiven Sprache für Login und Anwendung. Bereits in
+PostgreSQL gespeicherte deutsche Einstellungen bleiben bestehen; es gibt keine Migration.
+
+## Speicherung im Backend
+
+Die Endpunkte verwenden `WorkspaceStorage.loadSettings` und `saveSettings`. Das Memory-Profil
+speichert nur bis zum Backend-Neustart. Das PostgreSQL-Profil speichert Einstellungen
+kontogetrennt in `ff_settings`. Flyway V4 ergänzt die Sprachspalte mit Vorgabe `de` für
+bestehende Zeilen; bisherige Optik- und Projektmanager-Vorgaben bleiben erhalten.
 Einstellungen bleiben von Projekt-, Kunden-, Aufgaben-, Datei- und Wiki-Daten getrennt.
 
 Weitere Details: [Backend-Vertrag](backend-api.md), [Spring-Boot-Gerüst](../backend/README.md).

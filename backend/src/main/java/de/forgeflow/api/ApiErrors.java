@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.TransactionException;
@@ -21,7 +22,7 @@ public class ApiErrors {
     }
     @ExceptionHandler(ApiFailure.class)
     ResponseEntity<?> failure(ApiFailure error) { return ResponseEntity.status(error.status).body(payload(error.code, error.getMessage())); }
-    @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})
+    @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
     ResponseEntity<?> invalid(Exception error) { return ResponseEntity.badRequest().body(payload("INVALID_INPUT", "Bitte die Eingaben prüfen.")); }
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     ResponseEntity<?> tooLarge(Exception error) { return ResponseEntity.status(413).body(payload("PAYLOAD_TOO_LARGE", "Die Anfrage ist zu groß.")); }

@@ -5,10 +5,7 @@ import ProjectListItem from './ProjectListItem';
 import { Project } from '../types/project.types';
 
 const Container = styled.div`
-    background: ${({ theme }) => theme.colors.header};
-    border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: 12px;
-    padding: 12px;
+    min-width: 0;
 `;
 
 type Props = {

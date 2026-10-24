@@ -1,5 +1,8 @@
 # Manuelle Funktionsprüfung
 
+Für kompakte Dev Tools und private REST-Collections siehe die zusätzliche Prüfliste
+in [browser-check.md](browser-check.md) und [Funktionsbeschreibung](rest-collections.md).
+
 Diese Liste beschreibt manuell auszuführende Prüfungen; sie bestätigt keine durchgeführte Browserprüfung.
 
 1. Zwischen Dashboard, Projekten, Kunden und den Modulen wechseln; Browser-Zurück/Vorwärts prüfen.

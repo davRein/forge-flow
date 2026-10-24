@@ -1,8 +1,10 @@
 import type { Workspace, WorkspaceRepository } from './workspaceTypes';
 
-type State = { data: Workspace | null; status: 'loading' | 'ready' | 'saving' | 'error'; error: string | null; conflict: boolean };
+type SaveNotice = { id: number; kind: 'success' | 'error' };
+type State = { data: Workspace | null; status: 'loading' | 'ready' | 'saving' | 'error'; error: string | null; conflict: boolean; saveNotice: SaveNotice | null };
 export function createWorkspaceStore(repository: WorkspaceRepository) {
-    let state: State = { data: null, status: 'loading', error: null, conflict: false };
+    let state: State = { data: null, status: 'loading', error: null, conflict: false, saveNotice: null };
+    let noticeId = 0;
     let revision = '';
     let changed = 0;
     let saved = 0;
@@ -23,11 +25,13 @@ export function createWorkspaceStore(repository: WorkspaceRepository) {
             const nextRevision = await repository.save(data, revision, controller.signal);
             if (run !== generation) return;
             revision = nextRevision; saved = target;
-            emit({ status: saved === changed ? 'ready' : 'saving' });
+            // A load or an intermediate write must never announce that all edits were saved.
+            emit({ status: saved === changed ? 'ready' : 'saving',
+                saveNotice: saved === changed ? { id: ++noticeId, kind: 'success' } : null });
         } catch (error) {
             if (run !== generation) return;
             const conflict = typeof error === 'object' && error !== null && 'status' in error && error.status === 409;
-            emit({ status: 'error', conflict, error: conflict ? 'Die Daten wurden in einer anderen Sitzung geändert. Lade den Serverstand, bevor du weiter speicherst.'
+            emit({ status: 'error', conflict, saveNotice: { id: ++noticeId, kind: 'error' }, error: conflict ? 'Die Daten wurden in einer anderen Sitzung geändert. Lade den Serverstand, bevor du weiter speicherst.'
                 : error instanceof Error ? error.message : 'Änderungen konnten nicht gespeichert werden.' });
         } finally {
             if (run === generation) { saving = false; if (!state.error && changed !== saved) void flush(); }
@@ -40,7 +44,7 @@ export function createWorkspaceStore(repository: WorkspaceRepository) {
         async load() {
             generation++; const run = generation;
             controller.abort(); controller = new AbortController(); saving = false;
-            emit({ status: 'loading', data: null, error: null, conflict: false });
+            emit({ status: 'loading', data: null, error: null, conflict: false, saveNotice: null });
             try {
                 const result = await repository.load(controller.signal);
                 if (run !== generation) return;
@@ -52,10 +56,22 @@ export function createWorkspaceStore(repository: WorkspaceRepository) {
             if (!state.data) throw new Error('Die Daten sind noch nicht geladen.');
             const value = typeof action === 'function' ? action(state.data[key]) : action;
             if (value === state.data[key]) return;
-            changed++; emit({ data: { ...state.data, [key]: value }, status: state.error ? 'error' : 'saving' });
+            changed++; emit({ data: { ...state.data, [key]: value }, status: state.error ? 'error' : 'saving',
+                saveNotice: state.error ? state.saveNotice : null });
             if (!scheduled) { scheduled = true; queueMicrotask(() => { scheduled = false; void flush(); }); }
         },
-        retry() { if (state.conflict) return; emit({ error: null, status: 'saving' }); void flush(); },
+        async refreshExternal() {
+            // Keep mounted forms/chat. Never replace edits made while the read was in flight.
+            if (!state.data || state.status !== 'ready' || state.error || saved !== changed || saving) return false;
+            const run = generation, before = changed;
+            const result = await repository.load(controller.signal);
+            if (run !== generation || changed !== before || saved !== changed || saving) return false;
+            revision = result.revision; emit({ data: result.data, status: 'ready', error: null, conflict: false }); return true;
+        },
+        dismissSaveNotice(id: number) {
+            if (state.saveNotice?.id === id && state.saveNotice.kind === 'success') emit({ saveNotice: null });
+        },
+        retry() { if (state.conflict) return; emit({ error: null, status: 'saving', saveNotice: null }); void flush(); },
         dispose() { generation++; controller.abort(); saving = false; }
     };
 }

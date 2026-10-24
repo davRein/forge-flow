@@ -80,10 +80,11 @@ class DatabaseStorageIntegrationTest extends BackendIntegrationTest {
     private Data fixture(String title) {
         return new Data(
             List.of(new Project(1, 1, title, false, "2026-12-31")),
-            List.of(new Customer(1, "Kunde", "", "", "", "", null, "", "")),
+            List.of(new Customer(1, "Kunde", "", "", "", "", null, "", "", "01234", List.of(new CustomerContact(1, 1, "Persistent contact", "Manager", "contact@example.test", "123")), "Persistent notes 😀")),
             List.of(), List.of(), List.of(), List.of(),
             List.of(new FileMetadata(1, 1, "Grüße.txt", 5, "text/plain", 0, NOW, NOW)),
-            new Wiki(List.of(), List.of()));
+            new Wiki(List.of(new Article(1, "Child", "  Persistent child 😀\n", 1L, NOW, NOW, 9L), new Article(9, "Root", "# Persistent root", 1L, NOW, NOW)),
+                List.of(new Category(1, "Documentation", "Existing space", NOW, NOW))));
     }
 
     private Map<Long, WorkspaceStorage.Attachment> file(String text) {
@@ -170,6 +171,10 @@ class DatabaseStorageIntegrationTest extends BackendIntegrationTest {
             "insert into ff_projects(owner_id, id, sort_order, customer_id, name, planning_completed, deadline) values (?, 1, 0, 1, 'Fremd', false, '2026-12-31')", second))
             .isInstanceOf(DataIntegrityViolationException.class);
         assertThat(storage.load(second).data()).isEqualTo(Data.empty());
+        assertThatThrownBy(() -> jdbc.update("insert into ff_customer_contacts(owner_id,id,customer_id,sort_order,name,role,email,phone) values (?,1,1,0,'Foreign','','','')", second))
+            .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("insert into ff_wiki_articles(owner_id,id,sort_order,title,content,parent_id,created_at,updated_at) values (?,1,0,'Foreign','Text',9,?,?)", second, NOW, NOW))
+            .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
@@ -185,10 +190,13 @@ class DatabaseStorageIntegrationTest extends BackendIntegrationTest {
     @Test
     void aNewBackendInstanceReadsCommittedAccountsSettingsWorkspaceAndFiles() {
         String owner = newOwner();
+        var savedRestCollections = restCollections.save(owner, restFixture());
         var original = fixture("Dauerhaft");
         String revision = storage.save(owner, storage.load(owner).revision(), original, file("Hallo"));
-        var settings = new Settings(1, new SettingsValues("light", "projects", "high"));
+        var settings = new Settings(1, new SettingsValues("light", "projects", "high", "en"));
         storage.saveSettings(owner, settings);
+        var previousGlobal = storage.loadGlobalSettings();
+        var savedGlobal = storage.saveGlobalSettings(new de.forgeflow.workspace.GlobalSettings(previousGlobal.revision(), List.of("Persistent industry")));
         try (var context = new SpringApplicationBuilder(BackendApplication.class).run(
                 "--spring.profiles.active=postgres", "--server.port=0",
                 "--spring.datasource.url=" + URL, "--spring.datasource.username=" + USER,
@@ -196,16 +204,40 @@ class DatabaseStorageIntegrationTest extends BackendIntegrationTest {
                 "--forgeflow.user.email=", "--forgeflow.user.password-hash=",
                 "--spring.main.banner-mode=off", "--logging.level.root=ERROR")) {
             WorkspaceStorage other = context.getBean(WorkspaceStorage.class);
+            assertThat(context.getBean(de.forgeflow.rest.RestCollectionsStorage.class).load(owner)).isEqualTo(savedRestCollections);
             assertThat(other.load(owner)).isEqualTo(new Envelope(1, revision, original));
             assertThat(other.loadSettings(owner)).isEqualTo(settings);
+            assertThat(other.loadGlobalSettings()).isEqualTo(savedGlobal);
             assertThat(other.attachment(owner, 1, 1).bytes()).isEqualTo("Hallo".getBytes(java.nio.charset.StandardCharsets.UTF_8));
             assertThat(context.getBean(Accounts.class).findByEmail(owner + "@example.test")).isPresent();
+        } finally {
+            storage.saveGlobalSettings(new de.forgeflow.workspace.GlobalSettings(storage.loadGlobalSettings().revision(), previousGlobal.industries()));
         }
     }
 
     @Test
     void healthReportsTheConfiguredStorage() throws Exception {
         mvc.perform(get("/api/v1/health")).andExpect(status().isOk()).andExpect(jsonPath("$.storage").value("postgresql"));
+    }
+
+    @Test void simultaneousFirstRestCollectionWritesCommitExactlyOnce() throws Exception {
+        String owner = newOwner(); var input = restFixture(); var start = new CountDownLatch(1);
+        Callable<Integer> save = () -> { start.await(); try { restCollections.save(owner, input); return 200; } catch (ApiFailure failure) { return failure.status; } };
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var first = executor.submit(save); var second = executor.submit(save); start.countDown();
+            assertThat(List.of(first.get(15, TimeUnit.SECONDS), second.get(15, TimeUnit.SECONDS))).containsExactlyInAnyOrder(200, 409);
+        }
+        assertThat(restCollections.load(owner).collections()).isEqualTo(input.collections());
+    }
+
+    @Test void failedRestCollectionWriteRollsBackPayloadAndRevision() {
+        String owner = newOwner(); var saved = restCollections.save(owner, restFixture());
+        jdbc.execute("alter table ff_rest_collections add constraint test_rest_failure check (payload not like '%reject-rest-write%')");
+        try {
+            var next = new de.forgeflow.rest.RestCollections(1, saved.revision(), List.of(new de.forgeflow.rest.RestCollections.Collection(UUID.randomUUID(), "reject-rest-write", List.of())));
+            assertThatThrownBy(() -> restCollections.save(owner, next)).isInstanceOf(DataIntegrityViolationException.class);
+            assertThat(restCollections.load(owner)).isEqualTo(saved);
+        } finally { jdbc.execute("alter table ff_rest_collections drop constraint test_rest_failure"); }
     }
 
     @Test

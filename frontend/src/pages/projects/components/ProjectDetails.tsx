@@ -12,14 +12,13 @@ import { useTasks } from '../tabs/tasks/hooks/useTasks';
 import type { useEpics } from '../tabs/epics/hooks/useEpics';
 import type { useSprints } from '../tabs/sprints/hooks/useSprints';
 import type { useProjectFiles } from '../tabs/files/hooks/useProjectFiles';
+import { surface } from '../../../styles/primitives';
 
 const Container = styled.div`
-    background: ${({ theme }) => theme.colors.header};
-
-    border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: 12px;
-
-    padding: 20px;
+    ${surface}
+    min-width: 0;
+    padding: 24px;
+    @media (max-width: 760px) { padding: 16px; }
 `;
 
 const Meta = styled.p`

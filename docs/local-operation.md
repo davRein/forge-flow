@@ -59,6 +59,9 @@ Das Skript startet Backend und Frontend in verborgenen Hilfsprozessen, prüft ih
 und meldet anschließend http://localhost:5173 als bereit. Ausgabe liegt in backend/.local/logs/.
 Mit Strg+C werden nur die von diesem Aufruf gestarteten Prozessbäume beendet.
 Bereits belegte Ports werden gemeldet; fremde Prozesse werden nicht beendet.
+Die Prüfung berücksichtigt IPv4 und IPv6. Falls `localhost:5173` HTTP 404 liefert,
+obwohl `127.0.0.1:5173` funktioniert, kann noch ein alter Vite-Prozess auf IPv6 laufen.
+Diesen im ursprünglichen Terminal mit Strg+C beenden und anschließend gemeinsam neu starten.
 
 Java und Maven werden zuerst aus der Umgebung, ersatzweise aus den bereits vorhandenen
 portablen Werkzeugen unter node_modules/.tmp/backend-tools verwendet.
@@ -152,7 +155,7 @@ Die vorhandene Kontotrennung bleibt auch gegenüber dem Administrator erhalten.
 npm.cmd run test:local-scripts
 ```
 
-Prüft Skriptsyntax, einen DPAPI-Roundtrip mit erzeugten Testdaten, Ablehnung entfernter
+Prüft Skriptsyntax, IPv4-/IPv6-Portkonflikte, einen DPAPI-Roundtrip mit erzeugten Testdaten, Ablehnung entfernter
 Datenbankziele, beschädigte Archive und den Schutz vorhandener Datenbanken.
 Ein echter Dump-/Restore-Test wird damit nicht ersetzt; dafür die Schritte oben verwenden.
 

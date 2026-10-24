@@ -7,17 +7,22 @@ import { getProjectStatus } from '../../../utils/getProjectStatus';
 
 const Container = styled.button<{ $active: boolean }>`
     width: 100%;
-    border: 1px solid ${({ theme, $active }) => $active ? theme.colors.primary : 'transparent'};
+    border: 1px solid transparent;
+    border-left: 2px solid ${({ theme, $active }) => $active ? theme.colors.borderStrong : 'transparent'};
     cursor: pointer;
 
-    padding: 14px;
-    margin-bottom: 8px;
-    border-radius: 8px;
+    min-height: 40px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    > div { min-width: 0; overflow-wrap: anywhere; }
+    strong { font-weight: 500; }
 
     color: ${({ theme }) => theme.colors.text};
+    text-align: left;
 
     background: ${({ $active, theme }) =>
-    $active ? `${theme.colors.primary}15` : 'transparent'};
+    $active ? theme.colors.content : 'transparent'};
 
     display: flex;
     align-items: center;
@@ -25,7 +30,7 @@ const Container = styled.button<{ $active: boolean }>`
     gap: 10px;
 
     &:hover {
-        background: ${({ theme }) => `${theme.colors.primary}25`};
+        background: ${({ theme }) => theme.colors.surfaceHover};
     }
 `;
 
@@ -44,7 +49,7 @@ export default function ProjectListItem({
     const status = getProjectStatus(project);
 
     return (
-        <Container $active={active} onClick={onClick}>
+        <Container type="button" $active={active} aria-pressed={active} onClick={onClick}>
             <div>
                 <strong>{project.name}</strong>
             </div>

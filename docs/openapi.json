@@ -645,6 +645,838 @@
           }
         ]
       }
+    },
+    "/ai/conversations": {
+      "get": {
+        "operationId": "listAiConversations",
+        "description": "Eigene nicht abgelaufene Unterhaltungen, neueste Aktivität zuerst. Höchstens 50. PostgreSQL dauerhaft, Memory flüchtig. Keine Modellanfrage; Lesen verlängert die Aufbewahrung nicht.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gesprächsliste mit Speicherart und Inaktivitätsfrist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiConversationList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Strukturierter Fehler, insbesondere 401 und 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createAiConversation",
+        "description": "Neue kontogetrennte Unterhaltung: im PostgreSQL-Profil dauerhaft, sonst im Arbeitsspeicher. Ohne aktivierte KI: 503 AI_DISABLED. Verlangt Origin und CSRF.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiCreateConversation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Unterhaltung angelegt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiConversation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Strukturierter Fehler, insbesondere 400, 401, 403, 429 und 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/conversations/{id}": {
+      "delete": {
+        "operationId": "deleteAiConversation",
+        "description": "Eigenes Gespräch samt Ausführungshistorie atomar löschen. Origin und CSRF erforderlich. Fremde, unbekannte oder abgelaufene Kennungen ergeben 404, laufende Gespräche 409 AI_CONVERSATION_BUSY. Keine Modellanfrage.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Gespräch und Ausführungshistorie gelöscht."
+          },
+          "default": {
+            "description": "Strukturierter Fehler, insbesondere 400, 401, 403, 404, 409 und 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "getAiConversation",
+        "description": "Bestätigten Verlauf einer eigenen Unterhaltung laden. Fremde, unbekannte und abgelaufene IDs ergeben 404. Keine Modellanfrage.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unterhaltung.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiConversation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Strukturierter Fehler, insbesondere 400, 401, 404 und 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/conversations/{id}/executions": {
+      "get": {
+        "operationId": "listAiExecutions",
+        "description": "Letzte 50 Läufe einer eigenen Unterhaltung, neueste zuerst. Validierte kanonische Werkzeugargumente, sichere Fehlercodes; keine privaten Aktionsfreigaben oder Sitzungsversionen. Keine Modellanfrage oder automatische Fortsetzung.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ausführungshistorie.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "maxItems": 50,
+                  "items": {
+                    "$ref": "#/components/schemas/AiExecutionRecord"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Strukturierter Fehler, insbesondere 400, 401, 404 und 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/conversations/{id}/messages": {
+      "post": {
+        "operationId": "sendAiMessage",
+        "description": "Synchroner JSON-Endpunkt mit eigenem Verlauf, standardmäßig vier aufeinanderfolgenden Werkzeugschritten und höchstens fünf Provider-Anfragen (AI_MAX_TOOL_STEPS: 1–6, maximal N+1 Provider-Anfragen). Erfolgreiche requestId mit identischem Text und normalisiertem Seitenkontext wird ohne erneute Modellanfrage wiedergegeben; Abweichung ergibt 409. Ein Vorschlag navigiert nicht und erfordert separate Freigabe. Verlangt Origin und CSRF.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiSendMessage"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Abgeschlossener Nachrichtenwechsel; truncated markiert das Ausgabelimit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiTurn"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Strukturierter Fehler, insbesondere 400, 401, 403, 404, 409, 422, 429, 502, 503 und 504.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/conversations/{id}/messages/stream": {
+      "post": {
+        "operationId": "streamAiMessage",
+        "description": "POST-SSE mit Cookie, Origin und CSRF. SendMessage wie beim JSON-Endpunkt. Accept: text/event-stream, application/json. Ereignisse: ready {requestId}, ping {}, delta {text}, execution AiExecutionProgress, tool AiToolEvent, done AiTurn, cancelled {requestId}, error {status,code,message}. Nur done bestätigt ein atomar gespeichertes Nachrichtenpaar samt assistant.tools. Standardmäßig vier aufeinanderfolgende Werkzeugschritte und höchstens fünf Provider-Anfragen pro Chat-Versuch. AI_MAX_TOOL_STEPS: 1–6, eine zusätzliche Textantwort. Höchstens ein Werkzeug pro Modellantwort; keine parallelen Aufrufe. Vorschläge und nicht eindeutige Ergebnisse beenden die Werkzeugfolge. Gesamtantwort höchstens 16000 UTF-16-Zeichen, alle Werkzeugergebnisse zusammen höchstens 24000 JSON-Zeichen. Wiederholungen oder wechselnde Workspace-Revisionen brechen den unbestätigten Lauf ab. Keine automatische Fortsetzung. Fehler vor Streambeginn verwenden HTTP/ApiError, danach error im HTTP-200-Stream. EOF ohne Terminalereignis ist unbestätigt; GET des Verlaufs kann einen verlorenen Commit nachladen. Keine automatische Modellwiederholung. Totalzeitlimit AI_TIMEOUT, Herzschlag und Sitzungsprüfung jede Sekunde. Erfolgreiche requestId wird ausschließlich als done wiedergegeben. X-Accel-Buffering:no, Cache-Control:no-store. Keine SSE-Reconnect-/Last-Event-ID-Unterstützung.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiSendMessage"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "UTF-8 Server-Sent Events mit JSON-Daten; Terminierung durch done, cancelled oder error.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Strukturierter Fehler vor Streambeginn, insbesondere 400, 401, 403, 404, 409, 422, 429 und 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/global": {
+      "get": {
+        "operationId": "getGlobalSettings",
+        "description": "Globale Auswahllisten für aktive angemeldete Nutzer, unabhängig vom eigenen Workspace.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aktuelle globale Branchenliste mit Revision.",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobalSettings"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Strukturierter Fehler: 400, 401, 403, 409, 422, 428 oder 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "saveGlobalSettings",
+        "description": "Nur aktuelle Administratoren; Origin/CSRF und If-Match erforderlich. Eigene globale Revision, 409 bei paralleler Änderung. Ersetzt nur die Liste, keine Kundenwerte. Keine automatische Wiederholung.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Revision des Bodys in doppelten Anführungszeichen."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GlobalSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Aktuelle globale Branchenliste mit Revision.",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobalSettings"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Strukturierter Fehler: 400, 401, 403, 409, 422, 428 oder 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/conversations/{id}/creations/{actionId}/decision": {
+      "post": {
+        "operationId": "decideAiWorkspaceCreation",
+        "description": "Explizite Freigabe/Ablehnung eines registrierten fünfminütigen Anlage- oder Änderungsvorschlags. Historischer Pfadname creations gilt für beide Typen. Origin, CSRF, eigene Unterhaltung und aktuelle ursprüngliche Kontoversion erforderlich. Keine austauschbaren Daten oder before-Werte im Request. Vorschlag und Workspace-Revision werden erneut geprüft; 409 AI_CREATE_CONFLICT bei Änderung. Fachänderung und Chatstatus atomar in PostgreSQL, Wiederholung eines Erfolgs schreibt nicht erneut. Neue Konten nur als Administrator mit separatem privatem Initialpasswort. Keine Modellanfrage.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "actionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiCreationDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Persistierter Status: succeeded bestätigt Speicherung, rejected verwirft den Vorschlag.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiWorkspaceMutation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Strukturierter Fehler: 400, 401, 403, 404, 409, 422, 503; keine Credentials/SQL-Details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/conversations/{id}/actions/{actionId}/decision": {
+      "post": {
+        "operationId": "decideAiNavigation",
+        "description": "Explizites approve/reject eines im bestätigten Nachrichtenpaar gespeicherten Navigationsvorschlags. Verlangt aktive ursprüngliche Kontoversion, eigene Unterhaltung, Origin und CSRF. Vorschlag gilt fünf Minuten. Approve prüft Projektkennung und angezeigten Namen im eigenen gespeicherten Workspace erneut und verbraucht die Freigabe atomar. Nur die erste Freigabe liefert executionId; Wiederholungen ergeben 409, keine automatische Wiederholung bei Verbindungsfehlern. Reject liest den Workspace nicht. Keine Modellanfrage, kein Fachdatenschreiben, keine URLs/JS oder Zielparameter im Request.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "actionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiNavigationDecisionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Freigabe oder Ablehnung; nur bei erstmaliger Freigabe ein Ausführungsnachweis für diesen Browseraufruf.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiNavigationDecision"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Strukturierter Fehler, insbesondere 400, 401, 403, 404, 409 und 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/conversations/{id}/actions/{actionId}/result": {
+      "post": {
+        "operationId": "reportAiNavigation",
+        "description": "Meldet das Ergebnis der freigegebenen UI-Navigation zurück. executionId muss zur einmaligen Freigabe passen. Terminaler Status ist unveränderlich; identische Ergebniswiederholung ist idempotent. Status und Fehlercode sind geschlossen. Browsermeldung, kein serverseitiger Nachweis sichtbarer UI. GET und Chat-Replay zeigen den aktuellen Status, führen niemals erneut aus. Keine Modellanfrage; Rückmeldung wird erst der nächsten expliziten Chatnachricht als User-Metadatum beigefügt. Verlangt Origin, CSRF und ursprüngliche aktive Kontoversion.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "actionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiNavigationResultInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Aktualisierter Aktionsstatus.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiNavigationAction"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Strukturierter Fehler, insbesondere 400, 401, 403, 404, 409 und 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/conversations/{id}/requests/{requestId}/cancel": {
+      "post": {
+        "operationId": "cancelAiMessage",
+        "description": "Bricht die passende aktive Stream-Anfrage eines eigenen Gesprächs ab. Verlangt Origin und CSRF. Keine Modellanfrage. Unbekannte/fremde Gespräche: 404. Nicht mehr aktive oder andere requestId: idempotentes 204. 204 bestätigt keine Rücknahme einer bereits abgeschlossenen Antwort; GET liefert den bestätigten Verlauf. Verbindungsabbruch beendet die Anbieter-Subscription spätestens beim erkannten Schreibfehler/Herzschlag; bis zum Abbruch bereits verbrauchte Token können Kosten verursachen.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Abbruch verarbeitet; keine Antwortdaten."
+          },
+          "default": {
+            "description": "Strukturierter Fehler, insbesondere 400, 401, 403, 404 und 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/rest-collections": {
+      "get": {
+        "operationId": "getRestCollections",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Confirmed private account collections.",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Quoted revision."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestCollections"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "saveRestCollections",
+        "description": "Save definitions only. Never executes HTTP requests. Requires the active owner, normal Origin and CSRF checks, and an exact quoted If-Match matching the body revision. No automatic write retry.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestCollections"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Confirmed private account collections.",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Quoted revision."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestCollections"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid structure or field bounds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin or CSRF rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Collections have changed; reload explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Serialized collections exceed 1 MiB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid URLs, duplicate IDs, total request limit or header/body revision mismatch.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Save failed; previous confirmed data retained.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -844,6 +1676,31 @@
           },
           "industry": {
             "type": "string"
+          },
+          "postalCode": {
+            "type": "string",
+            "maxLength": 32,
+            "default": "",
+            "description": "Postleitzahl als Text; führende Nullen und internationale Formate bleiben erhalten. Fehlend/null wird für Altclients als leer normalisiert."
+          },
+          "contacts": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/CustomerContact"
+            },
+            "description": "Ansprechpartner dieses Kunden, Kennungen im eigenen Workspace eindeutig, insgesamt maximal 10000. Fehlend/null in einem Altclient-Request erhält vorhandene Kontakte; explizit [] entfernt sie."
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 6000,
+            "description": "Interne Klartextnotizen. Fehlend/null erhält bestehende Notizen bei Altclients; explizit leer löscht den Text. Antworten liefern Text."
           }
         },
         "required": [
@@ -1347,6 +2204,15 @@
                 "format": "date-time"
               }
             ]
+          },
+          "parentId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Übergeordnete Dokumentationsseite desselben Bereichs und Kontos; null = oberste Ebene. Fehlend in einem älteren Workspace-HTTP-Request erhält eine bestehende Zuordnung. Keine Zyklen, höchstens zwölf Ebenen."
           }
         },
         "required": [
@@ -1549,6 +2415,14 @@
                   "medium",
                   "high"
                 ]
+              },
+              "language": {
+                "enum": [
+                  "de",
+                  "en"
+                ],
+                "default": "de",
+                "description": "Interface language for settings, Wiki, Dev Tools, and shared navigation; omitted values default to German."
               }
             },
             "required": [
@@ -1643,6 +2517,2288 @@
           "password"
         ]
       },
+      "AiCreateConversation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "de",
+              "en",
+              null
+            ],
+            "default": "de"
+          }
+        }
+      },
+      "AiSendMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "message"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Für erfolgreiche Wiederholungen dieselbe Kennung, denselben Text und denselben normalisierten Kontext verwenden."
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000,
+            "pattern": "\\S",
+            "description": "Höchstens 4000 UTF-16-Codeeinheiten; mindestens ein Nicht-Leerraumzeichen."
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiPageContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optionaler Seitenbezug beim Senden; keine URLs, Entwürfe oder Berechtigungen."
+          }
+        }
+      },
+      "AiPageContext": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "route"
+        ],
+        "properties": {
+          "route": {
+            "type": "string",
+            "maxLength": 64,
+            "enum": [
+              "/projectManager/dashboard",
+              "/projectManager/projects",
+              "/projectManager/customers",
+              "/projectManager/settings",
+              "/wiki/home",
+              "/wiki/articles",
+              "/wiki/categories",
+              "/wiki/search",
+              "/devTools/json",
+              "/devTools/rest",
+              "/devTools/calculator",
+              "/devTools/converter"
+            ]
+          },
+          "projectId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Nur bei sichtbaren Projektdetails. Existenz im eigenen gespeicherten Workspace wird serverseitig geprüft."
+          },
+          "projectTab": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              null,
+              "overview",
+              "tasks",
+              "board",
+              "tickets",
+              "epics",
+              "sprints",
+              "files",
+              "settings"
+            ],
+            "description": "Nur mit projectId; ohne Angabe wird overview verwendet."
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "projectId"
+              ],
+              "properties": {
+                "projectId": {
+                  "type": "integer"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "route": {
+                  "enum": [
+                    "/projectManager/dashboard",
+                    "/projectManager/projects"
+                  ]
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "projectTab": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "AiExecutionProgress": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "phase",
+          "step",
+          "maxSteps"
+        ],
+        "description": "Nur SSE-Fortschritt eines unbestätigten Laufs. step zählt bei reading den beginnenden, sonst die abgeschlossenen Werkzeugschritte; step <= maxSteps, thinking nur solange step < maxSteps. Keine Ausführungserlaubnis.",
+        "properties": {
+          "phase": {
+            "enum": [
+              "thinking",
+              "reading",
+              "answering"
+            ]
+          },
+          "step": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "maxSteps": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6,
+            "description": "Serverseitige AI_MAX_TOOL_STEPS, Vorgabe 4."
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "phase": {
+                  "const": "reading"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "step": {
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        ]
+      },
+      "AiMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "role",
+          "content",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 16000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tools": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/AiToolEvent"
+                },
+                {
+                  "properties": {
+                    "status": {
+                      "const": "completed"
+                    }
+                  }
+                }
+              ]
+            },
+            "description": "Geordnete bestätigte Quellen mit eindeutigen Werkzeugereignis-IDs, maximal AI_MAX_TOOL_STEPS (Vorgabe 4, harte Grenze 6). Ein Navigationsvorschlag darf nur im letzten Schritt stehen. Benutzernachrichten enthalten keine Werkzeuge. Optional für ältere Antworten."
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiPageContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Normalisierter Seitenbezug der Benutzernachricht; Assistentennachrichten haben null/keinen Seitenbezug. Optional für ältere Antworten."
+          }
+        }
+      },
+      "AiProjectCounts": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "todo",
+          "inProgress",
+          "done"
+        ],
+        "properties": {
+          "todo": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "inProgress": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "done": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          }
+        }
+      },
+      "AiProjectView": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "planningCompleted",
+          "deadline",
+          "tasks"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "planningCompleted": {
+            "type": "boolean",
+            "description": "Planungsstatus; kein Projektabschluss."
+          },
+          "deadline": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "tasks": {
+            "$ref": "#/components/schemas/AiProjectCounts"
+          }
+        }
+      },
+      "AiOpenTaskView": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "code",
+          "title",
+          "status",
+          "priority"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "inProgress"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          }
+        }
+      },
+      "AiProjectToolResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "outcome",
+          "revision",
+          "readAt",
+          "projects",
+          "tasks",
+          "total",
+          "offset",
+          "more",
+          "textTruncated"
+        ],
+        "description": "Kontogebundene begrenzte Werkzeugprojektion, höchstens 20000 JSON-Zeichen. workspace liefert begrenzte Fachdaten; mutation einen unveränderlichen Anlage- oder Änderungsvorschlag. Nur der separate Bestätigungsendpunkt schreibt.",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "OK",
+              "NOT_FOUND",
+              "AMBIGUOUS",
+              "INVALID_INPUT"
+            ]
+          },
+          "revision": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128
+          },
+          "readAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "projects": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "$ref": "#/components/schemas/AiProjectView"
+            }
+          },
+          "tasks": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "$ref": "#/components/schemas/AiOpenTaskView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "Exakte passende Anzahl; Workspace-Sammlungen höchstens 10000, Benutzerliste gemäß Bestand."
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "more": {
+            "type": "boolean"
+          },
+          "textTruncated": {
+            "type": "boolean"
+          },
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiNavigationAction"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nur bei erfolgreichem propose_project_navigation; erst nach done/Commit freigebbar. Bei Lesewerkzeugen null/fehlend."
+          },
+          "workspace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiWorkspaceView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mutation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiWorkspaceMutation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "AiToolEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "status",
+          "result"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "enum": [
+              "list_projects",
+              "get_project_summary",
+              "list_open_tasks",
+              "propose_project_navigation",
+              "read_workspace",
+              "propose_workspace_create",
+              "propose_workspace_update"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "started",
+              "completed"
+            ]
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiProjectToolResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "started"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "result": {
+                  "type": "null"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "result": {
+                  "$ref": "#/components/schemas/AiProjectToolResult"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "AiNavigationAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "projectId",
+          "projectName",
+          "projectTab",
+          "expiresAt",
+          "status",
+          "resultCode"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "enum": [
+              "project.open",
+              "project.view"
+            ]
+          },
+          "projectId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "projectName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "projectTab": {
+            "enum": [
+              "overview",
+              "tasks",
+              "board"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "approved",
+              "rejected",
+              "succeeded",
+              "failed",
+              "expired"
+            ]
+          },
+          "resultCode": {
+            "enum": [
+              null,
+              "NAVIGATION_UNAVAILABLE",
+              "UNSAVED_CHANGES",
+              "CLIENT_CANCELLED",
+              "EXPIRED"
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "project.open"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "projectTab": {
+                  "const": "overview"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "projectTab": {
+                  "enum": [
+                    "tasks",
+                    "board"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "failed"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "resultCode": {
+                  "type": "string"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "resultCode": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "AiNavigationDecisionInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decisionId",
+          "decision"
+        ],
+        "properties": {
+          "decisionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Kennung des expliziten Klicks; wiederholt keine Freigabe."
+          },
+          "decision": {
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          }
+        }
+      },
+      "AiNavigationDecision": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action",
+          "executionId"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/AiNavigationAction"
+          },
+          "executionId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Nur bei erstmaliger Freigabe gesetzt, nicht im Gespräch gespeichert/ausgeliefert."
+          }
+        }
+      },
+      "AiNavigationResultInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "executionId",
+          "status"
+        ],
+        "properties": {
+          "executionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "enum": [
+              "succeeded",
+              "failed"
+            ]
+          },
+          "code": {
+            "enum": [
+              null,
+              "NAVIGATION_UNAVAILABLE",
+              "UNSAVED_CHANGES",
+              "CLIENT_CANCELLED",
+              "EXPIRED"
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "failed"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "code"
+              ],
+              "properties": {
+                "code": {
+                  "type": "string"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "code": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "AiConversation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "language",
+          "createdAt",
+          "updatedAt",
+          "messages"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "de",
+              "en"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "busy": {
+            "type": "boolean",
+            "description": "Laufende Antwort; neue Nachrichten/Freigaben bis zum Ende und erneutem Laden sperren."
+          },
+          "messages": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/AiMessage"
+            },
+            "description": "Nur vollständige Nachrichtenpaare. Im PostgreSQL-Profil dauerhaft, im Memory-Profil flüchtig."
+          }
+        }
+      },
+      "AiWorkspaceView": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entity",
+          "mode",
+          "textOffset",
+          "items",
+          "message"
+        ],
+        "properties": {
+          "entity": {
+            "type": "string",
+            "enum": [
+              "customers",
+              "projects",
+              "tasks",
+              "activities",
+              "epics",
+              "sprints",
+              "files",
+              "articles",
+              "categories",
+              "users",
+              "profile",
+              "settings",
+              "industries",
+              "contacts"
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "count",
+              "list",
+              "detail"
+            ]
+          },
+          "textOffset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "label",
+                "fields"
+              ],
+              "properties": {
+                "id": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "maxLength": 128,
+                  "minimum": 1
+                },
+                "label": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "fields": {
+                  "type": "object",
+                  "maxProperties": 20,
+                  "additionalProperties": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                }
+              }
+            }
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          }
+        }
+      },
+      "AiCreatedTextFile": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "projectId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20971520
+          },
+          "mediaType": {
+            "type": "string"
+          },
+          "lastModified": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "addedAt": {
+            "type": "string",
+            "anyOf": [
+              {
+                "format": "date"
+              },
+              {
+                "format": "date-time"
+              }
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "anyOf": [
+              {
+                "format": "date"
+              },
+              {
+                "format": "date-time"
+              }
+            ]
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 6000,
+            "description": "Unveränderliche UTF-8-Textdatei, einschließlich Einrückung."
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "name",
+          "size",
+          "mediaType",
+          "lastModified",
+          "addedAt",
+          "updatedAt",
+          "content"
+        ]
+      },
+      "AiNewAccountData": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "email",
+          "administrator",
+          "active"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "administrator": {
+            "type": "boolean",
+            "const": false
+          },
+          "active": {
+            "type": "boolean",
+            "const": true
+          }
+        }
+      },
+      "AiWorkspaceCreation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "entity",
+          "data",
+          "revision",
+          "expiresAt",
+          "status",
+          "resultRevision"
+        ],
+        "description": "Serverseitig erstellter unveränderlicher Vorschlag. Im bestätigten Turn registriert; höchstens eine Aktion am Ende der Werkzeugfolge. proposed bedeutet nicht gespeichert. Keine Passwörter/Hashes in data. Kontakte werden separat mit eigenem Vorschlag angelegt; neue Kunden haben zunächst eine leere Kontaktliste.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "const": "workspace.create"
+          },
+          "entity": {
+            "type": "string",
+            "enum": [
+              "customers",
+              "projects",
+              "tasks",
+              "epics",
+              "sprints",
+              "articles",
+              "categories",
+              "files",
+              "users",
+              "contacts"
+            ]
+          },
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Customer"
+              },
+              {
+                "$ref": "#/components/schemas/Project"
+              },
+              {
+                "$ref": "#/components/schemas/Task"
+              },
+              {
+                "$ref": "#/components/schemas/Epic"
+              },
+              {
+                "$ref": "#/components/schemas/Sprint"
+              },
+              {
+                "$ref": "#/components/schemas/Article"
+              },
+              {
+                "$ref": "#/components/schemas/Category"
+              },
+              {
+                "$ref": "#/components/schemas/AiCreatedTextFile"
+              },
+              {
+                "$ref": "#/components/schemas/AiNewAccountData"
+              },
+              {
+                "$ref": "#/components/schemas/CustomerContact"
+              }
+            ]
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "succeeded",
+              "rejected",
+              "expired"
+            ]
+          },
+          "resultRevision": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128
+          }
+        }
+      },
+      "AiCreationDecision": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decisionId",
+          "decision"
+        ],
+        "properties": {
+          "decisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "initialPassword": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 12,
+            "maxLength": 72,
+            "writeOnly": true,
+            "description": "Nur für die Freigabe eines neuen Benutzerkontos. Direktes privates Passwortfeld; nie Modellargument oder Chatinhalt. Maximal 72 UTF-8-Bytes, kein NUL. Nicht gespeichert/ausgegeben, serverseitig BCrypt."
+          }
+        }
+      },
+      "AiWorkspaceUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "entity",
+          "data",
+          "revision",
+          "expiresAt",
+          "status",
+          "resultRevision",
+          "before"
+        ],
+        "description": "Unveränderlicher feldweiser Änderungsvorschlag. data enthält id und nur geänderte Felder einschließlich serverseitigem updatedAt, before exakt dieselben Felder ohne id mit vollständigen bisherigen Werten. Beide Objekte höchstens 12000 JSON-Zeichen, Texte höchstens 6000. Ungeänderte Felder bleiben erhalten. Nur geplante Sprints; Dateien nur umbenennen. Keine Konto-/Rollen-/Passwortänderungen. Ansprechpartner können name/role/email/phone ändern, niemals customerId oder Kontorechte. Kundennotizen sind als notes editierbar.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "const": "workspace.update"
+          },
+          "entity": {
+            "type": "string",
+            "enum": [
+              "customers",
+              "projects",
+              "tasks",
+              "epics",
+              "sprints",
+              "articles",
+              "categories",
+              "files",
+              "contacts"
+            ]
+          },
+          "data": {
+            "type": "object",
+            "minProperties": 2
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "succeeded",
+              "rejected",
+              "expired"
+            ]
+          },
+          "resultRevision": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128
+          },
+          "before": {
+            "type": "object",
+            "minProperties": 1
+          }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "entity": {
+                "const": "customers"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "street": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "country": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "website": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "industry": {
+                    "type": "string"
+                  },
+                  "postalCode": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "default": "",
+                    "description": "Postleitzahl als Text; führende Nullen und internationale Formate bleiben erhalten. Fehlend/null wird für Altclients als leer normalisiert."
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 6000
+                  }
+                }
+              },
+              "before": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "street": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "country": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "website": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "industry": {
+                    "type": "string"
+                  },
+                  "postalCode": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "default": "",
+                    "description": "Postleitzahl als Text; führende Nullen und internationale Formate bleiben erhalten. Fehlend/null wird für Altclients als leer normalisiert."
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 6000
+                  }
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "entity": {
+                "const": "projects"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "customerId": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "deadline": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "planningCompleted": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "before": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "customerId": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "deadline": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "planningCompleted": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "entity": {
+                "const": "tasks"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "description": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "todo",
+                      "inProgress",
+                      "done"
+                    ]
+                  },
+                  "priority": {
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high"
+                    ]
+                  },
+                  "epicId": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "anyOf": [
+                      {
+                        "format": "date"
+                      },
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  }
+                }
+              },
+              "before": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "description": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "todo",
+                      "inProgress",
+                      "done"
+                    ]
+                  },
+                  "priority": {
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high"
+                    ]
+                  },
+                  "epicId": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "anyOf": [
+                      {
+                        "format": "date"
+                      },
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "entity": {
+                "const": "epics"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "anyOf": [
+                      {
+                        "format": "date"
+                      },
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  }
+                }
+              },
+              "before": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "anyOf": [
+                      {
+                        "format": "date"
+                      },
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "entity": {
+                "const": "sprints"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "goal": {
+                    "type": "string"
+                  },
+                  "startDate": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "taskIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "uniqueItems": true,
+                    "maxItems": 10000
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "anyOf": [
+                      {
+                        "format": "date"
+                      },
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  }
+                }
+              },
+              "before": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "goal": {
+                    "type": "string"
+                  },
+                  "startDate": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "taskIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "uniqueItems": true,
+                    "maxItems": 10000
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "anyOf": [
+                      {
+                        "format": "date"
+                      },
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "entity": {
+                "const": "articles"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000000
+                  },
+                  "categoryId": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "anyOf": [
+                      {
+                        "format": "date"
+                      },
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  },
+                  "parentId": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 9007199254740991,
+                    "description": "Übergeordnete Dokumentationsseite desselben Bereichs und Kontos; null = oberste Ebene. Fehlend in einem älteren Workspace-HTTP-Request erhält eine bestehende Zuordnung. Keine Zyklen, höchstens zwölf Ebenen."
+                  }
+                }
+              },
+              "before": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000000
+                  },
+                  "categoryId": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "anyOf": [
+                      {
+                        "format": "date"
+                      },
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  },
+                  "parentId": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 9007199254740991,
+                    "description": "Übergeordnete Dokumentationsseite desselben Bereichs und Kontos; null = oberste Ebene. Fehlend in einem älteren Workspace-HTTP-Request erhält eine bestehende Zuordnung. Keine Zyklen, höchstens zwölf Ebenen."
+                  }
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "entity": {
+                "const": "categories"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "anyOf": [
+                      {
+                        "format": "date"
+                      },
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  }
+                }
+              },
+              "before": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "anyOf": [
+                      {
+                        "format": "date"
+                      },
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "entity": {
+                "const": "files"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "anyOf": [
+                      {
+                        "format": "date"
+                      },
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  }
+                }
+              },
+              "before": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "anyOf": [
+                      {
+                        "format": "date"
+                      },
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "entity": {
+                "const": "contacts"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "role": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "description": "Geschäftliche Funktion/Jobtitel, niemals eine Kontoberechtigung."
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "description": "Leer oder gültige E-Mail-Adresse."
+                  },
+                  "phone": {
+                    "type": "string",
+                    "maxLength": 100
+                  }
+                }
+              },
+              "before": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "role": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "description": "Geschäftliche Funktion/Jobtitel, niemals eine Kontoberechtigung."
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "description": "Leer oder gültige E-Mail-Adresse."
+                  },
+                  "phone": {
+                    "type": "string",
+                    "maxLength": 100
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "AiWorkspaceMutation": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AiWorkspaceCreation"
+          },
+          {
+            "$ref": "#/components/schemas/AiWorkspaceUpdate"
+          }
+        ]
+      },
+      "GlobalSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "revision",
+          "industries"
+        ],
+        "properties": {
+          "revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "industries": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "description": "Anwendungsweit, Reihenfolge bleibt erhalten. Serverseitig trim/NFC-normalisiert, ohne Kontrollzeichen und ohne Duplikate unabhängig von Großschreibung. Ändert keine bestehenden Kundenwerte."
+          }
+        }
+      },
+      "CustomerContact": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "customerId",
+          "name",
+          "role",
+          "email",
+          "phone"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "customerId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "role": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Geschäftliche Funktion/Jobtitel, niemals eine Kontoberechtigung."
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "description": "Leer oder gültige E-Mail-Adresse."
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 100
+          }
+        }
+      },
+      "AiConversationList": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "storage",
+          "retentionSeconds",
+          "items"
+        ],
+        "properties": {
+          "storage": {
+            "type": "string",
+            "enum": [
+              "memory",
+              "postgresql"
+            ]
+          },
+          "retentionSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 31536000
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/AiConversationSummary"
+            }
+          }
+        }
+      },
+      "AiConversationSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "language",
+          "title",
+          "createdAt",
+          "updatedAt",
+          "messageCount",
+          "busy"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "de",
+              "en"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Erste Benutzernachricht, gekürzt; bei leerem Chat leer."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "messageCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "multipleOf": 2
+          },
+          "busy": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AiExecutionRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "requestId",
+          "status",
+          "startedAt",
+          "finishedAt",
+          "errorCode",
+          "steps"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "interrupted"
+            ]
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "errorCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64,
+            "pattern": "^[A-Z0-9_]{1,64}$"
+          },
+          "steps": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "$ref": "#/components/schemas/AiExecutionStep"
+            }
+          }
+        }
+      },
+      "AiExecutionStep": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "number",
+          "name",
+          "arguments",
+          "status",
+          "outcome",
+          "startedAt",
+          "finishedAt"
+        ],
+        "properties": {
+          "number": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6
+          },
+          "name": {
+            "type": "string",
+            "enum": [
+              "list_projects",
+              "get_project_summary",
+              "list_open_tasks",
+              "propose_project_navigation",
+              "read_workspace",
+              "propose_workspace_create",
+              "propose_workspace_update"
+            ]
+          },
+          "arguments": {
+            "type": "string",
+            "maxLength": 16000,
+            "description": "Validiertes kanonisches Argument-JSON, kein ausführbarer Code."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "started",
+              "completed"
+            ]
+          },
+          "outcome": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "OK",
+              "NOT_FOUND",
+              "AMBIGUOUS",
+              "INVALID_INPUT",
+              null
+            ]
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "AiTurn": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "user",
+          "assistant",
+          "usage",
+          "truncated"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user": {
+            "$ref": "#/components/schemas/AiMessage"
+          },
+          "assistant": {
+            "$ref": "#/components/schemas/AiMessage"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "usage": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "inputTokens",
+              "outputTokens"
+            ],
+            "properties": {
+              "inputTokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "outputTokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            }
+          }
+        }
+      },
       "AccountActive": {
         "type": "object",
         "additionalProperties": false,
@@ -1654,6 +4810,139 @@
         "required": [
           "active"
         ]
+      },
+      "RestRequestDraft": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "method",
+          "url",
+          "headers",
+          "body",
+          "bodyType",
+          "timeout"
+        ],
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE",
+              "HEAD",
+              "OPTIONS"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 4000,
+            "description": "Empty for an unfinished draft; otherwise HTTP(S) without URL credentials. This API never sends the request."
+          },
+          "headers": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 100000
+          },
+          "bodyType": {
+            "type": "string",
+            "enum": [
+              "none",
+              "json",
+              "text"
+            ]
+          },
+          "timeout": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 120
+          }
+        },
+        "description": "Private raw request inputs. Bodies and headers are stored exactly; responses are never stored."
+      },
+      "SavedRestRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "draft"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "\\S"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/RestRequestDraft"
+          }
+        }
+      },
+      "RestCollection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "requests"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "\\S"
+          },
+          "requests": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/SavedRestRequest"
+            }
+          }
+        }
+      },
+      "RestCollections": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "revision",
+          "collections"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "const": 1
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "collections": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/RestCollection"
+            }
+          }
+        },
+        "description": "Private account collections, separate from workspace and AI tools. Maximum 1000 requests and 1 MiB serialized UTF-8 in total. All collection and request UUIDs must be unique across the document. PUT replaces the complete document atomically with its own revision."
       }
     }
   }

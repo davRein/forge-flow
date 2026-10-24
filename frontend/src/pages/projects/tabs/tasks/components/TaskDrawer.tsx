@@ -1,4 +1,4 @@
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { getBadgeTextColor } from '../../../../../styles/colorUtils';
 
 import { taskPriorities } from '../../../../../data/taskPriorities';
@@ -6,6 +6,11 @@ import { taskStatuses } from '../../../../../data/taskStatuses';
 
 import { Task } from '../../../types/task.types';
 import type { Sprint } from '../../../types/sprint.types';
+
+const slideIn = keyframes`
+    from { opacity: 0; transform: translateX(18px); }
+    to { opacity: 1; transform: translateX(0); }
+`;
 
 const Backdrop = styled.div`
     position: fixed;
@@ -21,8 +26,11 @@ const Drawer = styled.aside`
     top: 0;
     right: 0;
 
-    width: 440px;
-    height: 100vh;
+    width: min(440px, 100vw);
+    height: 100dvh;
+    overflow-y: auto;
+    box-shadow: ${({ theme }) => theme.shadows.overlay};
+    animation: ${slideIn} var(--motion-normal) var(--ease-out);
 
     background: ${({ theme }) => theme.colors.header};
     border-left: 1px solid ${({ theme }) => theme.colors.border};

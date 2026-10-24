@@ -11,4 +11,6 @@ public interface WorkspaceStorage {
     Attachment attachment(String ownerId, long projectId, long fileId);
     Settings loadSettings(String ownerId);
     void saveSettings(String ownerId, Settings settings);
+    GlobalSettings loadGlobalSettings();
+    GlobalSettings saveGlobalSettings(GlobalSettings settings);
 }

@@ -1,16 +1,7 @@
 ﻿. (Join-Path $PSScriptRoot 'local-common.ps1')
 $null = Get-LocalConfiguration
-function Assert-FreePort([int]$Port) {
-    $client = [Net.Sockets.TcpClient]::new()
-    try {
-        $pending = $client.BeginConnect('127.0.0.1', $Port, $null, $null)
-        if ($pending.AsyncWaitHandle.WaitOne(500) -and $client.Connected) {
-            throw "Port $Port ist bereits belegt. Den bisherigen Entwicklungsserver zuerst stoppen."
-        }
-    } finally { $client.Dispose() }
-}
-Assert-FreePort 3001
-Assert-FreePort 5173
+Assert-LocalPortFree 3001
+Assert-LocalPortFree 5173
 $logRoot = Join-Path $script:LocalConfigRoot 'logs'
 New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
 $children = @()
@@ -32,7 +23,7 @@ try {
         if (-not $ready) {
             try {
                 $health = Invoke-RestMethod -Uri 'http://127.0.0.1:3001/api/v1/health' -TimeoutSec 1
-                $frontend = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:5173' -TimeoutSec 1
+                $frontend = Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:5173' -TimeoutSec 1
                 if ($health.storage -eq 'postgresql' -and $frontend.StatusCode -eq 200) {
                     $ready = $true
                     Write-Output 'Backend und Frontend sind bereit: http://localhost:5173'

@@ -1,10 +1,11 @@
 import { defaultSettings } from '../../config/appSettings.js';
-import type { AppSettings } from '../../types/settings.types';
+import type { AppLanguage, AppSettings } from '../../types/settings.types';
 import type { SettingsRepository, SettingsSnapshot } from './settingsRepository';
 import { decodeSettings, encodeSettings, normalizeSettings } from './settingsSerialization.js';
 
-export function createSettingsStore(repository: SettingsRepository, userId: string | null) {
-    let snapshot: SettingsSnapshot = { settings: { ...defaultSettings }, status: 'loading', error: null };
+export function createSettingsStore(repository: SettingsRepository, userId: string | null, defaultLanguage: AppLanguage = defaultSettings.language) {
+    const defaults = { ...defaultSettings, language: defaultLanguage };
+    let snapshot: SettingsSnapshot = { settings: { ...defaults }, status: 'loading', error: null };
     const listeners = new Set<() => void>();
     let loadRevision = 0;
     let writeRevision = 0;
@@ -22,7 +23,7 @@ export function createSettingsStore(repository: SettingsRepository, userId: stri
         try {
             const stored = await repository.load(userId);
             if (revision !== loadRevision || writesAtStart !== writeRevision) return;
-            publish({ settings: decodeSettings(stored), status: 'ready', error: null });
+            publish({ settings: decodeSettings(stored, defaultLanguage), status: 'ready', error: null });
         } catch {
             if (revision !== loadRevision || writesAtStart !== writeRevision) return;
             publish({ ...snapshot, status: 'error', error: {

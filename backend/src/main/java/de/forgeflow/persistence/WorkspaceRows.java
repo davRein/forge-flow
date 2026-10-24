@@ -17,17 +17,27 @@ final class WorkspaceRows {
         row.position = position;
         row.name = value.name();
         row.street = value.street();
+        row.postalCode = value.postalCode();
         row.city = value.city();
         row.country = value.country();
         row.email = value.email();
         row.website = value.website();
         row.phone = value.phone();
         row.industry = value.industry();
+        row.notes = value.notes();
         return row;
     }
 
-    Customer toCustomer(CustomerRow row) {
-        return new Customer(row.id, row.name, row.street, row.city, row.country, row.email, row.website, row.phone, row.industry);
+    Customer toCustomer(CustomerRow row, java.util.List<CustomerContact> contacts) {
+        return new Customer(row.id, row.name, row.street, row.city, row.country, row.email, row.website, row.phone, row.industry, row.postalCode, contacts, row.notes);
+    }
+
+    CustomerContactRow fromContact(String owner, int position, CustomerContact value) {
+        var row = new CustomerContactRow(); row.ownerId = owner; row.id = value.id(); row.position = position;
+        row.customerId = value.customerId(); row.name = value.name(); row.role = value.role(); row.email = value.email(); row.phone = value.phone(); return row;
+    }
+    CustomerContact toContact(CustomerContactRow row) {
+        return new CustomerContact(row.id, row.customerId, row.name, row.role, row.email, row.phone);
     }
 
     ProjectRow fromProject(String owner, int position, Project value) {
@@ -167,13 +177,13 @@ final class WorkspaceRows {
         row.title = value.title();
         row.content = value.content();
         row.categoryId = value.categoryId();
+        row.parentId = value.parentId();
         row.createdAt = value.createdAt();
         row.updatedAt = value.updatedAt();
         return row;
     }
 
     Article toArticle(ArticleRow row) {
-        return new Article(row.id, row.title, row.content, row.categoryId, row.createdAt, row.updatedAt);
+        return new Article(row.id, row.title, row.content, row.categoryId, row.createdAt, row.updatedAt, row.parentId);
     }
 }
-

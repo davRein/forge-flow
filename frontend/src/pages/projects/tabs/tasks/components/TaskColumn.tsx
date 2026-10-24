@@ -7,13 +7,13 @@ import { Task, TaskStatusKey } from '../../../types/task.types';
 
 const Container = styled.div<{ $isOver: boolean }>`
     background: ${({ theme, $isOver }) =>
-            $isOver ? `${theme.colors.primary}18` : theme.colors.header};
+            $isOver ? theme.colors.primarySubtle : theme.colors.content};
 
     border: 1px solid
     ${({ theme, $isOver }) =>
             $isOver ? theme.colors.primary : theme.colors.border};
 
-    border-radius: 14px;
+    border-radius: 8px;
 
     padding: 14px;
     min-height: 420px;
@@ -36,6 +36,9 @@ const Header = styled.div`
 
 const Title = styled.h4`
     margin: 0;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    font-size: 12px;
+    font-weight: 600;
 `;
 
 const Count = styled.span`
@@ -46,10 +49,10 @@ const Count = styled.span`
     align-items: center;
     justify-content: center;
 
-    border-radius: 999px;
+    border-radius: 5px;
 
     color: ${({ theme }) => theme.colors.textSecondary};
-    background: ${({ theme }) => theme.colors.content};
+    background: ${({ theme }) => theme.colors.header};
 
     font-size: 12px;
     font-weight: 700;

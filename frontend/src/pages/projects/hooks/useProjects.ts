@@ -57,9 +57,9 @@ export function useProjects() {
     function openCustomerEditor(customer?: Customer, selectForProject = false) {
         setCustomerError('');
         setCustomerEditor({ id: customer?.id ?? null, selectForProject, draft: customer ? {
-            name: customer.name, street: customer.street, city: customer.city, country: customer.country,
+            name: customer.name, street: customer.street, postalCode: customer.postalCode ?? '', city: customer.city, country: customer.country,
             email: customer.email, website: customer.website ?? '', phone: customer.phone, industry: customer.industry
-        } : { name: '', street: '', city: '', country: '', email: '', website: '', phone: '', industry: '' } });
+        } : { name: '', street: '', postalCode: '', city: '', country: '', email: '', website: '', phone: '', industry: '' } });
     }
 
     function closeCustomerEditor() {
@@ -75,7 +75,7 @@ export function useProjects() {
     function saveCustomer() {
         if (!customerEditor) return;
         const { draft, id, selectForProject } = customerEditor;
-        if ([draft.name, draft.street, draft.city, draft.country, draft.email, draft.phone, draft.industry].some((value) => !value.trim())) {
+        if ([draft.name, draft.street, draft.postalCode ?? '', draft.city, draft.country, draft.email, draft.phone, draft.industry].some((value) => !value.trim())) {
             setCustomerError('Bitte alle Pflichtfelder ausfüllen.');
             return;
         }
@@ -83,12 +83,14 @@ export function useProjects() {
             setCustomerError('Bitte eine gültige E-Mail-Adresse angeben.');
             return;
         }
+        const customerId = id ?? Math.max(nextCustomerId.current, ...customerList.map(entry => entry.id + 1));
+        if (id === null) nextCustomerId.current = customerId + 1;
         const customer: Customer = {
-            id: id ?? nextCustomerId.current++, name: draft.name.trim(), street: draft.street.trim(),
+            id: customerId, name: draft.name.trim(), street: draft.street.trim(), postalCode: draft.postalCode?.trim() ?? '',
             city: draft.city.trim(), country: draft.country.trim(), email: draft.email.trim(),
             website: draft.website?.trim() ?? '', phone: draft.phone.trim(), industry: draft.industry.trim()
         };
-        setCustomerList((current) => id === null ? [...current, customer] : current.map((entry) => entry.id === id ? customer : entry));
+        setCustomerList((current) => id === null ? [...current, { ...customer, contacts: [], notes: '' }] : current.map((entry) => entry.id === id ? { ...entry, ...customer } : entry));
         if (selectForProject) {
             setProjectEditor((current) => current ? { ...current, draft: { ...current.draft, customerId: customer.id } } : null);
         }

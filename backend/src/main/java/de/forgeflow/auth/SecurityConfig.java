@@ -37,7 +37,8 @@ public class SecurityConfig {
             .requestCache(cache -> cache.disable())
             .securityContext(context -> context.securityContextRepository(contexts))
             .csrf(config -> config.csrfTokenRepository(csrf).csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
-            .authorizeHttpRequests(auth -> auth.requestMatchers("/api/v1/auth/csrf", "/api/v1/auth/login", "/api/v1/health").permitAll()
+            .authorizeHttpRequests(auth -> auth.dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
+                .requestMatchers("/api/v1/auth/csrf", "/api/v1/auth/login", "/api/v1/health").permitAll()
                 .requestMatchers("/api/v1/users", "/api/v1/users/**").hasRole("ADMIN").anyRequest().authenticated())
             .exceptionHandling(errors -> errors
                 .authenticationEntryPoint((req, res, error) -> ApiErrors.write(res, 401, "UNAUTHENTICATED", "Bitte anmelden."))

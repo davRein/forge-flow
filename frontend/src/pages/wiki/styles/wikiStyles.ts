@@ -1,12 +1,14 @@
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
+import { control, secondaryButton, surface } from '../../../styles/primitives';
 
 export { Field, Input, Select, PrimaryButton, SecondaryButton, DangerButton, ErrorText, FormActions, FormCard, FormGrid, Required } from '../../../components/ui/formStyles';
 
 export const Page = styled.div`
-    padding: 24px;
+    padding: 30px 32px 40px;
     max-width: 1400px;
     margin: 0 auto;
+    @media (max-width: 760px) { padding: 22px 16px; }
 `;
 
 export const Toolbar = styled.div`
@@ -15,7 +17,7 @@ export const Toolbar = styled.div`
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 16px;
-    margin-bottom: 20px;
+    margin-bottom: 28px;
 `;
 
 export const Actions = styled.div`
@@ -35,9 +37,7 @@ export const Grid = styled.div`
 export const Card = styled.div`
     padding: 20px;
     min-width: 0;
-    border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: 12px;
-    background: ${({ theme }) => theme.colors.header};
+    ${surface}
     overflow-wrap: anywhere;
     p { line-height: 1.6; }
 `;
@@ -49,13 +49,10 @@ export const Muted = styled.p`
 `;
 
 export const Textarea = styled.textarea`
-    border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: 8px;
+    ${control}
     padding: 12px;
     min-height: 100px;
     resize: vertical;
-    background: ${({ theme }) => theme.colors.content};
-    color: ${({ theme }) => theme.colors.text};
     line-height: 1.6;
 `;
 
@@ -67,19 +64,16 @@ export const TextLink = styled(Link)`
 `;
 
 export const ButtonLink = styled(Link)`
+    ${secondaryButton}
     display: inline-block;
-    padding: 10px 14px;
-    border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: 8px;
     text-decoration: none;
-    color: ${({ theme }) => theme.colors.text};
-    background: ${({ theme }) => theme.colors.header};
 `;
 
 export const PrimaryLink = styled(ButtonLink)`
     color: ${({ theme }) => theme.colors.onPrimary};
     background: ${({ theme }) => theme.colors.primary};
     border-color: ${({ theme }) => theme.colors.primary};
+    &:hover { background: ${({ theme }) => theme.colors.primaryHover}; border-color: ${({ theme }) => theme.colors.primaryHover}; }
 `;
 
 export const Filters = styled.div`

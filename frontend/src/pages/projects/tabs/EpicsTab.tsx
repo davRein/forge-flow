@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useChatNavigationBlocker } from '../../../hooks/chatNavigationContext';
 import styled from 'styled-components';
 import Dialog from '../components/Dialog';
 import StatusBadge from '../components/StatusBadge';
@@ -70,6 +71,7 @@ type Props = { epicState: ReturnType<typeof useEpics>; tasks: Task[] };
 export default function EpicsTab({ epicState, tasks }: Props) {
     const [editor, setEditor] = useState<{ epic: Epic | null } | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Epic | null>(null);
+    useChatNavigationBlocker(!!editor || !!deleteTarget);
     const [query, setQuery] = useState('');
     const [filter, setFilter] = useState<ProgressFilter>('all');
     const search = query.trim().toLocaleLowerCase('de');

@@ -19,7 +19,31 @@ spring:
   jackson:
     deserialization:
       fail-on-unknown-properties: true
+logging:
+  level:
+    # SDK/Spring AI exceptions may contain request data or credentials.
+    # OpenAiModelGateway emits only allowlisted diagnostic metadata instead.
+    org.springframework.ai: 'OFF'
+    com.openai: 'OFF'
+    # Constraint errors can contain a failing row, including private chat/account data.
+    org.hibernate.orm.jdbc.error: 'OFF'
 forgeflow:
+  ai:
+    enabled: ${AI_ENABLED:false}
+    api-key: ${OPENAI_API_KEY:}
+    model: ${AI_MODEL:}
+    timeout: ${AI_TIMEOUT:20s}
+    output-token-mode: ${AI_OUTPUT_TOKEN_MODE:completion}
+    max-output-tokens: ${AI_MAX_OUTPUT_TOKENS:1024}
+    max-tool-steps: ${AI_MAX_TOOL_STEPS:4}
+    requests-per15-minutes: ${AI_REQUESTS_PER_15_MINUTES:20}
+    max-concurrent: ${AI_MAX_CONCURRENT:2}
+    max-conversations-per-user: ${AI_MAX_CONVERSATIONS_PER_USER:10}
+    max-conversations: ${AI_MAX_CONVERSATIONS:200}
+    max-turns: ${AI_MAX_TURNS:10}
+    max-history-characters: ${AI_MAX_HISTORY_CHARACTERS:24000}
+    conversation-ttl: ${AI_CONVERSATION_TTL:30m}
+    conversation-retention: ${AI_CONVERSATION_RETENTION:30d}
   origin: ${APP_ORIGIN:http://localhost:5173}
   user:
     id: ${AUTH_USER_ID:initial-admin}

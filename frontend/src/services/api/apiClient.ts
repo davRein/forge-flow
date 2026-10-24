@@ -2,7 +2,9 @@ export class ApiError extends Error {
     constructor(public readonly status: number, public readonly code: string, message: string) { super(message); this.name = 'ApiError'; }
 }
 
-type Options = { method?: string; body?: unknown; signal?: AbortSignal; headers?: HeadersInit; epoch?: number; auth?: boolean; responseType?: 'json' | 'blob' };
+type Options = { method?: string; body?: unknown; signal?: AbortSignal; headers?: HeadersInit; epoch?: number; auth?: boolean;
+    responseType?: 'json' | 'blob' | 'stream'; timeoutMs?: number;
+    consume?: (body: ReadableStream<Uint8Array>, signal: AbortSignal) => Promise<unknown> };
 export function createApiClient(baseUrl: string, fetcher: typeof fetch = fetch, timeoutMs = 30000) {
     if (!/^\/(?!\/)/.test(baseUrl) || baseUrl.includes('\\') || baseUrl.includes('?') || baseUrl.includes('#')) throw new Error('Die API-Adresse muss ein relativer Pfad derselben Domain sein.');
     const base = baseUrl.replace(/\/$/, '');
@@ -21,10 +23,10 @@ export function createApiClient(baseUrl: string, fetcher: typeof fetch = fetch, 
             const abort = () => controller.abort(options.signal?.reason);
             if (options.signal?.aborted) abort();
             else options.signal?.addEventListener('abort', abort, { once: true });
-            const timer = setTimeout(() => controller.abort('timeout'), timeoutMs);
+            const timer = setTimeout(() => controller.abort('timeout'), options.timeoutMs ?? timeoutMs);
             const execute = async (): Promise<T> => {
                 const headers = new Headers(options.headers);
-                headers.set('Accept', 'application/json');
+                headers.set('Accept', options.responseType === 'stream' ? 'text/event-stream, application/json' : 'application/json');
                 const method = options.method ?? 'GET';
                 if (!['GET', 'HEAD'].includes(method) && csrfToken) headers.set('X-CSRF-Token', csrfToken);
                 const isForm = options.body instanceof FormData;
@@ -50,17 +52,27 @@ export function createApiClient(baseUrl: string, fetcher: typeof fetch = fetch, 
                             }
                         }
                     } catch { /* Non-JSON errors retain their HTTP status. */ }
-                    if (response.status === 401 && options.auth !== false && requestEpoch === epoch) unauthorized?.();
                     throw new ApiError(response.status, code, message);
+                }
+                if (options.responseType === 'stream') {
+                    if (!response.headers.get('Content-Type')?.toLowerCase().startsWith('text/event-stream') || !response.body || !options.consume)
+                        throw new ApiError(502, 'INVALID_RESPONSE', 'Das Backend hat keinen gültigen Antwortstream geliefert.');
+                    if (requestEpoch !== epoch) throw new ApiError(401, 'STALE_SESSION', 'Diese Sitzung ist nicht mehr gültig.');
+                    return await options.consume(response.body, controller.signal) as T;
                 }
                 if (options.responseType === 'blob') return await response.blob() as T;
                 if (response.status === 204) return undefined as T;
                 try { return await response.json() as T; }
                 catch { throw new ApiError(response.status, 'INVALID_RESPONSE', 'Das Backend hat keine gültige JSON-Antwort geliefert.'); }
             };
-            try { return await execute(); }
+            try {
+                const result = await execute();
+                if (requestEpoch !== epoch) throw new ApiError(401, 'STALE_SESSION', 'Diese Sitzung ist nicht mehr gültig.');
+                return result;
+            }
             catch (error) {
                 if (controller.signal.reason === 'timeout') throw new ApiError(408, 'TIMEOUT', 'Das Backend hat nicht rechtzeitig geantwortet. Bitte erneut versuchen.');
+                if (error instanceof ApiError && error.status === 401 && options.auth !== false && requestEpoch === epoch) unauthorized?.();
                 throw error;
             } finally { clearTimeout(timer); options.signal?.removeEventListener('abort', abort); }
         }

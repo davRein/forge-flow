@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useChatNavigationBlocker } from '../../../hooks/chatNavigationContext';
 import styled from 'styled-components';
 import { sprintStatuses } from '../../../data/sprintStatuses';
 import { taskStatuses } from '../../../data/taskStatuses';
@@ -71,6 +72,7 @@ type Props = { sprintState: ReturnType<typeof useSprints>; tasks: Task[]; onOpen
 export default function SprintsTab({ sprintState, tasks, onOpenTasks }: Props) {
     const [editor, setEditor] = useState<{ sprint: Sprint | null } | null>(null);
     const [confirmation, setConfirmation] = useState<{ sprint: Sprint; action: 'complete' | 'delete' } | null>(null);
+    useChatNavigationBlocker(!!editor || !!confirmation);
     const [query, setQuery] = useState('');
     const [backlogQuery, setBacklogQuery] = useState('');
     const [filter, setFilter] = useState<'all' | SprintStatus>('all');

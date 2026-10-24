@@ -6,7 +6,7 @@ import type { Workspace } from './workspaceTypes';
 
 export function createInitialWorkspace(): Workspace {
     return { projects: projects.map((entry) => ({ ...entry })),
-        customers: customers.map((entry) => ({ ...entry, street: '', city: '', country: '', email: '', website: '', phone: '', industry: '' })),
+        customers: customers.map((entry) => ({ ...entry, street: '', postalCode: '', city: '', country: '', email: '', website: '', phone: '', industry: '' })),
         tasks: tasks.map((entry) => ({ ...entry })) as Workspace['tasks'], activities: [], epics: [], sprints: [], files: [],
         wiki: { articles: initialWiki.articles.map((entry) => ({ ...entry })), categories: initialWiki.categories.map((entry) => ({ ...entry })) } };
 }

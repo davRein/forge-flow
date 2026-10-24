@@ -48,11 +48,27 @@ public final class PersistenceEntities {
         @Column(name = "administrator_assigned", nullable = false) public boolean administratorAssigned;
     }
 
+    @Entity(name = "StoredRestCollections")
+    @Table(name = "ff_rest_collections")
+    public static class RestCollectionsRow {
+        @Id @Column(name = "owner_id", length = 128) public String ownerId;
+        @Column(nullable = false, length = 128) public String revision;
+        @Column(nullable = false, columnDefinition = "text") public String payload;
+    }
+
     @Entity(name = "StoredWorkspace")
     @Table(name = "ff_workspaces")
     public static class WorkspaceRow {
         @Id @Column(name = "owner_id", length = 128) public String ownerId;
         @Column(nullable = false, length = 128) public String revision;
+    }
+
+    @Entity(name = "StoredGlobalSettings")
+    @Table(name = "ff_global_settings")
+    public static class GlobalSettingsRow {
+        @Id public int id;
+        @Column(nullable = false, length = 128) public String revision;
+        @Column(nullable = false, columnDefinition = "text") public String industries;
     }
 
     @Entity(name = "StoredSettings")
@@ -62,11 +78,14 @@ public final class PersistenceEntities {
         @Column(name = "theme_mode", nullable = false, length = 10) public String themeMode;
         @Column(name = "default_project_view", nullable = false, length = 20) public String defaultProjectView;
         @Column(name = "default_task_priority", nullable = false, length = 10) public String defaultTaskPriority;
+        @Column(nullable = false, length = 2) public String language;
     }
 
     @Entity(name = "StoredCustomer")
     @Table(name = "ff_customers")
     public static class CustomerRow extends OwnedRow {
+        @Column(name = "notes", nullable = false, columnDefinition = "text") public String notes;
+        @Column(name = "postal_code", nullable = false, length = 32) public String postalCode;
         @Column(name = "name", nullable = false, columnDefinition = "text") public String name;
         @Column(name = "street", nullable = false, columnDefinition = "text") public String street;
         @Column(name = "city", nullable = false, columnDefinition = "text") public String city;
@@ -75,6 +94,16 @@ public final class PersistenceEntities {
         @Column(name = "website", nullable = true, columnDefinition = "text") public String website;
         @Column(name = "phone", nullable = false, columnDefinition = "text") public String phone;
         @Column(name = "industry", nullable = false, columnDefinition = "text") public String industry;
+    }
+
+    @Entity(name = "StoredCustomerContact")
+    @Table(name = "ff_customer_contacts")
+    public static class CustomerContactRow extends OwnedRow {
+        @Column(name = "customer_id", nullable = false) public long customerId;
+        @Column(nullable = false, columnDefinition = "text") public String name;
+        @Column(nullable = false, length = 200) public String role;
+        @Column(nullable = false, length = 254) public String email;
+        @Column(nullable = false, length = 100) public String phone;
     }
 
     @Entity(name = "StoredProject")
@@ -160,6 +189,7 @@ public final class PersistenceEntities {
     @Entity(name = "StoredArticle")
     @Table(name = "ff_wiki_articles")
     public static class ArticleRow extends OwnedRow {
+        @Column(name = "parent_id", nullable = true) public Long parentId;
         @Column(name = "title", nullable = false, columnDefinition = "text") public String title;
         @Column(name = "content", nullable = false, columnDefinition = "text") public String content;
         @Column(name = "category_id", nullable = true) public Long categoryId;

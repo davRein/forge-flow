@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../hooks/languageContext';
 import { useState } from 'react';
 import Dialog from '../../../components/ui/Dialog';
 import type { WikiCategory, WikiCategoryDraft } from '../types/wiki.types';
@@ -10,10 +11,11 @@ type Props = {
 };
 
 export default function CategoryForm({ category, onSave, onClose }: Props) {
+    const { t } = useTranslation();
     const [draft, setDraft] = useState<WikiCategoryDraft>({ name: category?.name ?? '', description: category?.description ?? '' });
     const [error, setError] = useState('');
     return (
-        <Dialog title={category ? 'Kategorie bearbeiten' : 'Neue Kategorie'} onClose={onClose}>
+        <Dialog title={category ? t('Bereich bearbeiten') : t('Neuer Bereich')} onClose={onClose}>
             <form onSubmit={(event) => {
                 event.preventDefault();
                 const message = onSave(draft, category?.id ?? null);
@@ -21,17 +23,17 @@ export default function CategoryForm({ category, onSave, onClose }: Props) {
                 else onClose();
             }}>
                 <Field>
-                    <span>Name <Required>*</Required></span>
+                    <span>{t('Name')} <Required>*</Required></span>
                     <Input required autoFocus value={draft.name} onChange={(event) => { setDraft({ ...draft, name: event.target.value }); setError(''); }} />
                 </Field>
                 <Field style={{ marginTop: 16 }}>
-                    Beschreibung
+                    {t('Beschreibung')}
                     <Textarea value={draft.description} onChange={(event) => { setDraft({ ...draft, description: event.target.value }); setError(''); }} />
                 </Field>
-                {error && <ErrorText role="alert">{error}</ErrorText>}
+                {error && <ErrorText role="alert">{t(error)}</ErrorText>}
                 <FormActions>
-                    <SecondaryButton type="button" onClick={onClose}>Abbrechen</SecondaryButton>
-                    <PrimaryButton type="submit" disabled={!draft.name.trim()}>Speichern</PrimaryButton>
+                    <SecondaryButton type="button" onClick={onClose}>{t('Abbrechen')}</SecondaryButton>
+                    <PrimaryButton type="submit" disabled={!draft.name.trim()}>{t('Speichern')}</PrimaryButton>
                 </FormActions>
             </form>
         </Dialog>

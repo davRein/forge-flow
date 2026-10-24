@@ -1,12 +1,11 @@
 import styled from 'styled-components';
+import { control, primaryButton, secondaryButton, surface } from '../../styles/primitives';
 
 // Shared form controls used across modules.
 
 export const FormCard = styled.div`
-    background: ${({ theme }) => theme.colors.header};
-    border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: 12px;
-    padding: 20px;
+    ${surface}
+    padding: 24px;
     margin-bottom: 20px;
 `;
 
@@ -21,14 +20,18 @@ export const FormHeader = styled.div`
 export const CloseButton = styled.button`
     border: none;
     background: transparent;
-    color: ${({ theme }) => theme.colors.danger};
+    color: ${({ theme }) => theme.colors.textSecondary};
     cursor: pointer;
 
-    font-size: 26px;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    font-size: 24px;
     line-height: 1;
 
     &:hover {
-        color: ${({ theme }) => theme.colors.dangerHover};
+        color: ${({ theme }) => theme.colors.text};
+        background: ${({ theme }) => theme.colors.surfaceHover};
     }
 `;
 
@@ -48,7 +51,8 @@ export const Field = styled.label`
     gap: 6px;
 
     color: ${({ theme }) => theme.colors.textSecondary};
-    font-size: 14px;
+    font-size: 13px;
+    font-weight: 600;
 `;
 
 export const Required = styled.span`
@@ -56,25 +60,16 @@ export const Required = styled.span`
 `;
 
 export const Input = styled.input`
-    border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: 8px;
-    padding: 10px;
-
-    background: ${({ theme }) => theme.colors.content};
-    color: ${({ theme }) => theme.colors.text};
+    ${control}
 `;
 
 export const Select = styled.select`
-    border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: 8px;
-    padding: 10px;
-
-    background: ${({ theme }) => theme.colors.content};
-    color: ${({ theme }) => theme.colors.text};
+    ${control}
 `;
 
 export const FormActions = styled.div`
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     gap: 10px;
 
@@ -82,40 +77,17 @@ export const FormActions = styled.div`
 `;
 
 export const PrimaryButton = styled.button`
-    border: none;
-    border-radius: 8px;
-    padding: 10px 14px;
-    cursor: pointer;
-
-    color: ${({ theme }) => theme.colors.onPrimary};
-    background: ${({ theme }) => theme.colors.primary};
-
-    font-weight: 700;
-
-    &:disabled {
-        cursor: not-allowed;
-        opacity: 0.5;
-    }
+    ${primaryButton}
 `;
 
 export const SecondaryButton = styled.button`
-    border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: 8px;
-    padding: 10px 14px;
-    cursor: pointer;
-
-    color: ${({ theme }) => theme.colors.text};
-    background: transparent;
-
-    &:disabled {
-        cursor: not-allowed;
-        opacity: 0.5;
-    }
+    ${secondaryButton}
 `;
 
 export const DangerButton = styled(SecondaryButton)`
     color: ${({ theme }) => theme.colors.danger};
     border-color: ${({ theme }) => theme.colors.dangerBorder};
+    &:hover:not(:disabled) { color: ${({ theme }) => theme.colors.dangerHover}; border-color: ${({ theme }) => theme.colors.danger}; }
 `;
 
 export const ErrorText = styled.p`

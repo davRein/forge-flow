@@ -2,6 +2,19 @@ import { ApiError, createApiClient } from './apiClient.js';
 
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 export const apiTests = [
+    { name: 'Verspätete Antworten und Streams einer alten Sitzung werden nicht übernommen', async run() {
+        for (const stream of [false, true]) {
+            let finish!: (response: Response) => void;
+            const client = createApiClient('/api/v1', async () => new Promise<Response>(resolve => { finish = resolve; }));
+            client.setSession('old'); const request = client.request('/workspace', stream
+                ? { responseType: 'stream', consume: async () => { throw new Error('Alter Stream darf nicht gelesen werden'); } } : {});
+            client.setSession('new');
+            finish(new Response('{}', { headers: { 'Content-Type': stream ? 'text/event-stream' : 'application/json' } }));
+            let failed = false;
+            try { await request; } catch (error) { failed = error instanceof ApiError && error.code === 'STALE_SESSION'; }
+            assert(failed, 'Verspätete Antwort einer fremden Sitzung muss verworfen werden');
+        }
+    } },
     { name: 'API-Anfragen haben ein Zeitlimit und behalten explizite Abbrüche bei', async run() {
         const client = createApiClient('/api/v1', async (_url, init) => new Promise<Response>((_resolve, reject) => {
             init?.signal?.addEventListener('abort', () => reject(new DOMException('Abgebrochen', 'AbortError')), { once: true });

@@ -4,7 +4,8 @@ import { ProjectTab } from '../types/projectTabs.types';
 
 const Container = styled.div`
     display: flex;
-    gap: 10px;
+    gap: 18px;
+    overflow-x: auto;
 
     margin-top: 24px;
 
@@ -16,9 +17,12 @@ const Tab = styled.button<{ $active: boolean }>`
     border: none;
 
     color: ${({ $active, theme }) =>
-            $active ? theme.colors.text : theme.colors.textSecondary};
+            $active ? theme.colors.primary : theme.colors.textSecondary};
 
-    padding: 12px 10px;
+    padding: 12px 2px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
 
     cursor: pointer;
 
@@ -62,6 +66,7 @@ export default function ProjectTabs({
                 <Tab
                     key={tab.key}
                     $active={tab.key === activeTab}
+                    aria-current={tab.key === activeTab ? 'page' : undefined}
                     onClick={() => onTabChange(tab.key)}
                 >
                     {tab.label}

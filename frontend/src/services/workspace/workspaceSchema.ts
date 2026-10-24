@@ -1,4 +1,5 @@
 import type { WorkspaceManifest, WorkspaceRecord } from './workspaceTypes';
+import { wikiHierarchyError } from '../../pages/wiki/utils/wikiLogic.js';
 
 type ObjectValue = Record<string, unknown>;
 function object(value: unknown): ObjectValue {
@@ -33,7 +34,12 @@ export function decodeWorkspace(value: unknown): WorkspaceRecord {
             if (typeof entry.planningCompleted !== 'boolean') throw new Error('Ungültiger Planungsstand.');
             return { id: id(entry.id), customerId: id(entry.customerId), name: text(entry.name, 1000), deadline: date(entry.deadline), planningCompleted: entry.planningCompleted };
         }),
-        customers: list(raw.customers, (entry) => ({ id: id(entry.id), name: text(entry.name, 1000), street: text(entry.street, 1000), city: text(entry.city, 1000), country: text(entry.country, 1000), email: text(entry.email, 1000), website: text(entry.website ?? '', 2000), phone: text(entry.phone, 1000), industry: text(entry.industry, 1000) })),
+        customers: list(raw.customers, (entry) => {
+            const customerId = id(entry.id);
+            const contacts = list(entry.contacts ?? [], contact => ({ id: id(contact.id), customerId: id(contact.customerId), name: text(contact.name, 1000), role: text(contact.role, 200), email: text(contact.email, 254), phone: text(contact.phone, 100) }));
+            if (contacts.length > 100 || contacts.some(contact => contact.customerId !== customerId || !contact.name.trim() || contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email))) throw new Error('Ungültige Ansprechpartnerdaten.');
+            return { id: customerId, name: text(entry.name, 1000), street: text(entry.street, 1000), postalCode: text(entry.postalCode ?? '', 32), city: text(entry.city, 1000), country: text(entry.country, 1000), email: text(entry.email, 1000), website: text(entry.website ?? '', 2000), phone: text(entry.phone, 1000), industry: text(entry.industry, 1000), contacts, notes: text(entry.notes ?? '', 6000) };
+        }),
         tasks: list(raw.tasks, (entry) => ({ id: id(entry.id), projectId: id(entry.projectId), code: text(entry.code, 100), title: text(entry.title, 1000), description: text(entry.description ?? ''),
             status: choice(entry.status, taskStatus), priority: choice(entry.priority, taskPriority), ...(entry.epicId == null ? {} : { epicId: id(entry.epicId) }), ...stamps(entry) })),
         activities: list(raw.activities, (entry) => ({ id: id(entry.id), projectId: id(entry.projectId), type: choice(entry.type, ['task_created', 'task_updated', 'task_moved', 'task_deleted', 'epic_created', 'epic_updated', 'epic_deleted', 'sprint_created', 'sprint_updated', 'sprint_started', 'sprint_completed', 'sprint_deleted', 'file_added', 'file_renamed', 'file_removed']), message: text(entry.message, 4000), createdAt: date(entry.createdAt) })),
@@ -48,10 +54,14 @@ export function decodeWorkspace(value: unknown): WorkspaceRecord {
         files: list(raw.files, (entry) => ({ id: id(entry.id), projectId: id(entry.projectId), name: text(entry.name, 1000), size: number(entry.size), mediaType: text(entry.mediaType, 200), lastModified: number(entry.lastModified), addedAt: date(entry.addedAt), updatedAt: date(entry.updatedAt) })),
         wiki: {
             categories: list(wiki.categories, (entry) => ({ id: id(entry.id), name: text(entry.name, 1000), description: text(entry.description), ...stamps(entry) })),
-            articles: list(wiki.articles, (entry) => ({ id: id(entry.id), title: text(entry.title, 1000), content: text(entry.content), categoryId: entry.categoryId === null ? null : id(entry.categoryId), ...stamps(entry) }))
+            articles: list(wiki.articles, (entry) => ({ id: id(entry.id), title: text(entry.title, 1000), content: text(entry.content), categoryId: entry.categoryId === null ? null : id(entry.categoryId), parentId: entry.parentId == null ? null : id(entry.parentId), ...stamps(entry) }))
         }
     };
     const projectExists = (projectId: number) => data.projects.some((project) => project.id === projectId);
+    const hierarchyError = wikiHierarchyError(data.wiki.articles);
+    if (hierarchyError) throw new Error(hierarchyError);
+    const contacts = data.customers.flatMap(customer => customer.contacts ?? []);
+    if (contacts.length > 10000 || new Set(contacts.map(contact => contact.id)).size !== contacts.length) throw new Error('Doppelte oder zu viele Ansprechpartnerkennungen.');
     if (data.projects.some((project) => !data.customers.some((customer) => customer.id === project.customerId))) throw new Error('Ein Projekt verweist auf einen fehlenden Kunden.');
     if ([...data.tasks, ...data.epics, ...data.sprints, ...data.files, ...data.activities].some((entry) => !projectExists(entry.projectId))) throw new Error('Ein Datensatz verweist auf ein fehlendes Projekt.');
     if (data.tasks.some((task) => task.epicId !== undefined && !data.epics.some((epic) => epic.id === task.epicId && epic.projectId === task.projectId))) throw new Error('Ungültige Epic-Zuordnung.');

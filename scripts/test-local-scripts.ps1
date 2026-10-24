@@ -53,5 +53,18 @@ Assert-Fails { & (Join-Path $PSScriptRoot 'restore-local.ps1') -BackupFile $arch
 Assert-Fails { & (Join-Path $PSScriptRoot 'restore-local.ps1') -BackupFile $archive -Database 'forgeflow_test' } 'NEUE Datenbank'
 Assert-Fails { & (Join-Path $PSScriptRoot 'restore-local.ps1') -BackupFile $archive -Database 'forgeflow_restore_x;drop_database' } 'NEUE Datenbank'
 $passed++
-Write-Output "$passed Prüfgruppen erfolgreich: Syntax, DPAPI, lokale Zielkonfiguration, Backup-Integrität und Wiederherstellungsschutz."
+# A stale Vite server can occupy IPv6 localhost while a second server binds IPv4.
+# Verify both address families with actual listeners on temporary ports.
+foreach ($address in @([Net.IPAddress]::Loopback, [Net.IPAddress]::IPv6Loopback)) {
+    if ($address.AddressFamily -eq [Net.Sockets.AddressFamily]::InterNetworkV6 -and -not [Net.Sockets.Socket]::OSSupportsIPv6) { continue }
+    $listener = [Net.Sockets.TcpListener]::new($address, 0)
+    try {
+        $listener.Start()
+        $testPort = $listener.LocalEndpoint.Port
+        Assert-Fails { Assert-LocalPortFree -Port $testPort } 'bereits belegt'
+    } finally { $listener.Stop() }
+    Assert-LocalPortFree -Port $testPort
+}
+$passed++
+Write-Output "$passed Prüfgruppen erfolgreich: Syntax, DPAPI, lokale Zielkonfiguration, Backup-Integrität, Wiederherstellungsschutz und IPv4/IPv6-Portprüfung."
 Write-Output 'Ein echter Dump-/Restore-Test benötigt die lokale Datenbankeinrichtung und das Administratorkennwort.'

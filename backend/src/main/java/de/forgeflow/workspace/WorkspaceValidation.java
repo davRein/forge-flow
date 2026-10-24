@@ -12,6 +12,18 @@ public final class WorkspaceValidation {
     private static void require(boolean condition, String message) { if (!condition) throw new ApiFailure(422, "INVALID_WORKSPACE", message); }
     private static String key(String name) { return Normalizer.normalize(name.strip(), Normalizer.Form.NFC).toLowerCase(Locale.GERMAN); }
     private static <T> void unique(List<T> entries, ToLongFunction<T> id) { require(entries.stream().mapToLong(id).distinct().count() == entries.size(), "Doppelte Kennungen."); }
+    /** Missing optional detail fields from an older client preserve existing details; explicit empty values clear them. */
+    public static Data preserveCustomerDetails(Data next, Data previous) {
+        if (next == null || next.customers() == null) return next;
+        var old = new HashMap<Long, Customer>(); previous.customers().forEach(customer -> old.put(customer.id(), customer));
+        var customers = next.customers().stream().map(customer -> {
+            var before = old.get(customer.id());
+            var contacts = customer.contacts() != null ? customer.contacts() : before == null || before.contacts() == null ? List.<CustomerContact>of() : before.contacts();
+            var notes = customer.notes() != null ? customer.notes() : before == null || before.notes() == null ? "" : before.notes();
+            return new Customer(customer.id(), customer.name(), customer.street(), customer.city(), customer.country(), customer.email(), customer.website(), customer.phone(), customer.industry(), customer.postalCode(), contacts, notes);
+        }).toList();
+        return new Data(next.projects(), customers, next.tasks(), next.activities(), next.epics(), next.sprints(), next.files(), next.wiki());
+    }
     private static void timestamps(String... values) {
         for (String value : values) {
             try { java.time.Instant.parse(value); }
@@ -19,6 +31,18 @@ public final class WorkspaceValidation {
         }
     }
     public static void validate(Data next, Data previous) {
+        validatePageHierarchy(next.wiki());
+        var contactIds = new HashSet<Long>();
+        for (var customer : next.customers()) {
+            require(customer.contacts() != null && customer.contacts().size() <= 100 && customer.notes() != null && customer.notes().length() <= 6000, "Ungültige Kundendetails.");
+            for (var contact : customer.contacts()) {
+                require(contact != null && contact.id() > 0 && contact.id() <= 9007199254740991L && contact.customerId() == customer.id() && contactIds.add(contact.id()), "Ungültige oder doppelte Ansprechpartner-Zuordnung.");
+                require(contact.name() != null && !contact.name().isBlank() && contact.name().length() <= 1000 && contact.role() != null && contact.role().length() <= 200
+                    && contact.email() != null && contact.email().length() <= 254 && (contact.email().isEmpty() || contact.email().matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))
+                    && contact.phone() != null && contact.phone().length() <= 100, "Bitte gültige Ansprechpartnerdaten angeben.");
+            }
+        }
+        require(contactIds.size() <= 10000, "Höchstens 10000 Ansprechpartner pro Workspace sind zulässig.");
         next.tasks().forEach(value -> timestamps(value.createdAt(), value.updatedAt()));
         next.activities().forEach(value -> timestamps(value.createdAt())); next.epics().forEach(value -> timestamps(value.createdAt(), value.updatedAt()));
         next.files().forEach(value -> timestamps(value.addedAt(), value.updatedAt()));
@@ -65,6 +89,23 @@ public final class WorkspaceValidation {
             Sprint current = next.sprints().stream().filter(sprint -> sprint.id() == old.id()).findFirst().orElse(null);
             if (old.status().equals("completed") && current != null) require(old.equals(current), "Abgeschlossene Sprints sind schreibgeschützt.");
             if (old.status().equals("active")) require(current != null && !current.status().equals("planned"), "Aktive Sprints müssen zuerst abgeschlossen werden.");
+        }
+    }
+
+    public static void validatePageHierarchy(Wiki wiki) {
+        var pages = new HashMap<Long, Article>();
+        wiki.articles().forEach(page -> pages.put(page.id(), page));
+        for (var page : wiki.articles()) {
+            var seen = new HashSet<Long>();
+            var current = page;
+            while (current != null) {
+                require(seen.add(current.id()), "Die Seitenhierarchie darf keine Schleifen enthalten.");
+                require(seen.size() <= 12, "Höchstens zwölf Seitenebenen sind erlaubt.");
+                if (current.parentId() == null) break;
+                var parent = pages.get(current.parentId());
+                require(parent != null && Objects.equals(parent.categoryId(), page.categoryId()), "Die übergeordnete Seite muss im selben Bereich vorhanden sein.");
+                current = parent;
+            }
         }
     }
 }

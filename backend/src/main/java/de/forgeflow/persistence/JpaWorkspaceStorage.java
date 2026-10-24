@@ -1,6 +1,7 @@
 package de.forgeflow.persistence;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -26,11 +27,25 @@ public class JpaWorkspaceStorage implements WorkspaceStorage {
     private final EntityManager entityManager;
     private final Validator validator;
     private final WorkspaceRows rows;
+    private final JsonMapper json;
+    @Override @Transactional(readOnly = true)
+    public de.forgeflow.workspace.GlobalSettings loadGlobalSettings() {
+        var row = entityManager.find(GlobalSettingsRow.class, 1);
+        return new de.forgeflow.workspace.GlobalSettings(row.revision, java.util.Arrays.asList(json.readValue(row.industries, String[].class)));
+    }
+    @Override @Transactional
+    public de.forgeflow.workspace.GlobalSettings saveGlobalSettings(de.forgeflow.workspace.GlobalSettings input) {
+        var values = input.normalized(); var row = entityManager.find(GlobalSettingsRow.class, 1, LockModeType.PESSIMISTIC_WRITE);
+        if (!row.revision.equals(values.revision())) throw new ApiFailure(409, "VERSION_CONFLICT", "Die Branchenliste wurde inzwischen geändert. Bitte neu laden.");
+        row.industries = json.writeValueAsString(values.industries()); row.revision = UUID.randomUUID().toString();
+        return new de.forgeflow.workspace.GlobalSettings(row.revision, values.industries());
+    }
 
     public JpaWorkspaceStorage(EntityManager entityManager, Validator validator, JsonMapper json) {
         this.entityManager = entityManager;
         this.validator = validator;
         this.rows = new WorkspaceRows(json);
+        this.json = json;
     }
 
     private void lockAccount(String ownerId) {
@@ -61,9 +76,11 @@ public class JpaWorkspaceStorage implements WorkspaceStorage {
     }
 
     private Data data(String ownerId) {
+        var contacts = values("StoredCustomerContact", CustomerContactRow.class, ownerId, rows::toContact).stream()
+            .collect(java.util.stream.Collectors.groupingBy(CustomerContact::customerId));
         return new Data(
             values("StoredProject", ProjectRow.class, ownerId, rows::toProject),
-            values("StoredCustomer", CustomerRow.class, ownerId, rows::toCustomer),
+            values("StoredCustomer", CustomerRow.class, ownerId, row -> rows.toCustomer(row, contacts.getOrDefault(row.id, List.of()))),
             values("StoredTask", TaskRow.class, ownerId, rows::toTask),
             values("StoredActivity", ActivityRow.class, ownerId, rows::toActivity),
             values("StoredEpic", EpicRow.class, ownerId, rows::toEpic),
@@ -92,9 +109,11 @@ public class JpaWorkspaceStorage implements WorkspaceStorage {
         lockAccount(ownerId);
         if (!workspace(ownerId).revision.equals(expectedRevision))
             throw new ApiFailure(409, "VERSION_CONFLICT", "Die Daten wurden inzwischen geändert. Bitte neu laden.");
+        var previous = data(ownerId);
+        next = WorkspaceValidation.preserveCustomerDetails(next, previous);
         if (next == null || !validator.validate(next).isEmpty())
             throw new ApiFailure(422, "INVALID_WORKSPACE", "Ungültige Workspace-Daten.");
-        WorkspaceValidation.validate(next, data(ownerId));
+        WorkspaceValidation.validate(next, previous);
 
         Map<Long, byte[]> content = new HashMap<>();
         list("StoredFileMetadata", FileRow.class, ownerId).forEach(file -> content.put(file.id, file.content));
@@ -104,13 +123,16 @@ public class JpaWorkspaceStorage implements WorkspaceStorage {
                 throw new ApiFailure(422, "INVALID_WORKSPACE", "Eine Datei fehlt oder hat die falsche Größe.");
         }
         // Delete/reinsert is one database transaction, including attachments and the revision.
-        for (String entity : List.of("StoredTask", "StoredActivity", "StoredSprint", "StoredFileMetadata",
+        // Detach the old self-references first; H2 checks them row by row during a bulk delete.
+        entityManager.createQuery("update StoredArticle row set row.parentId = null where row.ownerId = :owner").setParameter("owner", ownerId).executeUpdate();
+        for (String entity : List.of("StoredCustomerContact", "StoredTask", "StoredActivity", "StoredSprint", "StoredFileMetadata",
                 "StoredEpic", "StoredArticle", "StoredCategory", "StoredProject", "StoredCustomer"))
             entityManager.createQuery("delete from " + entity + " row where row.ownerId = :owner")
                 .setParameter("owner", ownerId).executeUpdate();
         entityManager.clear();
 
         insert(next.customers(), (index, value) -> rows.fromCustomer(ownerId, index, value));
+        insert(next.customers().stream().flatMap(customer -> customer.contacts().stream()).toList(), (index, value) -> rows.fromContact(ownerId, index, value));
         insert(next.projects(), (index, value) -> rows.fromProject(ownerId, index, value));
         insert(next.epics(), (index, value) -> rows.fromEpic(ownerId, index, value));
         insert(next.tasks(), (index, value) -> rows.fromTask(ownerId, index, value));
@@ -118,7 +140,17 @@ public class JpaWorkspaceStorage implements WorkspaceStorage {
         insert(next.sprints(), (index, value) -> rows.fromSprint(ownerId, index, value));
         insert(next.files(), (index, value) -> rows.fromFileMetadata(ownerId, index, value, content.get(value.id())));
         insert(next.wiki().categories(), (index, value) -> rows.fromCategory(ownerId, index, value));
-        insert(next.wiki().articles(), (index, value) -> rows.fromArticle(ownerId, index, value));
+        // Flush each hierarchy level before children, retaining the original presentation order.
+        var pages = next.wiki().articles();
+        var positions = new HashMap<Long, Integer>();
+        for (int index = 0; index < pages.size(); index++) positions.put(pages.get(index).id(), index);
+        var written = new HashSet<Long>();
+        while (written.size() < pages.size()) {
+            var level = pages.stream().filter(page -> !written.contains(page.id()) && (page.parentId() == null || written.contains(page.parentId()))).toList();
+            if (level.isEmpty()) throw new IllegalStateException("Invalid page hierarchy after validation.");
+            insert(level, (index, value) -> rows.fromArticle(ownerId, positions.get(value.id()), value));
+            level.forEach(page -> written.add(page.id()));
+        }
 
         String revision = UUID.randomUUID().toString();
         workspace(ownerId).revision = revision;
@@ -137,7 +169,7 @@ public class JpaWorkspaceStorage implements WorkspaceStorage {
     @Transactional(readOnly = true)
     public Settings loadSettings(String ownerId) {
         var row = entityManager.find(SettingsRow.class, ownerId);
-        return row == null ? null : new Settings(1, new SettingsValues(row.themeMode, row.defaultProjectView, row.defaultTaskPriority));
+        return row == null ? null : new Settings(1, new SettingsValues(row.themeMode, row.defaultProjectView, row.defaultTaskPriority, row.language));
     }
 
     @Override
@@ -154,6 +186,7 @@ public class JpaWorkspaceStorage implements WorkspaceStorage {
         row.themeMode = settings.settings().themeMode();
         row.defaultProjectView = settings.settings().defaultProjectView();
         row.defaultTaskPriority = settings.settings().defaultTaskPriority();
+        row.language = settings.settings().language();
         entityManager.persist(row);
     }
 }

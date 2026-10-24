@@ -1,6 +1,6 @@
 import { createApiClient } from '../api/apiClient.js';
 import { createApiWorkspaceRepository } from './workspaceRepository.js';
-import { emptyWorkspace } from './workspaceSchema.js';
+import { emptyWorkspace, decodeWorkspace } from './workspaceSchema.js';
 import type { Workspace } from './workspaceTypes';
 
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
@@ -9,6 +9,20 @@ function fixture(): Workspace {
         customers: [{ id: 1, name: 'Kunde', street: '', city: '', country: '', email: '', phone: '', industry: '' }], files: [] };
 }
 export const repositoryTests = [
+    { name: 'Kunden-PLZ bleibt beim Laden und Multipart-Speichern Text; alte Kunden ohne PLZ bleiben lesbar', async run() {
+        const data = fixture(); const legacy = decodeWorkspace({ version: 1, revision: '1', data });
+        assert(legacy.data.customers[0].postalCode === '', 'Fehlende Alt-PLZ muss leer normalisiert werden');
+        data.customers[0].postalCode = '01234';
+        const client = createApiClient('/api/v1', async (_url, init) => {
+            if (init?.method === 'PUT') {
+                assert(init.body instanceof FormData && JSON.parse(String(init.body.get('manifest'))).data.customers[0].postalCode === '01234', 'Führende Null darf beim Speichern nicht verloren gehen');
+                return new Response(JSON.stringify({ revision: '2' }));
+            }
+            return new Response(JSON.stringify({ version: 1, revision: '1', data }));
+        });
+        const repository = createApiWorkspaceRepository(client); const signal = new AbortController().signal; const loaded = await repository.load(signal);
+        assert(loaded.data.customers[0].postalCode === '01234', 'PLZ muss beim Laden erhalten bleiben'); await repository.save(loaded.data, loaded.revision, signal);
+    } },
     { name: 'Datei-Uploads verwenden Multipart mit Manifest und werden nach Bestätigung nicht erneut gesendet', async run() {
         const data = fixture();
         data.files = [{ id: 7, projectId: 1, name: 'Grüße.txt', content: new File(['Grüße 🌍'], 'Grüße.txt', { type: 'text/plain' }), addedAt: '2026-10-18', updatedAt: '2026-10-18' }];

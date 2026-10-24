@@ -14,16 +14,28 @@ import type { SettingsRepository } from './services/settings/settingsRepository'
 import { sessionSettingsRepository } from './services/settings/sessionSettingsRepository';
 import { PrimaryButton } from './pages/projects/styles/projectStyles';
 import AuthProvider from './components/AuthProvider';
-import WorkspaceProvider, { WorkspaceStatus } from './components/WorkspaceProvider';
+import WorkspaceProvider from './components/WorkspaceProvider';
+import WorkspaceNotifications from './components/WorkspaceNotifications';
 import LoginPage from './pages/auth/LoginPage';
 import { useAuth } from './hooks/authContext';
 import { apiClient, apiEnabled } from './services/api/runtime';
 import { createApiSettingsRepository } from './services/settings/apiSettingsRepository';
 import { createApiWorkspaceRepository, localWorkspaceRepository } from './services/workspace/workspaceRepository';
+import LanguageProvider from './components/LanguageProvider';
+import { useTranslation } from './hooks/languageContext';
+import { getBrowserLanguage } from './services/i18n/browserLanguage';
+import ChatWidget from './components/chat/ChatWidget';
+import ChatPageContextProvider from './components/chat/ChatPageContextProvider';
+import ChatNavigationProvider from './components/chat/ChatNavigationProvider';
+import GlobalSettingsProvider from './components/GlobalSettingsProvider';
+import RestCollectionsProvider from './components/RestCollectionsProvider';
+import { createApiRestCollectionsRepository, createSessionRestCollectionsRepository } from './services/rest/restCollections';
+import { createGlobalSettingsRepository, createSessionGlobalSettingsRepository } from './services/settings/globalSettings';
 
 type SettingsState = ReturnType<typeof useAppSettings>;
 
 function AppContent({ settings, updateSettings, resetSettings, status, error, retry, persistence }: SettingsState) {
+    const { t } = useTranslation();
     const { pathname } = useLocation();
     const navigate = useNavigate();
     const [, moduleKey, pageKey] = pathname.split('/');
@@ -36,14 +48,14 @@ function AppContent({ settings, updateSettings, resetSettings, status, error, re
     const projectStartPath = `/projectManager/${settings.defaultProjectView}`;
 
     if (status === 'loading') {
-        return <Container role="status"><Title>Einstellungen werden geladen …</Title></Container>;
+        return <Container role="status"><Title>{t('Einstellungen werden geladen …')}</Title></Container>;
     }
     if (error?.operation === 'load') {
         return (
             <Container>
-                <Title>Einstellungen nicht verfügbar</Title>
-                <p role="alert">{error.message}</p>
-                <PrimaryButton style={{ marginTop: 16 }} onClick={retry}>Erneut versuchen</PrimaryButton>
+                <Title>{t('Einstellungen nicht verfügbar')}</Title>
+                <p role="alert">{t(error.message)}</p>
+                <PrimaryButton style={{ marginTop: 16 }} onClick={retry}>{t('Erneut versuchen')}</PrimaryButton>
             </Container>
         );
     }
@@ -59,7 +71,7 @@ function AppContent({ settings, updateSettings, resetSettings, status, error, re
                     { state: { projectOverview: true } });
             }}
         >
-            <WorkspaceStatus />
+            <WorkspaceNotifications />
             {!validRoute && <Navigate to={projectStartPath} state={{ projectOverview: true }} replace />}
             <div hidden={currentModule.key !== 'projectManager'}>
                 <ProjectsPage
@@ -77,7 +89,7 @@ function AppContent({ settings, updateSettings, resetSettings, status, error, re
                 <WikiPage section={currentModule.key === 'wiki' ? currentPage.key : 'home'} active={currentModule.key === 'wiki'} />
             </div>
             <div hidden={currentModule.key !== 'devTools'}>
-                <DevToolsPage section={currentModule.key === 'devTools' ? currentPage.key : 'json'} />
+                <DevToolsPage section={currentModule.key === 'devTools' ? currentPage.key : 'json'} active={currentModule.key === 'devTools'} />
             </div>
         </MainLayout>
     );
@@ -91,17 +103,27 @@ function SignedInApp({ userId = null, settingsRepository }: AppProps) {
     const repository = useMemo(() => settingsRepository ?? (apiEnabled && ownerId ? createApiSettingsRepository(apiClient, ownerId) : sessionSettingsRepository), [settingsRepository, ownerId]);
     const workspaceRepository = useMemo(() => apiEnabled ? createApiWorkspaceRepository(apiClient) : localWorkspaceRepository, []);
     const settingsState = useAppSettings({ userId: ownerId, repository });
+    const globalRepository = useMemo(() => apiEnabled ? createGlobalSettingsRepository(apiClient) : createSessionGlobalSettingsRepository(), []);
+    const restRepository = useMemo(() => apiEnabled ? createApiRestCollectionsRepository(apiClient) : createSessionRestCollectionsRepository(), []);
     return (
         <ThemeProvider theme={themes[settingsState.settings.themeMode]}>
             <GlobalStyle />
-            <WorkspaceProvider repository={workspaceRepository}><HashRouter><AppContent {...settingsState} /></HashRouter></WorkspaceProvider>
+            <LanguageProvider language={settingsState.settings.language}>
+                <HashRouter><ChatPageContextProvider><ChatNavigationProvider>
+                    <WorkspaceProvider repository={workspaceRepository}><GlobalSettingsProvider repository={globalRepository}><RestCollectionsProvider repository={restRepository}><AppContent {...settingsState} />
+                        {apiEnabled && <ChatWidget />}
+                    </RestCollectionsProvider></GlobalSettingsProvider></WorkspaceProvider>
+                </ChatNavigationProvider></ChatPageContextProvider></HashRouter>
+            </LanguageProvider>
         </ThemeProvider>
     );
 }
 
 function AuthGate(props: AppProps) {
     const auth = useAuth();
-    return apiEnabled && auth.status !== 'authenticated' ? <LoginPage /> : <SignedInApp key={`${auth.user?.id ?? 'local'}:${auth.epoch}`} {...props} />;
+    return apiEnabled && auth.status !== 'authenticated'
+        ? <LanguageProvider language={getBrowserLanguage()}><LoginPage /></LanguageProvider>
+        : <SignedInApp key={`${auth.user?.id ?? 'local'}:${auth.epoch}`} {...props} />;
 }
 
 export default function App(props: AppProps) {

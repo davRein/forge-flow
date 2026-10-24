@@ -6,6 +6,66 @@ function assert(value: unknown, message: string): asserts value { if (!value) th
 const fixture = (): Workspace => ({ ...emptyWorkspace(), files: [] });
 const ticks = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
 export const workspaceTests = [
+    { name: 'Alte Kunden erhalten leere Detailfelder; neue Kontakte und Notizen werden ohne Textinterpretation geladen', run() {
+        const customer = { id: 1, name: 'Customer', street: '', city: '', country: '', email: '', phone: '', industry: '' };
+        const base = { version: 1, revision: '1', data: { ...emptyWorkspace(), customers: [customer] } };
+        const old = decodeWorkspace(base).data.customers[0]; assert(old.contacts?.length === 0 && old.notes === '', 'Fehlende Alt-Felder müssen lesbar bleiben');
+        const contact = { id: 1, customerId: 1, name: 'Contact', role: 'Manager', email: 'contact@example.test', phone: '' };
+        const next = decodeWorkspace({ ...base, data: { ...base.data, customers: [{ ...customer, contacts: [contact], notes: '  <script>Text 😀</script>\n' }] } }).data.customers[0];
+        assert(next.contacts?.[0].role === 'Manager' && next.notes === '  <script>Text 😀</script>\n', 'Details müssen unverändert geladen werden');
+    } },
+    { name: 'Workspace-Validierung weist falsche Kundenbeziehungen und doppelte Kontaktkennungen zurück', run() {
+        const contact = { id: 1, customerId: 1, name: 'Contact', role: '', email: '', phone: '' };
+        const customer = { id: 1, name: 'Customer', street: '', city: '', country: '', email: '', phone: '', industry: '', contacts: [contact] };
+        for (const customers of [[{ ...customer, contacts: [{ ...contact, customerId: 2 }] }], [customer, { ...customer, id: 2, contacts: [{ ...contact, customerId: 2 }] }]]) {
+            let failed = false; try { decodeWorkspace({ version: 1, revision: '1', data: { ...emptyWorkspace(), customers } }); } catch { failed = true; }
+            assert(failed, 'Kundenfremde oder doppelte Kontakte dürfen nicht geladen werden');
+        }
+    } },
+    { name: 'Externe KI-Änderungen laden ohne Unmount neu und überschreiben keine währenddessen entstandenen lokalen Änderungen', async run() {
+        let finish: (value: { data: Workspace; revision: string }) => void = () => {};
+        let loads = 0; const revisions: string[] = [];
+        const initial = fixture(); const external = { ...fixture(), customers: [{ id: 1, name: 'From assistant', street: '', city: '', country: '', email: '', phone: '', industry: '' }] };
+        const store = createWorkspaceStore({ persistence: 'account', async load() { if (++loads === 1) return { data: initial, revision: '1' }; return new Promise(resolve => { finish = resolve; }); },
+            async save(_data, revision) { revisions.push(revision); return '3'; } });
+        await store.load(); const refreshing = store.refreshExternal();
+        assert(store.getSnapshot().data === initial && store.getSnapshot().status === 'ready', 'Externe Aktualisierung darf bestehende Komponenten nicht aushängen');
+        finish({ data: external, revision: '2' }); assert(await refreshing && store.getSnapshot().data === external, 'Bestätigte Daten müssen sichtbar werden');
+        store.update('tasks', []); await ticks(); assert(revisions[0] === '2', 'Nachfolgende Schreibzugriffe brauchen die externe Revision');
+        const racing = store.refreshExternal(); store.update('customers', [{ ...external.customers[0], name: 'Local edit' }]); await ticks();
+        finish({ data: external, revision: '2' }); assert(!await racing && store.getSnapshot().data?.customers[0].name === 'Local edit', 'Verspätetes Nachladen darf lokale Eingaben nicht verwerfen');
+        store.dispose();
+    } },
+    { name: 'Speicherhinweise entstehen erst nach Bestätigung aller Änderungen, nicht beim Laden', async run() {
+        const finish: ((revision: string) => void)[] = [];
+        const store = createWorkspaceStore({ persistence: 'account', async load() { return { data: fixture(), revision: '1' }; },
+            save() { return new Promise((resolve) => finish.push(resolve)); } });
+        await store.load();
+        assert(store.getSnapshot().saveNotice === null, 'Laden darf keinen Speichererfolg melden');
+        store.update('tasks', []); await ticks();
+        store.update('epics', []); finish[0]('2'); await ticks();
+        assert(store.getSnapshot().saveNotice === null, 'Ein Zwischenstand ist noch kein vollständiger Speichererfolg');
+        finish[1]('3'); await ticks();
+        const notice = store.getSnapshot().saveNotice;
+        assert(notice?.kind === 'success', 'Alle bestätigten Änderungen lösen einen Speicherhinweis aus');
+        store.update('sprints', []); await ticks();
+        assert(store.getSnapshot().saveNotice === null, 'Neue Änderungen entfernen den überholten Erfolg');
+        finish[2]('4'); await ticks();
+        store.dismissSaveNotice(notice.id);
+        assert(store.getSnapshot().saveNotice?.kind === 'success', 'Ein alter Timer darf keinen neueren Hinweis schließen');
+        await store.load();
+        assert(store.getSnapshot().saveNotice === null, 'Neuladen entfernt alte Hinweise und erzeugt keinen Speichererfolg');
+        store.dispose();
+    } },
+    { name: 'Ein verspäteter Speicherabschluss nach Neuladen erzeugt keinen falschen Erfolgshinweis', async run() {
+        let finish: (revision: string) => void = () => {};
+        const store = createWorkspaceStore({ persistence: 'account', async load() { return { data: fixture(), revision: '1' }; },
+            save() { return new Promise((resolve) => { finish = resolve; }); } });
+        await store.load(); store.update('tasks', []); await ticks();
+        await store.load(); finish('2'); await ticks();
+        assert(store.getSnapshot().saveNotice === null && store.getSnapshot().status === 'ready', 'Veraltete Antwort darf keinen Speicherhinweis auslösen');
+        store.dispose();
+    } },
     { name: 'Zusammengehörige Änderungen werden als eine vollständige Transaktion gespeichert', async run() {
         const writes: Workspace[] = [];
         const repository: WorkspaceRepository = { persistence: 'account', async load() { return { data: fixture(), revision: '1' }; }, async save(data) { writes.push(data); return '2'; } };

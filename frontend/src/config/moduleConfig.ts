@@ -14,8 +14,8 @@ export const modules: AppModule[] = [
     },
     {
         key: 'wiki',
-        label: 'Wiki',
-        topbarItems: [{ key: 'home', label: 'Start' }, { key: 'articles', label: 'Artikel' }, { key: 'categories', label: 'Kategorien' }, { key: 'search', label: 'Suche' }]
+        label: 'Dokumentation',
+        topbarItems: [{ key: 'home', label: 'Übersicht' }, { key: 'articles', label: 'Seiten' }, { key: 'categories', label: 'Bereiche' }, { key: 'search', label: 'Suche' }]
     },
     {
         key: 'devTools',

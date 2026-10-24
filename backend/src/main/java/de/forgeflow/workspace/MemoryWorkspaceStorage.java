@@ -13,12 +13,19 @@ public class MemoryWorkspaceStorage implements WorkspaceStorage {
     private final Map<String, Envelope> workspaces = new HashMap<>();
     private final Map<String, Map<Long, Attachment>> attachments = new HashMap<>();
     private final Map<String, Settings> settings = new HashMap<>();
+    private GlobalSettings globalSettings = GlobalSettings.defaults();
+    @Override public synchronized GlobalSettings loadGlobalSettings() { return globalSettings; }
+    @Override public synchronized GlobalSettings saveGlobalSettings(GlobalSettings values) {
+        if (!globalSettings.revision().equals(values.revision())) throw new ApiFailure(409, "VERSION_CONFLICT", "Die Branchenliste wurde inzwischen geändert. Bitte neu laden.");
+        globalSettings = new GlobalSettings(UUID.randomUUID().toString(), values.normalized().industries()); return globalSettings;
+    }
     @Override public synchronized Envelope load(String ownerId) {
         return workspaces.computeIfAbsent(ownerId, id -> new Envelope(1, UUID.randomUUID().toString(), Data.empty()));
     }
     @Override public synchronized String save(String ownerId, String expectedRevision, Data data, Map<Long, Attachment> incoming) {
         Envelope current = load(ownerId);
         if (!current.revision().equals(expectedRevision)) throw new ApiFailure(409, "VERSION_CONFLICT", "Die Daten wurden inzwischen geändert. Bitte neu laden.");
+        data = WorkspaceValidation.preserveCustomerDetails(data, current.data());
         WorkspaceValidation.validate(data, current.data());
         Map<Long, Attachment> existing = attachments.getOrDefault(ownerId, Map.of());
         Map<Long, Attachment> next = new HashMap<>();

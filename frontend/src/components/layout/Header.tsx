@@ -1,3 +1,4 @@
+import { useTranslation } from '../../hooks/languageContext';
 import styled from 'styled-components';
 
 import { useAuth } from '../../hooks/authContext';
@@ -14,7 +15,8 @@ const Container = styled.header`
     align-items: center;
     justify-content: space-between;
 
-    padding: 0 20px;
+    padding: 0 24px;
+    gap: 16px;
 
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
@@ -22,50 +24,23 @@ const Container = styled.header`
 const Logo = styled.div`
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: 1px;
+    font-size: 21px;
+    font-weight: 650;
+    letter-spacing: -0.7px;
 
     user-select: none;
 `;
 
 const LogoMark = styled.div`
-    width: 13px;
-    height: 13px;
-
-    border-radius: 3px;
-
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
     background: ${({ theme }) => theme.colors.primary};
-
-    transform: rotate(45deg);
-
-    animation: logoPulse 2.8s ease-in-out infinite;
-
-    @keyframes logoPulse {
-        0% {
-            transform: rotate(45deg) scale(1);
-
-            box-shadow:
-                    0 0 6px ${({ theme }) => theme.colors.primary};
-        }
-
-        50% {
-            transform: rotate(45deg) scale(1.15);
-
-            box-shadow:
-                    0 0 18px ${({ theme }) => theme.colors.primary},
-                    0 0 30px ${({ theme }) => theme.colors.primary};
-        }
-
-        100% {
-            transform: rotate(45deg) scale(1);
-
-            box-shadow:
-                    0 0 6px ${({ theme }) => theme.colors.primary};
-        }
-    }
+    color: ${({ theme }) => theme.colors.onPrimary};
 `;
 
 const LogoText = styled.div`
@@ -85,19 +60,43 @@ const Right = styled.div`
     display: flex;
     align-items: center;
     gap: 15px;
-
+    min-width: 0;
+    font-size: 13px;
     color: ${({ theme }) => theme.colors.textSecondary};
+    @media (max-width: 560px) { gap: 8px; }
+`;
+
+const UserName = styled.span`
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    @media (max-width: 560px) { display: none; }
+`;
+
+const Avatar = styled.span`
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: ${({ theme }) => theme.colors.primarySubtle};
+    color: ${({ theme }) => theme.colors.primary};
+    font-size: 12px;
+    font-weight: 650;
 `;
 
 export default function Header({ unsavedSettings = false }: { unsavedSettings?: boolean }) {
+    const { t, language } = useTranslation();
     const auth = useAuth();
     const store = useWorkspacePersistence();
     const workspace = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
     const [confirmLogout, setConfirmLogout] = useState(false);
     return (
-        <Container>
+        <Container lang={language}>
             <Logo>
-                <LogoMark />
+                <LogoMark aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M7 19V5h11M7 12h8m-4 7 7-7" /></svg></LogoMark>
 
                 <LogoText>
                     <Forge>Forge</Forge>
@@ -106,18 +105,19 @@ export default function Header({ unsavedSettings = false }: { unsavedSettings?: 
             </Logo>
 
             <Right>
-                {auth.user ? <><span>{auth.user.name || auth.user.email}</span><SecondaryButton disabled={auth.busy} onClick={() => {
+                <Avatar aria-hidden="true">{auth.user ? (auth.user.name || auth.user.email).slice(0, 2).toLocaleUpperCase('de') : 'L'}</Avatar>
+                {auth.user ? <><UserName title={auth.user.name || auth.user.email}>{auth.user.name || auth.user.email}</UserName><SecondaryButton disabled={auth.busy} onClick={() => {
                     if (unsavedSettings || workspace.status === 'saving' || workspace.error) setConfirmLogout(true);
                     else void auth.logout();
-                }}>Abmelden</SecondaryButton>
-                    {auth.error && <ErrorText role="alert">{auth.error}</ErrorText>}</> : <span>Lokale Sitzung</span>}
-                {auth.notice && <span role="status">{auth.notice}</span>}
+                }}>{t('Abmelden')}</SecondaryButton>
+                    {auth.error && <ErrorText role="alert">{t(auth.error)}</ErrorText>}</> : <span>{t('Lokale Sitzung')}</span>}
+                {auth.notice && <span role="status">{t(auth.notice)}</span>}
             </Right>
-            {confirmLogout && <Dialog title="Mit ungespeicherten Änderungen abmelden?" onClose={() => { if (!auth.busy) setConfirmLogout(false); }}>
-                <p>Es gibt noch nicht bestätigte Änderungen. Beim Abmelden werden lokale Daten und offene Entwürfe entfernt.</p>
-                {auth.error && <ErrorText role="alert">{auth.error}</ErrorText>}
-                <SecondaryButton disabled={auth.busy} onClick={() => setConfirmLogout(false)}>Zurück</SecondaryButton>{' '}
-                <SecondaryButton disabled={auth.busy} onClick={() => void auth.logout()}>Trotzdem abmelden</SecondaryButton>
+            {confirmLogout && <Dialog title={t('Mit ungespeicherten Änderungen abmelden?')} onClose={() => { if (!auth.busy) setConfirmLogout(false); }}>
+                <p>{t('Es gibt noch nicht bestätigte Änderungen. Beim Abmelden werden lokale Daten und offene Entwürfe entfernt.')}</p>
+                {auth.error && <ErrorText role="alert">{t(auth.error)}</ErrorText>}
+                <SecondaryButton disabled={auth.busy} onClick={() => setConfirmLogout(false)}>{t('Zurück')}</SecondaryButton>{' '}
+                <SecondaryButton disabled={auth.busy} onClick={() => void auth.logout()}>{t('Trotzdem abmelden')}</SecondaryButton>
             </Dialog>}
         </Container>
     );

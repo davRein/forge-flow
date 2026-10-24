@@ -12,11 +12,13 @@ const Wrapper = styled.div`
 
 const Body = styled.div`
     display: flex;
-    height: calc(100vh - ${({ theme }) => theme.layout.headerHeight});
+    height: calc(100% - ${({ theme }) => theme.layout.headerHeight});
 `;
 
 const ContentArea = styled.div`
     flex: 1;
+    min-width: 0;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     background: ${({ theme }) => theme.colors.content};
@@ -24,7 +26,9 @@ const ContentArea = styled.div`
 
 const Main = styled.main`
     flex: 1;
+    min-height: 0;
     overflow: auto;
+    scrollbar-gutter: stable;
 `;
 
 type Props = {

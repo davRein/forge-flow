@@ -8,9 +8,9 @@ import { taskStatuses } from '../../../../../data/taskStatuses';
 import { Task } from '../../../types/task.types';
 
 const Card = styled.div<{ $isDragging?: boolean }>`
-    background: ${({ theme }) => theme.colors.content};
+    background: ${({ theme }) => theme.colors.header};
     border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 14px;
 
     opacity: ${({ $isDragging }) => ($isDragging ? 0.55 : 1)};
@@ -18,12 +18,11 @@ const Card = styled.div<{ $isDragging?: boolean }>`
 
     transition:
             border-color 0.15s ease,
-            transform 0.15s ease,
             box-shadow 0.15s ease;
 
     &:hover {
         border-color: ${({ theme }) => theme.colors.primary};
-        box-shadow: 0 0 12px ${({ theme }) => `${theme.colors.primary}33`};
+        box-shadow: ${({ theme }) => theme.shadows.raised};
     }
 `;
 
@@ -68,7 +67,7 @@ const Code = styled.span`
     color: ${({ theme }) => theme.colors.primary};
 
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 600;
 
     letter-spacing: 0.5px;
 `;
@@ -147,10 +146,10 @@ const Badge = styled.span<{ $color: string }>`
     align-items: center;
 
     padding: 5px 9px;
-    border-radius: 999px;
+    border-radius: 4px;
 
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 11px;
+    font-weight: 600;
 
     color: ${({ $color, theme }) => getBadgeTextColor($color, theme.mode)};
 
@@ -225,6 +224,7 @@ export default function TaskCard({
                 <Left>
 
                     <DragHandle
+                        aria-label={`Aufgabe ${task.code} verschieben`}
                         {...listeners}
                         {...attributes}
                         onClick={(event) =>
@@ -251,6 +251,7 @@ export default function TaskCard({
                 <Actions>
 
                     <EditButton
+                        aria-label={`Aufgabe ${task.code} bearbeiten`}
                         onClick={(event) => {
                             event.stopPropagation();
                             onEdit();
@@ -260,6 +261,7 @@ export default function TaskCard({
                     </EditButton>
 
                     <DeleteButton
+                        aria-label={`Aufgabe ${task.code} löschen`}
                         onClick={(event) => {
                             event.stopPropagation();
                             onDelete();

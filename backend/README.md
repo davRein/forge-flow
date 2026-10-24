@@ -1,17 +1,64 @@
 # Spring-Boot-Backend lokal betreiben
 
+V9 ergänzt private REST-Collections (`ff_rest_collections`). Die Migration läuft beim
+PostgreSQL-Start automatisch; keine neue Konfiguration. Anfragen sind vom Workspace
+und den KI-Werkzeugen getrennt. Das Backend speichert Definitionen und sendet keine
+HTTP-Anfragen an deren Zieladressen. [Details](../docs/rest-collections.md).
+
+V8 ergänzt die dauerhafte Dokumentationshierarchie (`ff_wiki_articles.parent_id`).
+Bestehende Wiki-Seiten bleiben erhalten; Migration automatisch beim PostgreSQL-Start.
+Neue KI-Seitenvorschläge verwenden Gesprächsformat 5, der Leser unterstützt 1–5.
+Details und Downgradehinweise: [Dokumentation](../docs/documentation.md).
+
 Java 21, Spring Boot 4.1.1, Spring Security und Maven 3.9. Anmeldung mit serverseitiger
 BCrypt-Prüfung. Der API-Vertrag bleibt in [openapi.json](../docs/openapi.json) definiert.
 
+Die Kunden-/Branchen-Erweiterung verwendet Flyway V6: PLZ-Spalte und globale Branchenliste.
+Die Migration läuft beim PostgreSQL-Start automatisch; bestehende Kunden erhalten zunächst
+eine leere PLZ. Branchen verwalten Administratoren in den globalen Einstellungen.
+Details und Kompatibilität: [Kunden und Branchen](../docs/customers.md).
+
+V7 ergänzt Ansprechpartner und interne Notizen; ebenfalls automatisch beim Start.
+Aktuelle und ältere Clients behalten bestehende Details bei fehlenden neuen Feldern.
+Mit V7 wurde für diese Funktionen Gesprächsformat 4 eingeführt; aktueller Leser siehe V8 oben.
+Grenzen/Downgradehinweise: [Kundendetails](../docs/customer-details.md).
+
 Für den bereits eingerichteten lokalen PC: [Startkonfiguration, Backup und Wiederherstellung](../docs/local-operation.md).
 Einmal `npm.cmd run setup:local`, danach `npm.cmd run start:local`.
+
+## Optionaler KI-Assistent
+
+Der aktivierte Assistent kann vorhandene Fachdaten nach Vorher-/Nachher-Vorschau und
+expliziter Kartenbestätigung ändern. Anlage und Abfragen bleiben erhalten. Umfang,
+Limits und Aggregatformat-3-Downgradegrenze: [KI-Änderungen](../docs/ai-updates.md).
+Keine neue Pflichtkonfiguration oder SQL-Migration.
+
+Die Chat-API ist standardmäßig deaktiviert und benötigt dann keinen OpenAI-Schlüssel.
+Zur Aktivierung `AI_ENABLED=true`, `OPENAI_API_KEY` und `AI_MODEL` ausschließlich in
+der Backend-Umgebung konfigurieren. Ein Modell ist nicht fest voreingestellt.
+Konfiguration, API-Beispiele, Limits und der separat aktivierbare Live-Test stehen in
+[ai-assistant.md](../docs/ai-assistant.md). Chat-Widget, Streaming, lesende Projektwerkzeuge,
+Seitenkontext, bestätigte Navigation und begrenzte mehrstufige Ausführung sind enthalten.
+Optional begrenzt `AI_MAX_TOOL_STEPS` die Werkzeugfolge (1–6, Vorgabe 4). Das vorhandene
+`AI_TIMEOUT` bleibt das Gesamtzeitlimit; keine neue Pflichtkonfiguration erforderlich.
+Im Profil `postgres` legt Flyway V5 automatisch Tabellen für Chatverläufe und Ausführungshistorie
+an. Optional bestimmt `AI_CONVERSATION_RETENTION` die Inaktivitätsfrist (Vorgabe `30d`,
+zulässig `1d`–`365d`). Vorher flüchtige Chats werden nicht übernommen.
+Integrations-/Sicherheitsprüfungen, isolierte PostgreSQL-Tests und optionale lokale
+Zeitmessungen: [ai-quality.md](../docs/ai-quality.md). Das Update benötigt für M9 keine
+zusätzlichen Servervariablen.
+
+Die erweiterte Fachanbindung unterstützt Abfragen, Filter und bestätigte Anlagen für
+Kunden, Projekte, Aufgaben, Epics, Sprints, Wiki, Textdateien und normale Benutzerkonten
+(nur als Administrator). Eigenes Profil und Einstellungen sind lesbar. Einrichtung und
+Grenzen: [ai-workspace.md](../docs/ai-workspace.md). Keine neue Migration oder Pflichtvariable.
 
 ## Betriebsarten
 
 | Backend-Profil | Speicherung | Datenbank erforderlich |
 | --- | --- | --- |
 | `memory` (Vorgabe) | Konto aus Startvariablen; Fachdaten, Dateien und Einstellungen im Arbeitsspeicher | Nein |
-| `postgres` | Konten, Fachdaten, Dateien und Einstellungen dauerhaft in PostgreSQL | Ja |
+| `postgres` | Konten, Fachdaten, Dateien, Einstellungen und KI-Verläufe dauerhaft in PostgreSQL | Ja |
 
 PostgreSQL ist ausgewählt, darf aber später installiert werden. PostgreSQL, Backend und Vite
 können direkt auf demselben Windows-PC laufen. Docker ist nicht erforderlich.

@@ -6,32 +6,26 @@ const Badge = styled.div<{ $color: string; $pulse?: boolean }>`
     align-items: center;
     justify-content: center;
 
-    padding: 6px 12px;
-    border-radius: 999px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
 
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 11px;
+    font-weight: 650;
 
     background: ${({ $color }) => `${$color}20`};
     color: ${({ $color, theme }) => getBadgeTextColor($color, theme.mode)};
 
     border: 1px solid ${({ $color }) => `${$color}55`};
 
-    animation: ${({ $pulse }) =>
-    $pulse ? 'pulse 1.6s infinite' : 'none'};
-
-    @keyframes pulse {
-        0% {
-            box-shadow: 0 0 0 0 ${({ $color }) => `${$color}66`};
-        }
-
-        70% {
-            box-shadow: 0 0 0 6px transparent;
-        }
-
-        100% {
-            box-shadow: 0 0 0 0 transparent;
-        }
+    &::before {
+        content: ${({ $pulse }) => $pulse ? "''" : 'none'};
+        width: 5px;
+        height: 5px;
+        margin-right: 6px;
+        border-radius: 50%;
+        background: currentColor;
     }
 `;
 

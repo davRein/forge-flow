@@ -3,6 +3,20 @@ $ErrorActionPreference = 'Stop'
 $script:LocalProjectRoot = Split-Path -Parent $PSScriptRoot
 $script:LocalConfigRoot = Join-Path $script:LocalProjectRoot 'backend/.local'
 
+function Assert-LocalPortFree {
+    param([ValidateRange(1, 65535)][int]$Port)
+    foreach ($address in @([Net.IPAddress]::Loopback, [Net.IPAddress]::IPv6Loopback)) {
+        if ($address.AddressFamily -eq [Net.Sockets.AddressFamily]::InterNetworkV6 -and -not [Net.Sockets.Socket]::OSSupportsIPv6) { continue }
+        $client = [Net.Sockets.TcpClient]::new($address.AddressFamily)
+        try {
+            $pending = $client.BeginConnect($address, $Port, $null, $null)
+            if ($pending.AsyncWaitHandle.WaitOne(500) -and $client.Connected) {
+                throw "Port $Port ($address) ist bereits belegt. Den bisherigen Entwicklungsserver zuerst stoppen."
+            }
+        } finally { $client.Dispose() }
+    }
+}
+
 function Get-LocalConfiguration {
     param([string]$ConfigRoot = $script:LocalConfigRoot)
     $path = Join-Path $ConfigRoot 'config.json'

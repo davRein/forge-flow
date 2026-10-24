@@ -19,6 +19,30 @@ function deferred<T>() {
 }
 
 export const settingsTests = [
+    { name: 'Sprache wird pro Konto gespeichert und alte Einstellungen bleiben kompatibel', async run() {
+        const repository = createSessionSettingsRepository();
+        await repository.save('anna', encodeSettings({ ...defaultSettings, language: 'en' }));
+        await repository.save('ben', encodeSettings({ ...defaultSettings, language: 'de' }));
+        equal(decodeSettings(await repository.load('anna')).language, 'en');
+        equal(decodeSettings(await repository.load('ben')).language, 'de');
+        equal(decodeSettings({ version: 1, settings: { themeMode: 'light', defaultProjectView: 'projects', defaultTaskPriority: 'high' } }),
+            { ...defaultSettings, themeMode: 'light', defaultProjectView: 'projects', defaultTaskPriority: 'high', language: 'en' });
+        equal(decodeSettings({ version: 1, settings: { language: 'fr' } }).language, 'en');
+    } },
+    { name: 'Regionsvorgabe gilt nur ohne gültige Kontosprache und schreibt beim Laden keine Einstellungen', async run() {
+        let saves = 0;
+        let record: unknown = null;
+        const repository: SettingsRepository = { persistence: 'account', async load() { return record; }, async save() { saves++; } };
+        const store = createSettingsStore(repository, 'anna', 'de');
+        equal(store.getSnapshot().settings.language, 'de');
+        await store.load(); equal(store.getSnapshot().settings.language, 'de');
+        record = encodeSettings({ ...defaultSettings, language: 'en' });
+        await store.load(); equal(store.getSnapshot().settings.language, 'en');
+        equal(saves, 0);
+        const english = createSettingsStore(repository, 'ben', 'en');
+        record = encodeSettings({ ...defaultSettings, language: 'de' });
+        await english.load(); equal(english.getSnapshot().settings.language, 'de');
+    } },
     { name: 'Einstellungen sind pro Benutzer und gegenüber der anonymen Sitzung getrennt', async run() {
         const repository = createSessionSettingsRepository();
         await repository.save('anna', encodeSettings({ ...defaultSettings, themeMode: 'light' }));

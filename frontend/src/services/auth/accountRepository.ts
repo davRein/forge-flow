@@ -1,6 +1,7 @@
 import type { ApiClient } from '../api/apiClient';
 
 export type ManagedAccount = { id: string; name: string; email: string; administrator: boolean; active: boolean };
+export const ACCOUNT_LIST_CHANGED_EVENT = 'forgeflow:accounts-changed';
 
 function account(value: unknown): ManagedAccount {
     if (!value || typeof value !== 'object' || !('id' in value) || !('name' in value) || !('email' in value)

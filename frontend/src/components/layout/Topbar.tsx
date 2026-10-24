@@ -1,17 +1,21 @@
+import { useTranslation } from '../../hooks/languageContext';
 import styled from 'styled-components';
 import { NavLink } from 'react-router-dom';
 import { AppModule, ModuleKey } from '../../config/moduleConfig';
 
 const Container = styled.nav`
-    height: 50px;
+    min-height: 52px;
+    flex-shrink: 0;
+    overflow-x: auto;
     background: ${({ theme }) => theme.colors.header};
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 22px;
 
-    padding: 0 20px;
+    padding: 0 32px;
+    @media (max-width: 760px) { padding-inline: 16px; gap: 16px; }
 `;
 
 const NavItem = styled(NavLink)`
@@ -20,14 +24,18 @@ const NavItem = styled(NavLink)`
     border: none;
     color: ${({ theme }) => theme.colors.textSecondary};
 
-    padding: 8px 12px;
-    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    align-self: stretch;
+    padding: 14px 2px 12px;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
 
-    &.active, &:hover {
-        background: ${({ theme }) => theme.colors.primary};
-        color: ${({ theme }) => theme.colors.onPrimary};
-    }
+    &:hover { color: ${({ theme }) => theme.colors.text}; }
+    &.active { color: ${({ theme }) => theme.colors.primary}; border-bottom-color: ${({ theme }) => theme.colors.primary}; }
 `;
 
 type Props = {
@@ -36,10 +44,11 @@ type Props = {
 };
 
 export default function Topbar({ items, moduleKey }: Props) {
+    const { t, language } = useTranslation();
     return (
-        <Container>
+        <Container lang={language} aria-label={t('Modulnavigation')}>
             {items.map((item) => (
-                <NavItem key={item.key} to={`/${moduleKey}/${item.key}`}>{item.label}</NavItem>
+                <NavItem key={item.key} to={`/${moduleKey}/${item.key}`}>{t(item.label)}</NavItem>
             ))}
         </Container>
     );

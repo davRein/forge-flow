@@ -1,5 +1,54 @@
 # Frontend-Funktionen
 
+Dev Tools sind kompakter: maximal 1160 px, kleinere Abstände und korrekt ausgerichtete
+JSON-Aktionen. Der REST-Client hat eine Collection-Seitenleiste und Reiter für Header,
+Body und Zeitlimit. Anfragen lassen sich privat im Konto speichern, laden, aktualisieren,
+kopieren und nach Bestätigung löschen. Laden sendet keine Anfrage. [Details](rest-collections.md).
+
+Projektliste und Dashboard haben eine kompakte Leiste innerhalb des Projektrahmens:
+Projektmappen-Icon mit „Neu“, Lupe und kleiner Ergebniszähler. Die Lupe klappt das Suchfeld
+nach rechts auf und fokussiert es; erneuter Klick oder Escape schließt es, leert den Filter
+und setzt den Fokus zurück. Filterung nach Projektname/Kunde wie bisher. Übersichten maximal
+1100 px breit, kleinere Abstände und neutrale Projektzeilen ohne flächige blaue Auswahl.
+Die Animation berücksichtigt reduzierte Bewegung; Beschriftungen sind DE/EN.
+
+Der frühere Wiki-Bereich heißt jetzt Dokumentation: Bereichsübersicht, Seitenbaum mit
+Unterseiten, Breadcrumbs, Inhaltsverzeichnis, Lesezeit, Vorlagen und Markdown-Editor mit
+Formatierungsleiste und Vorschau. Bestehende Inhalte/Links bleiben gültig. Suche, Bereiche,
+Entwürfe und DE/EN sind integriert; Hierarchie dauerhaft in PostgreSQL über V8.
+Bedienung und Grenzen: [documentation.md](documentation.md).
+
+Kundennamen/„Details öffnen“ führen zu einer direkt verlinkbaren Detailseite mit Stammdaten,
+zugeordneten Projekten, mehreren Ansprechpartnern und Klartextnotizen. Eigene Dialoge für
+Kontakte/Notizen, Bestätigung beim Entfernen und Erhalt bei Stammdatenänderungen.
+Die KI kann Kontakte und Notizen lesen sowie bestätigte Anlage/Änderung vorbereiten.
+Details: [customer-details.md](customer-details.md).
+
+Das Kundenformular verwendet Bereiche für Unternehmen, Anschrift und Kontakt inklusive
+PLZ als Text. Branchen werden im Dropdown aus einer anwendungsweiten Liste gewählt;
+Administratoren verwalten sie unter Einstellungen → Globale Einstellungen.
+Vorhandene Branchenwerte bleiben erhalten. Details: [customers.md](customers.md).
+
+Der Assistent kann bestehende Kunden, Projekte, Aufgaben, Epics, geplante Sprints und
+Wiki-Inhalte nach Vorschau alter/neuer Werte ändern sowie Dateien umbenennen. Nur
+„Bestätigen und ändern“ speichert. Neue Datensätze lassen sich weiterhin anlegen.
+Umfang und Beispiele: [ai-updates.md](ai-updates.md).
+
+Der KI-Assistent kann die gespeicherten Fachbereiche abfragen und neue Kunden, Projekte,
+Aufgaben, Epics, Sprints, Wiki-Einträge, Textdateien und als Administrator normale Benutzerkonten
+zur Anlage vorschlagen. Zählungen und Filter laufen im Backend. Eine Karte zeigt alle Angaben;
+erst „Bestätigen und anlegen“ speichert. Offene Formulare/laufende Speicherungen blockieren
+die Freigabe. Nach Erfolg werden Daten ohne Aushängen der Komponenten aktualisiert; lokale
+Änderungen während des Nachladens bleiben erhalten. Benutzerpasswörter werden nur in einem
+separaten privaten Feld direkt ans Backend gesendet. Umfang, Beispiele und Grenzen:
+[ai-workspace.md](ai-workspace.md). Die älteren Beschreibungen der Projektwerkzeuge unten
+bleiben als Teil dieses erweiterten Funktionsumfangs gültig.
+
+Die Oberfläche verwendet eine gemeinsame helle/dunkle Farbpalette, abgestufte
+Systemtypografie und dezente Hover-/Fokus-Übergänge. Dialoge und Aufgabenansichten
+blenden kurz ein; die Systemeinstellung für reduzierte Bewegung wird berücksichtigt.
+Modulnavigation und Tabs passen sich schmalen Fenstern an.
+
 Die Navigation nutzt Hash-URLs, zum Beispiel `#/projectManager/customers`.
 Unter Project Manager → Einstellungen lassen sich das helle oder dunkle Design, die Startansicht
 (Dashboard oder Projektliste) und die Standardpriorität neuer Aufgaben ändern. Die Einstellungen
@@ -92,3 +141,70 @@ gespeicherte Fachdaten vom Backend geladen. Dauerhafte Speicherung verlangt das 
 `postgres` und einen eingerichteten PostgreSQL-Server; im Standardprofil `memory` bleiben die Daten flüchtig.
 
 Das Ticketsystem ist auf Wunsch vorerst zurückgestellt.
+
+Im API-Modus erscheint nach bestätigtem Speichern von Workspace-Änderungen unten rechts
+ein kompakter Hinweis mit grünem Häkchen. Er verschwindet nach fünf Sekunden;
+Mauskontakt und Tastaturfokus pausieren den Timer. Beim bloßen Laden gibt es keine
+Erfolgsmeldung und kein dauerhaftes Synchronisationsfeld. Speicherfehler bleiben mit
+rotem Zeichen, Ursache und Wiederholungsaktion sichtbar. Bei Versionskonflikten muss
+der Serverstand nach ausdrücklicher Bestätigung neu geladen werden. Ungespeicherte
+Änderungen bleiben bis dahin in der Ansicht erhalten. Hinweise folgen der gewählten Sprache.
+
+Die Einstellungen haben eine eigene Navigation für Nutzerverwaltung, Optik,
+Projektmanager und Sprache. Die Kategorie steht im URL-Parameter `category`;
+Kontoentwürfe bleiben beim Wechsel erhalten. Auf schmalen Fenstern rückt die Navigation
+über den Inhalt. Deutsch/Englisch ist pro Konto gespeichert und übersetzt Einstellungen,
+Wiki, Dev Tools und die gemeinsame Navigation. Die übrigen Projektmanager-Inhalte
+bleiben Deutsch. Sprachwechsel erhalten Entwürfe, Rechenverlauf und technische Ein-/Ausgaben;
+REST-Anfragen werden dadurch nicht erneut gesendet. Wiki-Datumsanzeigen und REST-Bytezahlen
+verwenden das passende deutsche bzw. englische Format.
+
+Im angemeldeten API-Modus ist rechts unten ein KI-Assistent integriert. Er verwendet
+das bestehende Theme und die Sprachwahl, streamt Antworten und bietet „Stoppen“.
+Öffnen allein erzeugt keinen Modellaufruf. Entwürfe und laufende Antworten bleiben
+beim Schließen und beim Modulwechsel erhalten; Abmelden oder Neuladen entfernt
+den Chat aus der Ansicht. Neue Gespräche verlangen bei vorhandenem Verlauf eine
+Bestätigung. Fehler behalten den Entwurf und bieten das Nachladen des bestätigten
+Verlaufs, ohne automatische Modellwiederholung. Antworten sind sicherer Text.
+Der Assistent kann gespeicherte Projekte, deren Aufgabenstand und offene Aufgaben
+des angemeldeten Kontos lesen. Aufklappbare Quellenkarten zeigen den tatsächlichen
+Lesezugriff, Kennungen, begrenzte Ergebnisse und Abrufzeit. Die Oberfläche weist auf
+die Weitergabe abgefragter Projektdaten an OpenAI hin. Mehrdeutige Projektnamen
+werden zur Klärung angezeigt.
+
+Der Chat berücksichtigt die aktuelle Modul-/Seitenroute und das sichtbar geöffnete Projekt
+samt Tab. „Welche Aufgaben sind hier offen?“ kann sich damit auf dieses Projekt beziehen.
+Das Eingabefeld zeigt den Seitenbezug; gesendete Nachrichten behalten ihren eigenen Bezug,
+auch bei späterem Navigieren. Beim Wechsel zur Übersicht oder zu anderen Modulen wird das
+alte Projekt nicht weitergegeben. Das Backend prüft Projektkennungen unter dem angemeldeten
+Konto; bei nicht verfügbaren/noch ungespeicherten Projekten bleibt die Nachricht als Entwurf.
+Suchparameter, Wiki-/Dev-Tools-Editoren und Formularinhalte werden nicht automatisch geteilt.
+Wiki und Dev Tools erhalten damit Hilfe zur Seite, ohne Zugriff auf deren private Eingaben.
+Der Hinweis nennt auch die Weitergabe des Seitenbezugs an OpenAI. Schreibaktionen folgen später.
+Details: [ai-assistant.md](ai-assistant.md).
+
+Der Assistent kann außerdem vorschlagen, ein eigenes Projekt, seine Aufgabenliste oder Kanban
+zu öffnen. Eine Aktionskarte zeigt das konkrete Ziel; erst „Bestätigen und öffnen“ erteilt
+die einmalige Backend-Freigabe. „Ablehnen“ verwirft den Vorschlag. Offene Formulare und
+ungespeicherte Kontoeingaben blockieren den Wechsel. Die Karte zeigt Erfolg, Fehler oder
+eine noch unbestätigte Ausführung. Vorschläge gelten fünf Minuten und werden beim Laden
+nicht automatisch ausgeführt. Freigabe und Rückmeldung verursachen keine Modellanfrage.
+
+Mehrstufige Fragen können mehrere lesende Werkzeugaufrufe verbinden, etwa Projektübersicht
+und offene Aufgaben zweier Projekte. Der Chat zeigt den aktuellen Schritt und nummerierte
+Ergebniskarten. Standardmäßig sind höchstens vier Werkzeugschritte erlaubt; anschließend
+fasst der Assistent die tatsächlich gelesenen Daten zusammen. „Stoppen“ beendet die ganze
+Folge. Bei Fehlern bleiben Eingabe und bestätigter Verlauf erhalten; unbestätigte Ergebnisse
+werden verworfen und keine weiteren Anfragen automatisch ausgelöst.
+
+Unter „Unterhaltungen“ können eigene gespeicherte Chats erneut geöffnet und ihre letzten
+50 Ausführungsläufe mit Status und Werkzeugschritten angesehen werden. Die Liste nennt
+Speicherart und Aufbewahrungsfrist. Ein Wechsel mit ungesendetem Entwurf und das endgültige
+Löschen verlangen eine Bestätigung. Löschen entfernt auch die Ausführungshistorie.
+Im PostgreSQL-Profil bleiben Chats nach Neuladen, Abmelden und Backend-Neustart gespeichert;
+nach erneuter Anmeldung werden sie über die Liste geöffnet. Im Memory-Profil sind sie flüchtig.
+Öffnen, Auflisten, Ausführungen ansehen und Löschen verursachen keine Modellanfrage.
+Laufende Chats können gelesen werden; bis zum Ende und manuellen Nachladen bleiben neue
+Nachrichten/Freigaben gesperrt. Unterbrochene Läufe werden nicht automatisch fortgesetzt,
+alte Aktionskarten niemals automatisch ausgeführt. Es werden keine Chatdaten im Local Storage
+oder Session Storage abgelegt. Vor dem M8-Update flüchtige Chats werden nicht importiert.

@@ -30,7 +30,7 @@ const ProjectTitle = styled.h2`
 
 const MetaGrid = styled.div`
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
     gap: 16px;
 `;
 
@@ -68,7 +68,7 @@ const StatusBadge = styled.span<{ $color: string }>`
 
 const StatsGrid = styled.div`
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
     gap: 16px;
 `;
 
@@ -87,7 +87,8 @@ const StatLabel = styled.div`
 const StatValue = styled.div`
     margin-top: 10px;
     font-size: 28px;
-    font-weight: 800;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
 `;
 
 const Section = styled.div`
@@ -103,7 +104,7 @@ const SectionTitle = styled.h3`
 
 const ProgressWrapper = styled.div`
     width: 100%;
-    height: 12px;
+    height: 6px;
 
     overflow: hidden;
     border-radius: 999px;

@@ -124,3 +124,10 @@ For subsequent starts, run `npm.cmd run start:local`. Run setup again after chan
 `COOKIE_SECURE=false` is intended for local HTTP development. The startup scripts require Windows;
 for direct backend configuration, see [backend/README.md](backend/README.md).
 For local configuration and backup details, see [docs/local-operation.md](docs/local-operation.md).
+
+## 6. Configure Shared Customer Industries
+
+Sign in as an administrator and open **Settings → Global settings → Customer industries**.
+Review the initial industry list and save your choices. This list is shared by all users.
+Flyway applies the customer postal-code and shared-settings migration automatically when
+the updated backend starts; no manual SQL setup is needed.

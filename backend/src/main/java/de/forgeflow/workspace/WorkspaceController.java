@@ -40,14 +40,30 @@ public class WorkspaceController {
         try { record = json.readValue(manifest, Envelope.class); }
         catch (RuntimeException error) { throw new ApiFailure(422, "INVALID_WORKSPACE", "Ungültiges Datenmanifest."); }
         if (!validator.validate(record).isEmpty() || !ifMatch.equals("\"" + record.revision() + "\"")) throw new ApiFailure(422, "INVALID_WORKSPACE", "Ungültige Daten oder Datenversion.");
+        // Older clients omit parentId; explicit null moves a page to the space root.
+        var missingParents = new HashSet<Long>();
+        for (var page : json.readTree(manifest).path("data").path("wiki").path("articles")) {
+            if (!page.has("parentId")) missingParents.add(page.get("id").longValue());
+        }
+        if (!missingParents.isEmpty()) {
+            var previous = storage.load(owner(auth));
+            if (!previous.revision().equals(record.revision())) throw new ApiFailure(409, "VERSION_CONFLICT", "Die Daten wurden inzwischen geändert. Bitte neu laden.");
+            var parents = new HashMap<Long, Long>();
+            previous.data().wiki().articles().forEach(page -> { if (page.parentId() != null) parents.put(page.id(), page.parentId()); });
+            var data = record.data();
+            var pages = data.wiki().articles().stream().map(page -> missingParents.contains(page.id())
+                ? new Article(page.id(), page.title(), page.content(), page.categoryId(), page.createdAt(), page.updatedAt(), parents.get(page.id())) : page).toList();
+            record = new Envelope(record.version(), record.revision(), new Data(data.projects(), data.customers(), data.tasks(), data.activities(), data.epics(), data.sprints(), data.files(), new Wiki(pages, data.wiki().categories())));
+        }
         Map<Long, WorkspaceStorage.Attachment> incoming = new HashMap<>();
         var multipart = org.springframework.web.util.WebUtils.getNativeRequest(request, MultipartHttpServletRequest.class);
         if (multipart == null) throw new ApiFailure(400, "INVALID_MULTIPART", "Multipart-Daten fehlen.");
+        var files = record.data().files();
         for (var entry : multipart.getMultiFileMap().entrySet()) {
             if (!entry.getKey().matches("file-[1-9][0-9]*") || entry.getValue().size() != 1) throw new ApiFailure(422, "INVALID_WORKSPACE", "Ungültige Datei-Zuordnung.");
             long id;
             try { id = Long.parseLong(entry.getKey().substring(5)); } catch (NumberFormatException error) { throw new ApiFailure(422, "INVALID_WORKSPACE", "Ungültige Datei-Kennung."); }
-            if (record.data().files().stream().noneMatch(file -> file.id() == id)) throw new ApiFailure(422, "INVALID_WORKSPACE", "Datei-Metadaten fehlen.");
+            if (files.stream().noneMatch(file -> file.id() == id)) throw new ApiFailure(422, "INVALID_WORKSPACE", "Datei-Metadaten fehlen.");
             incoming.put(id, new WorkspaceStorage.Attachment(entry.getValue().getFirst().getBytes()));
         }
         String revision = storage.save(owner(auth), record.revision(), record.data(), incoming);
