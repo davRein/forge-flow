@@ -13,4 +13,5 @@ public interface WorkspaceStorage {
     void saveSettings(String ownerId, Settings settings);
     GlobalSettings loadGlobalSettings();
     GlobalSettings saveGlobalSettings(GlobalSettings settings);
+    default java.util.List<RecentActivity.Entry> loadRecentActivity(String ownerId) { return java.util.List.of(); }
 }

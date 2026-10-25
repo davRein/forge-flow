@@ -12,16 +12,20 @@ export function useProjects() {
     const [customerEditor, setCustomerEditor] = useState<{ id: number | null; draft: CustomerDraft; selectForProject: boolean } | null>(null);
     const [projectError, setProjectError] = useState('');
     const [customerError, setCustomerError] = useState('');
+    const projectBaseline = useRef('');
+    const customerBaseline = useRef('');
 
     const selectedProject = projectList.find((project) => project.id === selectedProjectId);
     const customer = customerList.find((entry) => entry.id === selectedProject?.customerId);
 
     function openProjectEditor(project?: Project) {
         setProjectError('');
-        setProjectEditor({ id: project?.id ?? null, draft: project ? {
+        const draft: ProjectDraft = project ? {
             name: project.name, customerId: project.customerId,
             deadline: project.deadline, planningCompleted: project.planningCompleted
-        } : { name: '', customerId: customerList[0]?.id ?? 0, deadline: '', planningCompleted: false } });
+        } : { name: '', customerId: customerList[0]?.id ?? 0, deadline: '', planningCompleted: false };
+        projectBaseline.current = JSON.stringify(draft);
+        setProjectEditor({ id: project?.id ?? null, draft });
     }
 
     function closeProjectEditor() {
@@ -56,10 +60,12 @@ export function useProjects() {
 
     function openCustomerEditor(customer?: Customer, selectForProject = false) {
         setCustomerError('');
-        setCustomerEditor({ id: customer?.id ?? null, selectForProject, draft: customer ? {
+        const draft: CustomerDraft = customer ? {
             name: customer.name, street: customer.street, postalCode: customer.postalCode ?? '', city: customer.city, country: customer.country,
             email: customer.email, website: customer.website ?? '', phone: customer.phone, industry: customer.industry
-        } : { name: '', street: '', postalCode: '', city: '', country: '', email: '', website: '', phone: '', industry: '' } });
+        } : { name: '', street: '', postalCode: '', city: '', country: '', email: '', website: '', phone: '', industry: '' };
+        customerBaseline.current = JSON.stringify(draft);
+        setCustomerEditor({ id: customer?.id ?? null, selectForProject, draft });
     }
 
     function closeCustomerEditor() {
@@ -107,6 +113,8 @@ export function useProjects() {
     }
 
     return {
+        projectDirty: !!projectEditor && JSON.stringify(projectEditor.draft) !== projectBaseline.current,
+        customerDirty: !!customerEditor && JSON.stringify(customerEditor.draft) !== customerBaseline.current,
         projectList, customerList, selectedProject, selectedProjectId, setSelectedProjectId, customer,
         projectEditor, projectError, openProjectEditor, closeProjectEditor, changeProject, saveProject, deleteProject,
         customerEditor, customerError, openCustomerEditor, closeCustomerEditor, changeCustomer, saveCustomer, deleteCustomer

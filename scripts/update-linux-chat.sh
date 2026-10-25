@@ -3,10 +3,27 @@
 set -Eeuo pipefail
 umask 077
 fail() { printf '%s\n' "$*" >&2; exit 1; }
-[[ $# == 1 && "$1" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || fail 'Usage: sudo bash update-linux-chat.sh PUBLIC_IPV4'
-ip="$1"
-IFS=. read -r -a octets <<< "$ip"
-for octet in "${octets[@]}"; do (( 10#$octet <= 255 )) || fail 'Invalid IPv4 address.'; done
+# BEGIN CHAT_TARGET_CHECK
+validate_target() {
+    local value="$1" part
+    local -a parts
+    (( ${#value} > 0 && ${#value} <= 253 )) || return 1
+    if [[ "$value" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+        IFS=. read -r -a parts <<< "$value"
+        for part in "${parts[@]}"; do (( 10#$part <= 255 )) || return 1; done
+        return 0
+    fi
+    [[ "$value" == *.* && ! "$value" =~ ^[0-9.]+$ && "$value" != *. ]] || return 1
+    IFS=. read -r -a parts <<< "$value"
+    for part in "${parts[@]}"; do
+        (( ${#part} > 0 && ${#part} <= 63 )) || return 1
+        [[ "$part" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]] || return 1
+    done
+}
+# END CHAT_TARGET_CHECK
+[[ $# == 1 ]] || fail 'Usage: sudo bash update-linux-chat.sh PUBLIC_HOST'
+host="$1"
+validate_target "$host" || fail 'Specify a valid domain or IPv4 address, without scheme, port or path.'
 (( EUID == 0 )) || fail 'Run this script with sudo.'
 source_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 jar="$source_dir/forgeflow-chat-backend.jar"
@@ -113,20 +130,20 @@ systemctl start forgeflow
 if ! ready; then rollback 1; fi
 frontend_changed=1
 publish_frontend
-curl --noproxy '*' -fsS --retry 5 --retry-delay 1 --max-time 10 --connect-to "$ip:443:127.0.0.1:443" "https://$ip/" > "$backup/public-index.html"
+curl --noproxy '*' -fsS --retry 5 --retry-delay 1 --max-time 10 --connect-to "$host:443:127.0.0.1:443" "https://$host/" > "$backup/public-index.html"
 cmp -s "$backup/frontend/index.html" "$backup/public-index.html"
-curl --noproxy '*' -fsS --retry 5 --retry-delay 1 --max-time 10 --connect-to "$ip:443:127.0.0.1:443" "https://$ip/api/v1/health" |
+curl --noproxy '*' -fsS --retry 5 --retry-delay 1 --max-time 10 --connect-to "$host:443:127.0.0.1:443" "https://$host/api/v1/health" |
     grep -Eq '"storage"[[:space:]]*:[[:space:]]*"postgresql"'
 # Initial requests still require authentication; this does not call the provider.
 for route in '' '/00000000-0000-4000-8000-000000000000' '/00000000-0000-4000-8000-000000000000/executions'; do
     status="$(curl --noproxy '*' -sS --max-time 10 --output "$backup/ai-auth.json" --write-out '%{http_code}' \
-        --connect-to "$ip:443:127.0.0.1:443" "https://$ip/api/v1/ai/conversations$route")"
+        --connect-to "$host:443:127.0.0.1:443" "https://$host/api/v1/ai/conversations$route")"
     if [[ "$status" != 401 ]]; then
         printf 'A public AI history route did not enforce authentication.\n' >&2
         rollback 1
     fi
 done
 trap - ERR INT TERM
-printf '\nChat update ready: https://%s\nBackup: %s\n' "$ip" "$backup"
+printf '\nChat update ready: https://%s\nBackup: %s\n' "$host" "$backup"
 printf 'Reload with Ctrl+F5, sign in, then open the assistant at the bottom right. Existing AI settings were preserved.\n'
 printf 'No provider request was made by this update script.\n'

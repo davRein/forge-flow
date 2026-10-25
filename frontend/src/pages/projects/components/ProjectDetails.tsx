@@ -13,6 +13,7 @@ import type { useEpics } from '../tabs/epics/hooks/useEpics';
 import type { useSprints } from '../tabs/sprints/hooks/useSprints';
 import type { useProjectFiles } from '../tabs/files/hooks/useProjectFiles';
 import { surface } from '../../../styles/primitives';
+import { ProjectBudgetSummary } from '../../business/ProjectBudgets';
 
 const Container = styled.div`
     ${surface}
@@ -76,6 +77,7 @@ function SelectedProjectDetails({ project, customer, activeTab, onTabChange, tas
 
             <Meta>Kunde: {customer?.name}</Meta>
             <Meta>Deadline: {project.deadline}</Meta>
+            <ProjectBudgetSummary projectId={project.id} />
 
             <div style={{ marginTop: '12px' }}>
                 <StatusBadge

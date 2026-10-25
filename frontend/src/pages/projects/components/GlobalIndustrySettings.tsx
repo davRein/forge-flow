@@ -5,7 +5,7 @@ import type { GlobalSettingsStore } from '../../../services/settings/globalSetti
 import { useAuth } from '../../../hooks/authContext';
 import { apiEnabled } from '../../../services/api/runtime';
 import { useTranslation } from '../../../hooks/languageContext';
-import { useChatNavigationBlocker } from '../../../hooks/chatNavigationContext';
+import { useUnsavedChanges } from '../../../hooks/navigationGuard';
 import { ErrorText, FormActions, FormCard, Input, PrimaryButton, SecondaryButton } from '../../../components/ui/formStyles';
 
 const Section = styled(FormCard)`
@@ -20,7 +20,7 @@ function Editor({ store }: { store: GlobalSettingsStore }) {
     useEffect(() => { if (state.data) setDraft([...state.data.industries]); }, [state.data]);
     const busy = state.status === 'loading' || state.status === 'saving' || auth.busy;
     const dirty = !!state.data && JSON.stringify(draft) !== JSON.stringify(state.data.industries);
-    useChatNavigationBlocker(dirty || state.status === 'saving');
+    useUnsavedChanges(dirty, () => { setDraft([...(state.data?.industries ?? [])]); setSaved(false); }, state.status === 'saving');
     const change = (values: string[]) => { setDraft(values); setSaved(false); };
     return <Section>
         <h3>{t('Kundenbranchen')}</h3><p>{t('Diese Auswahlliste gilt für alle Nutzer der Anwendung. Änderungen an der Liste verändern keine gespeicherten Kunden.')}</p>

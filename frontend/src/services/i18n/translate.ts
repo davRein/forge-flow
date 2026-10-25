@@ -4,10 +4,12 @@ import { wikiEnglish } from '../../config/wikiTranslations.js';
 import { toolsEnglish } from '../../config/toolsTranslations.js';
 import { commonEnglish } from '../../config/commonTranslations.js';
 import { chatEnglish } from '../../config/chatTranslations.js';
+import { timeEnglish } from '../../config/timeTranslations.js';
+import { businessEnglish } from '../../config/businessTranslations.js';
 
 export type TranslationValue = string | { one: string; other: string };
 export type TranslationParameters = Readonly<Record<string, string | number>>;
-const english: Readonly<Record<string, TranslationValue>> = { ...settingsEnglish, ...commonEnglish, ...wikiEnglish, ...toolsEnglish, ...chatEnglish };
+const english: Readonly<Record<string, TranslationValue>> = { ...settingsEnglish, ...commonEnglish, ...wikiEnglish, ...toolsEnglish, ...chatEnglish, ...timeEnglish, ...businessEnglish };
 
 // These patterns only describe application-generated diagnostics, not user content.
 const diagnostics: { pattern: RegExp; key: string; names: string[] }[] = [

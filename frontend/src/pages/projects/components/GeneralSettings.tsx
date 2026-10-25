@@ -1,15 +1,16 @@
 import styled from 'styled-components';
 import type { AppSettings, ThemeMode } from '../../../types/settings.types';
 import { defaultSettings } from '../../../config/appSettings';
-import { themes } from '../../../styles/theme';
+import { themes, themeOptions } from '../../../styles/theme';
 import { Field, FormActions, FormCard, SecondaryButton, Select } from '../styles/projectStyles';
 import type { SettingsError, SettingsRepository, SettingsStatus } from '../../../services/settings/settingsRepository';
 import { useSettingsText } from '../../../hooks/languageContext';
 
 const Section = styled(FormCard)`
-    max-width: 850px;
-    h2 { margin-bottom: 12px; font-size: 20px; }
-    p { line-height: 1.6; }
+    max-width: 640px;
+    padding: 20px;
+    h2 { margin-bottom: 8px; font-size: 16px; }
+    p { line-height: 1.5; font-size: 13px; }
 `;
 const Hint = styled.p`
     color: ${({ theme }) => theme.colors.textSecondary};
@@ -17,35 +18,49 @@ const Hint = styled.p`
     line-height: 1.6;
 `;
 const ThemeChoices = styled.fieldset`
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 520px;
+    gap: 8px;
     border: 0;
-    margin-top: 20px;
-    legend { margin-bottom: 12px; }
+    margin: 16px 0 0;
+    padding: 0;
+    min-width: 0;
+    legend { margin-bottom: 8px; font-size: 12px; color: ${({ theme }) => theme.colors.textSecondary}; }
+    @media (max-width: 580px) { grid-template-columns: minmax(0, 1fr); }
 `;
 const ThemeChoice = styled.label<{ $selected: boolean }>`
     display: flex;
-    flex: 1;
-    min-width: 180px;
+    min-width: 0;
     align-items: center;
-    gap: 12px;
-    padding: 16px;
-    border: 2px solid ${({ theme, $selected }) => $selected ? theme.colors.primary : theme.colors.border};
-    border-radius: 10px;
+    gap: 8px;
+    padding: 10px;
+    min-height: 62px;
+    border: 1px solid ${({ theme, $selected }) => $selected ? theme.colors.primary : theme.colors.border};
+    background: ${({ theme, $selected }) => $selected ? theme.colors.primarySubtle : theme.colors.header};
+    border-radius: 7px;
     cursor: pointer;
-    input { accent-color: ${({ theme }) => theme.colors.primary}; }
+    margin: 0;
+    input { accent-color: ${({ theme }) => theme.colors.primary}; width: 14px; height: 14px; margin: 0; flex-shrink: 0; }
+    &:hover { border-color: ${({ theme }) => theme.colors.primary}; }
+    &:focus-within { outline: 2px solid ${({ theme }) => theme.colors.primary}; outline-offset: 2px; }
+    > span:last-child { min-width: 0; }
+    strong { display: block; font-size: 13px; font-weight: 600; }
+    small { display: block; font-size: 11px; line-height: 1.4; color: ${({ theme }) => theme.colors.textSecondary}; }
 `;
 const Swatch = styled.span<{ $mode: ThemeMode }>`
-    display: grid;
-    place-items: center;
-    width: 54px;
-    height: 44px;
-    border-radius: 6px;
+    position: relative;
+    width: 44px;
+    height: 32px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: 4px;
     background: ${({ $mode }) => themes[$mode].colors.content};
-    color: ${({ $mode }) => themes[$mode].colors.text};
-    border: 1px solid ${({ $mode }) => themes[$mode].colors.border};
-    font-weight: 700;
+    border: 1px solid ${({ $mode }) => themes[$mode].colors.borderStrong};
+    &::before { content: ''; position: absolute; inset: 0 0 auto; height: 7px; background: ${({ $mode }) => themes[$mode].colors.header}; border-bottom: 1px solid ${({ $mode }) => themes[$mode].colors.border}; }
+    &::after { content: ''; position: absolute; top: 8px; left: 0; bottom: 0; width: 9px; background: ${({ $mode }) => themes[$mode].colors.sidebar}; }
+    i { position: absolute; left: 14px; right: 5px; top: 13px; height: 4px; border-radius: 1px; background: ${({ $mode }) => themes[$mode].colors.primary}; }
+    i + i { top: 21px; right: 12px; height: 2px; opacity: .55; }
 `;
 
 export type GeneralSettingsProps = {
@@ -78,12 +93,12 @@ export default function GeneralSettings({ settings, onChange, onReset, persisten
                 <p>{t('Wähle das Design für die gesamte Anwendung.')}</p>
                 <ThemeChoices>
                     <legend>{t('Farbschema')}</legend>
-                    {(['dark', 'light'] as const).map((mode) => (
-                        <ThemeChoice key={mode} $selected={settings.themeMode === mode}>
-                            <input type="radio" name="theme-mode" value={mode} checked={settings.themeMode === mode}
-                                onChange={() => change({ ...settings, themeMode: mode })} />
-                            <Swatch $mode={mode} aria-hidden="true">Aa</Swatch>
-                            <span>{mode === 'dark' ? t('Dunkel') : t('Hell')}</span>
+                    {themeOptions.map(({ id, label, description }) => (
+                        <ThemeChoice key={id} $selected={settings.themeMode === id}>
+                            <input type="radio" name="theme-mode" value={id} checked={settings.themeMode === id}
+                                onChange={() => change({ ...settings, themeMode: id })} />
+                            <Swatch $mode={id} aria-hidden="true"><i /><i /></Swatch>
+                            <span><strong>{t(label)}</strong><small>{t(description)}</small></span>
                         </ThemeChoice>
                     ))}
                 </ThemeChoices>

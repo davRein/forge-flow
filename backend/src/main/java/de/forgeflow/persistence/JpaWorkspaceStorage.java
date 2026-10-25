@@ -19,6 +19,7 @@ import de.forgeflow.persistence.PersistenceEntities.*;
 import de.forgeflow.workspace.WorkspaceDtos.*;
 import de.forgeflow.workspace.WorkspaceStorage;
 import de.forgeflow.workspace.WorkspaceValidation;
+import de.forgeflow.workspace.RecentActivity;
 
 @Repository
 @Profile("postgres")
@@ -28,6 +29,17 @@ public class JpaWorkspaceStorage implements WorkspaceStorage {
     private final Validator validator;
     private final WorkspaceRows rows;
     private final JsonMapper json;
+    @Override @Transactional(readOnly = true)
+    public List<RecentActivity.Entry> loadRecentActivity(String ownerId) {
+        var row = entityManager.find(RecentActivityRow.class, ownerId);
+        return row == null ? List.of() : List.of(json.readValue(row.payload, RecentActivity.Entry[].class));
+    }
+    private void saveRecentActivity(String ownerId, List<RecentActivity.Entry> entries) {
+        var row = entityManager.find(RecentActivityRow.class, ownerId); boolean created = row == null;
+        if (created) { row = new RecentActivityRow(); row.ownerId = ownerId; }
+        row.payload = json.writeValueAsString(entries);
+        if (created) entityManager.persist(row);
+    }
     @Override @Transactional(readOnly = true)
     public de.forgeflow.workspace.GlobalSettings loadGlobalSettings() {
         var row = entityManager.find(GlobalSettingsRow.class, 1);
@@ -154,6 +166,7 @@ public class JpaWorkspaceStorage implements WorkspaceStorage {
 
         String revision = UUID.randomUUID().toString();
         workspace(ownerId).revision = revision;
+        saveRecentActivity(ownerId, RecentActivity.workspace(loadRecentActivity(ownerId), previous, next));
         return revision;
     }
 
@@ -176,6 +189,7 @@ public class JpaWorkspaceStorage implements WorkspaceStorage {
     @Transactional
     public void saveSettings(String ownerId, Settings settings) {
         lockAccount(ownerId);
+        var previous = loadSettings(ownerId);
         if (settings == null || !validator.validate(settings).isEmpty())
             throw new ApiFailure(400, "INVALID_INPUT", "Bitte die Einstellungen prüfen.");
         var row = entityManager.find(SettingsRow.class, ownerId);
@@ -188,5 +202,6 @@ public class JpaWorkspaceStorage implements WorkspaceStorage {
         row.defaultTaskPriority = settings.settings().defaultTaskPriority();
         row.language = settings.settings().language();
         entityManager.persist(row);
+        saveRecentActivity(ownerId, RecentActivity.settings(loadRecentActivity(ownerId), previous, settings));
     }
 }

@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/authContext';
 import { ErrorText, Field, FormCard, Input, PrimaryButton, SecondaryButton } from '../../components/ui/formStyles';
 import { enter } from '../../styles/primitives';
 import { useTranslation } from '../../hooks/languageContext';
+import BrandMark from '../../components/layout/BrandMark';
 
 const Page = styled.main`
     display: grid;
@@ -18,12 +19,18 @@ const Page = styled.main`
         box-shadow: ${({ theme }) => theme.shadows.raised};
         animation: ${enter} var(--motion-normal) var(--ease-out);
     }
-    h1 { font-size: 24px; margin-bottom: 12px; }
+    h1 { font-size: 24px; margin: 0; min-width: 0; line-height: 1.3; }
     p { margin-bottom: 24px; }
     p:not([role='alert']) { color: ${({ theme }) => theme.colors.textSecondary}; }
     label { margin-bottom: 18px; }
     button[type='submit'] { width: 100%; margin-top: 8px; }
     @media (max-width: 560px) { form { padding: 24px; } }
+`;
+const Heading = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
 `;
 export default function LoginPage() {
     const auth = useAuth();
@@ -33,7 +40,7 @@ export default function LoginPage() {
     return <Page>{auth.status === 'checking' ? <p role="status">{t('Sitzung wird geprüft …')}</p> : <FormCard as="form" onSubmit={async (event) => {
         event.preventDefault(); await auth.login(email, password); setPassword('');
     }}>
-        <h1>{t('Bei ForgeFlow anmelden')}</h1>
+        <Heading><BrandMark size={40} /><h1>{t('Bei ForgeFlow anmelden')}</h1></Heading>
         <p>{t('Melde dich mit deinem Benutzerkonto an.')}</p>
         {auth.notice && <p role="status">{t(auth.notice)}</p>}
         <Field>{t('E-Mail')}<Input required type="email" autoComplete="username" autoFocus value={email} disabled={auth.busy} onChange={(event) => setEmail(event.target.value)} /></Field>

@@ -1,9 +1,12 @@
 import type { Workspace, WorkspaceRepository } from './workspaceTypes';
+import { recordRecentActivity } from './recentActivity.js';
+import type { RecentActivityEntry } from './recentActivity';
 
 type SaveNotice = { id: number; kind: 'success' | 'error' };
-type State = { data: Workspace | null; status: 'loading' | 'ready' | 'saving' | 'error'; error: string | null; conflict: boolean; saveNotice: SaveNotice | null };
+type State = { data: Workspace | null; status: 'loading' | 'ready' | 'saving' | 'error'; error: string | null; conflict: boolean; saveNotice: SaveNotice | null; recentActivity: RecentActivityEntry[] };
 export function createWorkspaceStore(repository: WorkspaceRepository) {
-    let state: State = { data: null, status: 'loading', error: null, conflict: false, saveNotice: null };
+    let state: State = { data: null, status: 'loading', error: null, conflict: false, saveNotice: null, recentActivity: [] };
+    let confirmed: Workspace | null = null;
     let noticeId = 0;
     let revision = '';
     let changed = 0;
@@ -25,8 +28,10 @@ export function createWorkspaceStore(repository: WorkspaceRepository) {
             const nextRevision = await repository.save(data, revision, controller.signal);
             if (run !== generation) return;
             revision = nextRevision; saved = target;
+            const recentActivity = confirmed ? recordRecentActivity(state.recentActivity, confirmed, data) : state.recentActivity;
+            confirmed = data;
             // A load or an intermediate write must never announce that all edits were saved.
-            emit({ status: saved === changed ? 'ready' : 'saving',
+            emit({ status: saved === changed ? 'ready' : 'saving', recentActivity,
                 saveNotice: saved === changed ? { id: ++noticeId, kind: 'success' } : null });
         } catch (error) {
             if (run !== generation) return;
@@ -38,6 +43,7 @@ export function createWorkspaceStore(repository: WorkspaceRepository) {
         }
     }
     return {
+        getRevision: () => revision,
         persistence: repository.persistence,
         getSnapshot: () => state,
         subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
@@ -49,6 +55,7 @@ export function createWorkspaceStore(repository: WorkspaceRepository) {
                 const result = await repository.load(controller.signal);
                 if (run !== generation) return;
                 revision = result.revision; changed = 0; saved = 0;
+                confirmed = result.data;
                 emit({ data: result.data, status: 'ready' });
             } catch (error) { if (run === generation) emit({ status: 'error', error: error instanceof Error ? error.message : 'Daten konnten nicht geladen werden.' }); }
         },
@@ -66,12 +73,17 @@ export function createWorkspaceStore(repository: WorkspaceRepository) {
             const run = generation, before = changed;
             const result = await repository.load(controller.signal);
             if (run !== generation || changed !== before || saved !== changed || saving) return false;
-            revision = result.revision; emit({ data: result.data, status: 'ready', error: null, conflict: false }); return true;
+            revision = result.revision; confirmed = result.data; emit({ data: result.data, status: 'ready', error: null, conflict: false }); return true;
         },
         dismissSaveNotice(id: number) {
             if (state.saveNotice?.id === id && state.saveNotice.kind === 'success') emit({ saveNotice: null });
         },
         retry() { if (state.conflict) return; emit({ error: null, status: 'saving', saveNotice: null }); void flush(); },
+        discardUnsaved() {
+            if (!confirmed || saving || state.status !== 'error') return;
+            generation++; controller.abort(); controller = new AbortController(); changed = saved;
+            emit({ data: confirmed, status: 'ready', error: null, conflict: false, saveNotice: null });
+        },
         dispose() { generation++; controller.abort(); saving = false; }
     };
 }

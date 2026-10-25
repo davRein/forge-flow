@@ -15,7 +15,7 @@ public final class AccountSessions {
     private AccountSessions() {}
     public static Map<String, Object> profile(Accounts.User user) {
         return Map.of("id", user.id(), "email", user.email(), "name", user.name(),
-            "administrator", user.administrator(), "active", user.active());
+            "administrator", user.administrator(), "active", user.active(), "portalOnly", user.portalOnly());
     }
     public static CsrfToken token(HttpServletRequest request, HttpServletResponse response, HttpSessionCsrfTokenRepository csrf) {
         CsrfToken token = csrf.loadToken(request);

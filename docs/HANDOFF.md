@@ -37,9 +37,12 @@ Dokumentationsschritts.
 | Epics | CRUD, Aufgabenzuordnung innerhalb desselben Projekts, Suche, Fortschritt und Statusfilter |
 | Sprints | Planung, Backlog, Aufgabenzuordnung, maximal ein aktiver Sprint pro Projekt, Start/Abschluss und historische Momentaufnahme |
 | Dateien | Mehrfachauswahl, Drag-and-drop, Suche/Filter/Sortierung, Umbenennen, Download, Entfernen und Duplikatprüfung |
-| Einstellungen | Hell/dunkel, Standard-Projektansicht, Standard-Aufgabenpriorität, Zurücksetzen, Lade-/Speicherfehler und Wiederholen |
+| Einstellungen | Hell, Dunkel, Aurora, Dune; kompakte Themenauswahl, Standard-Projektansicht, Standard-Aufgabenpriorität, Zurücksetzen, Lade-/Speicherfehler und Wiederholen |
 | Wiki | Artikel-/Kategorien-CRUD, Suche, Filter, Sortierung, grundlegende Markdown-Vorschau, URL-Parameter und lokale Artikelentwürfe |
 | Dev Tools | JSON formatieren/komprimieren/validieren, HTTP-Anfragen mit Abbruch/Zeitlimit, Rechner mit Verlauf, Base64/URL/Einheiten/Zahlensysteme |
+| TimeTracker | Private Wochenkalender-Zeiten, Kunde/Projekt, Netto-Minuten/Pausen, Kommentare, abrechenbar, Auswertung, CSV, persistente Stoppuhr und Monats-PDF |
+| Business | Projektbudgets, Abrechnungsprofil, Angebote/Rechnungen mit PDF, Projektvorlagen und Kundenportal mit expliziten Veröffentlichungen |
+| Persönliche Arbeit / Suche | Dashboard und Meine Arbeit mit Zeiten/offenen Aufgaben/Projektterminen; Strg/Cmd+K über Kunden, Projekte, Aufgaben und Seiten |
 
 JSON-Formatierung erhält große Zahlen und doppelte Schlüssel. Markdown stellt HTML als Text dar.
 Abgeschlossene Sprint-Ergebnisse bleiben bei späteren Aufgabenänderungen unverändert. Offene
@@ -209,6 +212,347 @@ danach Kontoverwaltung ergänzen.
   Vollständige Prüfliste steht in `docs/browser-check.md`.
 
 ## Zuletzt verifiziert
+
+Nextcloud-Integration vorbereitet, 25. Oktober 2026:
+
+- Aktueller Anwenderstand: DNS auf Ubuntu nach Laufzeitumstellung von IONOS-Resolvern
+  auf 1.1.1.1/8.8.8.8 für `ens6` erfolgreich (`185.56.150.178`). 3852 MiB RAM und
+  107 GiB freier Platz. Installation erreicht Nginx, scheitert aber am ersten lokalen
+  ACME-Dateiabruf mit 404; eigener VHost wird korrekt zurückgerollt, ForgeFlow nicht
+  neu gestartet. Noch kein Nachweis erfolgreicher Zertifikats-/Nextcloud-Installation.
+- Installer bisher nur ein Abruf direkt nach Reload. Jetzt 15 begrenzte inhalts- und
+  Location-Header-geprüfte Versuche ohne Umgebungsproxy, auch TLS-GETs mit Retries.
+  Persistente Fehler geben vor Rollback HTTP-Status, Probe-Marker, `namei`-Berechtigungen
+  und gefilterte Nginx-Listener/Servernamen aus; keine komplette Konfiguration/Secrets.
+  Verzögerter Reload ist mögliche, nicht serverseitig bewiesene Ursache. Bei fortgesetztem
+  Fehler diese Ausgabe prüfen, insbesondere explizite IP-Listener und aktive VHost-Auswahl.
+- Sieben Offline-Skriptprüfungen grün, darunter verzögerte 404→Erfolg-Antwort, falsche
+  Location/falscher Inhalt und begrenzte Wiederholungen. Bash-Syntax und diff-check grün.
+  Nur Installer/Testskript/Dokumentation geändert; kein neues Programmpaket erforderlich.
+  Anwender muss beide Skripte erneut hochladen und Installation wiederholen. DNS-Änderung
+  ist weiterhin nur zur Laufzeit, nicht dauerhaft in Netplan/cloud-init hinterlegt.
+
+- Vorheriger Fehler: Anwender-Installation scheiterte schon an der IPv4-DNS-Auflösung von
+  `cloud.forge-flow.de` (`socket.gaierror: Name or service not known`), vor allen
+  Installationsmutationen. Darum existiert die Admin-Passwortdatei noch nicht.
+  Resolverfehler im Skript abgefangen und mit DNS-/A-Record-Hinweis versehen.
+  DNS-Eintrag und Auflösung auf Ubuntu wurden anschließend geklärt (siehe aktueller Stand oben).
+
+- Anwender möchte einen SharePoint-ähnlichen Dateibereich mit Nextcloud auf dem vorhandenen
+  Ubuntu-Server und Zugang aus ForgeFlow. Vorgesehene Adresse `https://cloud.forge-flow.de`.
+  DNS-/SSO-Präferenz asynchron erfragt, bisher keine Rückmeldung. Umsetzung verwendet zunächst
+  separate Nextcloud-Anmeldung; **kein SSO, kein Konto-/Passworttransfer**, keine Office-Suite.
+- Neue App Cloud → Dateien, kompakter HTTPS-Öffnen-Link in neuem Tab, DE/EN und vorhandene
+  Themes. Standardadresse wie oben; `VITE_NEXTCLOUD_URL` kann den HTTPS-Origin beim Build
+  überschreiben, leer deaktiviert den Link. Keine Zugangsdaten, Query-/Fragment-/Pfadziele.
+  Keine automatischen Cloud-Netzwerkanfragen oder ungeprüfte Verfügbarkeitsanzeige.
+- KI kennt nur `/cloud/files` als Navigationsmetadatum, keine Nextcloud-Inhalte/Werkzeuge.
+  Backend/Frontend-Katalog und OpenAPI aktualisiert, 267 lokale Verweise geprüft.
+- `scripts/install-linux-nextcloud.sh`: Ubuntu-/DNS-/AAAA-/Ressourcen-/Port-/VHost-Prüfung,
+  optional `--check` ohne Konfigurationsänderung. Eigene HTTPS-Site/Certbot-Webroot, Docker CE
+  bei Bedarf, Compose-Projekt `forgeflow-nextcloud` mit Nextcloud 35 Apache, PostgreSQL 17
+  und Redis 8; Images nach Download per Digest festgeschrieben. App nur `127.0.0.1:8081`,
+  Datenbank/Cache ohne öffentliche Ports, privates Netz. Konkretes Proxy-Gateway vertraut,
+  Forwarding-Header überschrieben. Keine Änderung von ForgeFlow-DB/APP_ORIGIN oder Neustart.
+  Initpasswort serverseitig zufällig, rootgeschützter Secret-Ordner, Konto `forgeflow-admin`.
+- Persistente getrennte Volumes, systemd-Cron-Timer und eigener Zertifikats-Deploy-Hook.
+  Fehler stellt nur eigenen VHost wieder her, behält Pakete/Zertifikate/Daten für Wiederaufnahme.
+  Fertige Installation wird nicht überschrieben. `scripts/backup-linux-nextcloud.sh` stoppt
+  App/Hintergrundjobs für konsistenten DB-/Dateistand und stellt Betrieb auch nach Fehlern her;
+  vollständiger Archiv-/Dump-/Konfig-/Secret-Stand mit Prüfsummen. Keine automatische externe
+  Sicherung oder getestete Live-Wiederherstellung. Bisherige ForgeFlow-Backups erfassen Cloud
+  nicht. Patch-/Upgrade-/Sicherungshinweise und vollständige CLI unter [nextcloud.md](nextcloud.md).
+- **265 Frontend-Tests erfolgreich**, Lint und API-Build erfolgreich. Backend: vier relevante
+  `PageContextsTest` erfolgreich, JAR neu paketiert, keine Provideranfragen. Vollständiger
+  PostgreSQL-Lauf bleibt der unmittelbar vorherige Business-Stand (249 erfolgreich + ein
+  optionaler Live-Skip); in diesem Schritt keine neue Backend-Speicherlogik oder Migration.
+- Fünf Offline-Skriptprüfungen erfolgreich: Hostnamen/Injektion, Loopback-/Secret-/Netzstruktur,
+  HTTP-Challenge/HTTPS-Forwarding, eigene VHost-Wiederherstellung und Bash-Syntax. Compose-YAML
+  zusätzlich geparst. Kein echtes Docker/Nextcloud/Nginx auf Ubuntu ausgeführt oder visuell
+  im Browser geprüft. Manuelle Abnahme Punkt 44. Vite-Chunkgrößenwarnung bleibt.
+- SSH mit BatchMode wurde erneut wegen fehlender passwortloser Anmeldung abgewiesen
+  (`Permission denied (publickey,password)`). **Nextcloud ist durch den Agenten nicht auf
+  Ubuntu installiert, DNS nicht geändert, neue ForgeFlow-Version nicht veröffentlicht.**
+  Anwender muss DNS-A-Record setzen, drei Nextcloud-Skripte hochladen, Offline-/Preflightcheck
+  und Installation interaktiv ausführen. Danach ForgeFlow-Paket wie bisher gemeinsam deployen.
+- Aktuelles Uploadpaket geprüft (Archiv, SHA, binärer Indexvergleich):
+  Backend `680e066315cc158d96e9433a7c068090c8ead567d65ea300defa900ba5db0f18`,
+  Frontend `77d848ef394b5b5f0d5c2d78c5bc1cd5b439a391e10fd22dfe80dd66ff733cc5`,
+  Einstiegspunkt **`index-B_Ba4uIu.js`**. Bestehende Chat-Update-/Testskripte weiterverwenden,
+  Updatehost `forge-flow.de`. Erst nach Installationsabschluss Browser-/Zertifikats-/Datei-
+  und Kontoabnahme bestätigen; keine Live-Fertigstellung behaupten.
+
+Business-Erweiterung mit allen acht beauftragten Ergänzungen, 25. Oktober 2026:
+
+- Neue App Business mit Budgets, Angeboten/Rechnungen, Projektvorlagen, Portal und
+  Abrechnungsprofil. Zeitbudget zusätzlich im Projektdetail. TimeTracker erhält eine
+  persistente Start/Pause/Fortsetzen-Stoppuhr mit Prüfung vor Buchung und Monats-PDFs.
+  Globale Suche per Strg/Cmd+K und „Meine Arbeit“ im Projektmanager/Dashboard ergänzt.
+  Übersicht sortiert Aufgaben nach Projekttermin, keine neuen Aufgabenfälligkeiten.
+- Eigener kontogetrennter Business-Speicher, Revision/If-Match, atomare Kontosperren,
+  serververwalteter Timer; Vorlagenanwendung prüft auch die Workspace-Revision. Bei
+  erfolgreicher Anlage mit fehlgeschlagenem Refresh wird die Anlageaktion geschlossen,
+  damit eine erneute Bestätigung kein zweites Projekt erzeugt.
+- Ganze Cent und Basispunkte, HALF_UP pro Position/Steuer, direkte Minutenrechnung;
+  feste Nummern/Adressstände/Inhalte nach bestätigter Freigabe, Statuswechsel und
+  Schutz vor doppelter Zeitabrechnung. Keine E-Rechnungsformate, automatische Zustellung,
+  Zahlungsabwicklung oder vollständige steuerliche Pflichtangabenprüfung.
+- Portal-Konten besitzen eine serverseitig durchgesetzte Nur-Portal-Rolle; keine internen
+  Workspace-/KI-/Business-APIs. Explizite Veröffentlichungen als Momentaufnahme, kein
+  automatisches Nachziehen privater Änderungen oder wiederverwendeter Kennungen.
+  Zeitkommentare entfernt, Dateien durch Inhalts-Hash gebunden. Widerruf funktioniert
+  auch nach Löschung der ursprünglich freigegebenen internen Datensätze; HTTP-Regression
+  geprüft. Besitzer-Deaktivierung sperrt Portalabrufe ebenfalls.
+- Flyway **V13**: `ff_accounts.portal_only`, `ff_business`, `ff_portal_links`. Bestehende
+  Migrationen und Workspace-Vertrag bleiben erhalten. Kein neues Pflicht-Env. PDFs mit
+  PDFBox 3.0.8 und eingebettetem Font. Neue Inhalte bleiben außerhalb der KI-Werkzeuge;
+  der Seitenkatalog erhält nur die sechs neuen Navigationsziele. OpenAPI: 267 lokale
+  Verweise geprüft; Benutzerprofil ergänzt `portalOnly`.
+- **264 Frontend-Tests erfolgreich**, ESLint und API-Produktionsbuild erfolgreich.
+  Money-/Store-/Sitzungs-/Such-/Vorlagenlogik und reale Komponenten für Dokumententwurf,
+  Abrechnungsprofil-Entwurfsschutz, Vorlagenanwendung und Stoppuhr ergänzt.
+- Vollständiger isolierter PostgreSQL-Lauf einschließlich Performance-Flag und finalem
+  Portal-Widerruf: **249 erfolgreich, ein optionaler OpenAI-Live-Skip, keine Fehler**
+  (250 insgesamt). Migration V13, Neustarterhalt von Business/Timer/Portalrolle und
+  Veröffentlichung, Eigentümerschutz und feste Dokumente enthalten. Cluster
+  `postgres-test-535dd73b11264b6c89f67ccc3d25a07d` sauber gestoppt; PID-/Passwortdatei
+  entfernt. Vorheriger Memory/H2-Gesamtlauf: 247 erfolgreich, drei optionale Skips.
+  Vorhandene Anwendungsdatenbank unverändert, keine echten KI-Anfragen.
+- PDF-QA: Angebote, Rechnungen und mehrseitige Monatsnachweise erzeugt, Text/Umlaute
+  geprüft und als PNG gerendert. Sichtprüfung von Angebot sowie erster/letzter
+  Nachweisseite nach Umbruchkorrektur; keine visuelle Browserprüfung. Bekannte
+  Vite-Chunkgrößenwarnung bleibt. [Bedienung und Grenzen](business-suite.md), manuelle
+  Prüfliste Punkt 43. Haupt-README bleibt auf Installation beschränkt.
+- Fertiges gemeinsames Uploadpaket unter `node_modules/.tmp/`:
+  Backend `4c48a9e7879bba72fb208b4e7e1edec97bc9c21d154312fbf91ed2ef31accf2b`,
+  Frontend `ada9d985def6946d3345f6afa016fefc571d84a000379c37a049df2cc4cd48fd`,
+  Einstiegspunkt **`index-BlDzJuQl.js`**. SHA-Manifest erneuert. Zusammen mit
+  `scripts/update-linux-chat.sh` und `scripts/test-linux-chat.sh` übertragen und
+  `update-linux-chat.sh forge-flow.de` ausführen. Keine Remote-Veröffentlichung ausgeführt.
+  Vor Downgrade auf Backend vor V13 Portal-Konten deaktivieren; alte Authentifizierung
+  kennt die neue Rollenbeschränkung nicht. Details im Feature-Dokument.
+
+TimeTracker als eigene App, 25. Oktober 2026:
+
+- Unter Dev Tools ergänzt, mit eigenem Uhr-Icon und Routen `/timeTracker/calendar`
+  sowie `/timeTracker/reports`. App bleibt beim Modulwechsel gemountet, Kontowechsel
+  setzt privaten Store/Entwürfe zurück. Laden erst bei erster Aktivierung.
+- Wochenansicht Montag–Sonntag mit Heute/Datum/Vor-/Zurück, Tages-/Wochensummen und
+  Filtern. Einträge mit Datum, Beginn, Netto-Minuten, separaten Pausen, optional Kunde/
+  zugehörigem Projekt, Kommentar und Abrechenbar. Interne Tätigkeit ohne Kunden möglich.
+  Explizites Speichern und bestätigtes Löschen, Erfolgs-/Fehleranzeige, Entwurfserhalt
+  bei Fehler und bestehende NavigationGuard-Anbindung. Keine laufende Stoppuhr.
+- Auswertung gruppiert nach Kunden-/Projektkennung und Namensstand; CSV der gefilterten
+  Woche mit UTF-8-BOM, Quoting und Neutralisierung von Formelpräfixen. Historische Namen
+  bleiben nach Umbenennung, Projektverschiebung oder Löschen erhalten; auch weitere
+  Speicherungen anderer Einträge werden durch solche historischen Zuordnungen nicht blockiert.
+- Eigener privater `GET/PUT /me/time-tracking`-Vertrag, Revision/ETag/If-Match und Origin/
+  CSRF. DTO-/Datums-/Minuten-/Überschneidungsprüfung (einschließlich Pausen), nur eigene
+  gültige neue Zuordnungen. Anzeigetexte werden serverseitig ermittelt. Grenzen: 10000
+  Einträge, 5 MiB UTF-8, Kommentar 2000 Zeichen. Ganze lokale Kalendertage, keine UTC-
+  Umrechnung der erfassten Uhrzeiten und keine Buchung über Mitternacht.
+- Flyway V12 erstellt `ff_time_tracking(owner_id, revision, payload)`; eigenständiger
+  Memory-/JPA-Speicher außerhalb des Workspace, PostgreSQL-Commit unter Kontosperre.
+  Alte Workspace-Clients können keine Zeiten entfernen. Kein neues Pflicht-Env/Dependency.
+  KI-Seitenkatalog kennt beide Routen mit Bedienhinweisen, aber keine Zeitbuchungsdaten,
+  Kommentare oder Werkzeuge zum Lesen/Schreiben von Zeiten. OpenAPI: 139 Verweise geprüft.
+- **252 Frontend-Tests erfolgreich**, ESLint und finaler API-Produktionsbuild erfolgreich.
+  Neue Tests: Kalender-/Sommerzeit-/Jahresgrenzen, Minuten, Pausen/Überlappung, sichere
+  CSV-Ausgabe, Revision/Account-Epoch/Store-Entsorgung und reale Komponenten für Lazy Load,
+  Kunde/Projekt-Auswahl, Erfassung, Fehler/Entwurfsschutz, Auswertung und Löschen in DE/EN.
+- API-Featuretests mit Memory/H2: **65 erfolgreich, ein PostgreSQL-Index-Skip**. Danach
+  kompletter isolierter PostgreSQL-Lauf mit Performance-Flag und finaler historischer
+  Zuordnungsprüfung: **239 erfolgreich, ein optionaler OpenAI-Live-Skip**, keine Fehler.
+  Einschließlich paralleler Schreiber und neuer Backend-Instanz mit erhaltenen Buchungen.
+  Cluster `postgres-test-2be65624fcd2499c8a2c8a8b36a9e2a0` sauber gestoppt; PID-/Passwort-
+  Datei entfernt. Bestehende PostgreSQL-Anwendungsinstanz unverändert, keine echten KI-Aufrufe.
+- Fertiges Programmpaar unter `node_modules/.tmp/`, SHA-Datei erneuert:
+  Backend `90d2516d430dc5256f01ba4808542126abffcba176f2c1c40dc17adc23f5c165`,
+  Frontend `bc818896fbb5b22255be486f5768a0a9f7bc260ad5a30ccc0ea702e3317d319f`,
+  Einstiegspunkt **`index-BhDfayYO.js`**. API/Migration V12 im JAR, Archiv/Prüfsummen und
+  binärer Indexvergleich erfolgreich. Gemeinsam mit Update-/Testskripten hochladen und
+  `update-linux-chat.sh forge-flow.de` ausführen. Kein Remote-Deployment ausgeführt.
+- Keine visuelle Browserprüfung. Manuelle Prüfliste Punkt 42 und [TimeTracker](time-tracker.md).
+  Bekannte Vite-Chunkgrößenwarnung bleibt. Haupt-README enthält weiterhin nur Installation.
+
+Tabellarische Kundenübersicht, 25. Oktober 2026:
+
+- Kunden öffnet eine kompakte, dreispaltige Tabelle (Name, Branche, Ort) statt der
+  bisherigen vollständigen Karten. Alle eigenen Kunden, auch ohne Projekte, bleiben
+  sichtbar. Fehlende Branche/Ort als Gedankenstrich. Suche weiterhin nach Name, E-Mail,
+  PLZ, Ort und Branche, übersetzte Spalten/Zähler/Leerzustände, Theme-Tokens und Umbruch
+  langer Werte für schmale Fenster. Hauptansicht maximal 1100 px breit.
+- Zeilenklick öffnet die bestehende Detailkarte unter `?customer=ID`; der Kundenname
+  ist ein nativer Button für Tastaturbedienung und stoppt Klickweitergabe an die Zeile.
+  Zurück und Haupttab-Navigation bleiben erhalten. Stammdaten, Kontakte, Notizen und
+  Projektverknüpfungen erscheinen erst nach Auswahl. Bearbeiten bleibt dort, Löschen
+  ebenfalls in die Detailkarte verschoben, einschließlich Projektbeziehungsschutz,
+  bestehendem Bestätigungsdialog und Rückkehr zur Tabelle nach bestätigtem Löschen.
+- **241 Frontend-Tests erfolgreich**, ESLint und API-Produktionsbuild erfolgreich.
+  Neue Komponententests für DE/EN-Spalten, ganze Zeile/Detailwechsel, fehlende Angaben,
+  Suche einschließlich nicht angezeigter E-Mail/PLZ, Leerzustände und bestätigtes Löschen.
+  Vorhandener Navigations-Test simuliert nun den realen Klick mit stopPropagation.
+- Kein Backend-/API-/Schemawechsel und kein erneuter Backend-Testlauf; das zuletzt
+  mit echtem PostgreSQL geprüfte Backend bleibt im Paket. Frontendarchiv und SHA-Datei
+  aktualisiert, Archiv/Prüfsummen und binärer Vergleich zum Build erfolgreich.
+  Backend-SHA256 `85a36d4ed2c3c7c4f6d05a3fdad869ea0af207b99f51d193d7e1aed20bb8836d`,
+  Frontend-SHA256 `dc53636e814ad3ef9b9e7c5bc24e1afc977050afd89e884cf7530673039d98d0`,
+  Einstiegspunkt **`index-CZUg-Okv.js`**, Dateien unter `node_modules/.tmp/`.
+- Noch kein Remote-Deployment oder visueller Browsercheck. Update mit dem bestehenden
+  vollständigen Paar/Skripten und `update-linux-chat.sh forge-flow.de`, danach Strg+F5
+  und neu anmelden. Manuelle Prüfliste Punkt 41, Details unter `customer-details.md`.
+
+Zusätzliche Farbthemen und kompakte Auswahl, 25. Oktober 2026:
+
+- Neu: Aurora (dunkles Petrol/Mint) und Dune (helles Sand/Terrakotta), neben Hell/Dunkel.
+  Theme-Tokens gelten anwendungsweit; `DefaultTheme.mode` beschreibt weiterhin die
+  Helligkeit für native Felder/Badges, die gespeicherte Theme-ID hat vier Werte.
+- Optik zeigt vier kleine Vorschaukacheln (62 px Mindesthöhe, maximal 520 px Gesamtbreite),
+  zwei Spalten bzw. eine bei schmalen Fenstern, native Radios, Fokusrahmen und DE/EN-
+  Beschreibungen. Sofortige Anwendung und vorhandene kontogetrennte Speicherung bleiben.
+- Settings-Normalisierung, HTTP-Validierung und OpenAPI erlauben `aurora`/`dune`.
+  Flyway-Java-Migration V11 erweitert den bisherigen Theme-CHECK, ohne V1 zu verändern.
+  Tatsächlicher PostgreSQL-18-Test deckte auf, dass NOT NULL ebenfalls als CHECK in
+  information_schema erscheint. Migration identifiziert jetzt gezielt die alte Werte-
+  Bedingung und lässt NOT NULL bestehen. Erstlauf sicher zurückgerollt, korrigierter
+  Gesamtlauf erfolgreich. Migration im fertigen Spring-Boot-JAR enthalten.
+- `npm.cmd test`: **238 erfolgreich**, einschließlich Umschalten in DE/EN, Wiederladen
+  beider Themes/Kontotrennung und Kontrastberechnung für Text, Links und Buttons.
+  ESLint und API-Produktionsbuild erfolgreich; bekannte Vite-Warnung zur Chunkgröße bleibt.
+- Backend normal vor PostgreSQL-Korrektur: **229 erfolgreich, drei Skips**. Danach
+  `scripts/test-postgres-isolated.ps1 -Performance`: **231 erfolgreich, ein optionaler
+  OpenAI-Live-Test übersprungen**, keine Fehler. Enthält H2-Upgrade bestehender Daten,
+  echte PostgreSQL-Migration und neue Backend-Instanz mit beiden Theme-Auswahlen.
+  Testcluster `postgres-test-b770acd62553421baaa15e9beb1cd306` sauber gestoppt;
+  keine PID-/Passwortdatei verblieben. Bestehende Anwendungsdatenbank unberührt.
+- Aktuelles gemeinsam zu installierendes Paket unter `node_modules/.tmp/`:
+  Backend-SHA256 `85a36d4ed2c3c7c4f6d05a3fdad869ea0af207b99f51d193d7e1aed20bb8836d`,
+  Frontend-SHA256 `6e572c3a18ba3ac7382c9d996d336bdab896a36ad5be2a5b9b7550eeddd6c45d`,
+  Einstiegspunkt **`index-DYkpsIkX.js`**. Archivprüfung, SHA-Datei und binärer Vergleich
+  des ausgelieferten Index mit dem Build erfolgreich. Update-Prüfhost `forge-flow.de`,
+  SSH-Ziel bleibt `dreinerts@185.56.150.178`; vollständiges Paar/Skripte hochladen.
+- Kein Remote-Deployment, keine visuelle Browserprüfung, keine echten KI-Aufrufe.
+  Manuelle Prüfung unter `docs/manual-check.md`, Punkt 40. Keine neuen Abhängigkeiten
+  oder Umgebungsvariablen. Haupt-README bleibt Installation/Einrichtung vorbehalten.
+
+Live-Stand und Domain-Update korrigiert, 25. Oktober 2026:
+
+- Anwender meldet weiterhin altes Dashboard-/Taskverhalten. Direkt mit Windows curl
+  (Zertifikatsprüfung aktiv, Cache-Bust und no-cache) bestätigt: `https://forge-flow.de/`
+  liefert **`index-v42BXDKf.js`**, nicht das lokal fertige **`index-BG_A8046.js`**.
+  Domain-Health liefert PostgreSQL/ok. Frühere Fehlschläge des Webwerkzeugs erlaubten
+  keine solche Aussage; der native Direktabruf ist jetzt erfolgreich.
+- HTTPS-IP-Abruf scheitert an `SEC_E_WRONG_PRINCIPAL`, also Zertifikatsname. Das bisher
+  IPv4-only-Update-Skript würde deshalb nach Veröffentlichung bei HTTPS-Prüfung rollen
+  rückwärts. Skript akzeptiert jetzt validierten Domain-/IPv4-Prüfhost und verwendet ihn
+  für curl-Host/SNI/--connect-to; keine TLS-Prüfung deaktiviert und keine Originänderung.
+  Aktueller Aufruf: `sudo bash ~/update-linux-chat.sh forge-flow.de`.
+- Zusätzlicher realer Komponententest: vorhandenen Task bearbeiten, Status ohne Submit
+  auf done ändern, Haupttabwechsel → Rückfrage; Bleiben erhält Entwurf und gespeichertes
+  todo, Projektuntertabwechsel fragt ebenfalls; Verwerfen schließt Editor ohne Commit.
+  Zusammen **235 Frontend-Tests**, ESLint und API-Build erfolgreich. Anwendungscode/
+  Frontend-Asset unverändert zum bereits fertigen Navigationsstand. Kein Backend-Neutest.
+- Bash-Syntax und offline Update-Tests erfolgreich: acht Erfolge, ein Windows-Symlink-Skip.
+  Domains/IPv4 akzeptiert; Schemes, Ports, Pfade, leere/zu lange/ungültige Labels, Shell-
+  Metazeichen und ungültige IPs werden abgewiesen. Archiv, Prüfsummen und 125 OpenAPI-
+  Verweise geprüft; binärer Vergleich bestätigt Paket-Index gleich aktuellem Build.
+- Programmpaar und SHA-Datei unverändert zum nachfolgenden Navigationsstand, Skripte neu
+  mit übertragen. SSH-BatchMode scheitert an `Permission denied (publickey,password)`;
+  kein Remote-Deployment ausgeführt. Anwender muss interaktiven SCP-/SSH-Aufruf aus
+  [linux-server.md](linux-server.md) ausführen, danach Asset BG_A8046 und Browserverhalten
+  prüfen. Keine Zugangsdaten angefordert/ausgegeben, keine echten KI-Aufrufe.
+- Optional nachgefragt, ob „Task abschließen“ Statusänderung oder Schließen ohne Speichern
+  bedeutet; bisher ohne Antwort. Geprüft wurde die ungespeicherte Statusänderung. Explizites
+  Abbrechen eines Formulars ist bisher ein unmittelbares Verwerfen, kein Tabwechsel.
+
+Domainwechsel zu `forge-flow.de`, 25. Oktober 2026:
+
+- Anwender hat über eine separate ChatGPT-Unterhaltung DNS/Nginx-/Certbot-Anweisungen
+  für `forge-flow.de` und optional www erhalten. Zusätzlicher Nginx-VirtualHost soll
+  bestehendes Frontend/API unter der Domain ausliefern; bisheriger IP-Host bleibt vorhanden.
+- Screenshot zeigt Login mit „Invalid request origin“. Code geprüft: SecurityConfig
+  erlaubt unverändert exakt einen Origin aus `APP_ORIGIN`; bisheriges Setup setzt IP.
+  Für Hauptadresse `https://forge-flow.de` muss `/etc/forgeflow/backend.env` entsprechend
+  angepasst und `forgeflow` neu gestartet werden; Secure-Cookie bleibt true. Kein Neubuild.
+- IP/www/HTTP sind weitere Origins. Bestehender Code unterstützt keine Origin-Liste;
+  getrennte Nginx-Hosts allein erlauben keine parallele Anmeldung. Keine Schutzprüfung
+  deaktivieren oder Origin-Header fälschen. Als kanonische Adresse Domain ohne www wählen.
+- Kein SSH-/Konfigurationszugriff auf dem Server erfolgt, keine Passwörter/Umgebungsdateien
+  gelesen. Webwerkzeug konnte Domain/Health nicht abrufen; daraus keine Aussage zu Ports,
+  Firewall oder TLS ableiten. Anwender führt Konfigurationsanpassung aus und prüft danach
+  Login/Health. Deployment-/Programmartefakte unverändert zum folgenden geprüften Stand.
+
+Haupttab-Navigation, Entwurfswarnung und Dashboard-Historie, 25. Oktober 2026:
+
+- Dashboard/Projekte/Kunden/Einstellungen öffnen bei jedem Haupttab-Klick die Hauptseite;
+  auch ein erneuter Klick auf den aktiven Tab setzt Ansicht/Formulare/Suche zurück, sofern
+  keine geschützten Änderungen offen sind. Einstellungen starten mit Optik. Projekt-
+  Auswahl liegt nun im Direktlink `?project=ID` unter `/projectManager/projects`; Dashboard-
+  und Kundenlinks aktivieren dadurch Projekte. Kundendetails bleiben `?customer=ID`.
+  Hauptlinks entfernen Objekt-/Kategorieparameter; gewöhnliche Kundenlinks erhalten andere.
+- Zentraler `NavigationGuardProvider` mit kleiner 460-px-Rückfrage schützt Bediennavigation
+  über Haupttabs, Module, Einstellungskategorien, Projektuntertabs und Objekt-/Historienlinks.
+  „Bleiben“/Escape erhält Eingaben; bestätigtes Verwerfen setzt gemeldete Entwürfe zurück
+  und wechselt ohne Formular-Submit. `useUnsavedChanges` registriert tatsächliche Änderungen
+  in Projekt/Kunde/Kontakt/Notiz/Aufgabe/Epic/Sprint/Dateiumbenennung sowie Kontodaten und
+  Branchenliste, erhält zusätzlich die bestehende KI-Navigationssperre. Pristine Formulare
+  warnen nicht. Browser-Neuladen/Schließen verwendet eine native beforeunload-Warnung.
+- Allgemeine Einstellungen und Fach-Speichern bleiben automatisch. Während laufender
+  Übertragungen ist Verwerfen deaktiviert; erfolgreiches Ende setzt den gewünschten Wechsel
+  fort. Bei Speicherfehlern wird erst nach ausdrücklicher Bestätigung der letzte bestätigte
+  lokale Stand restauriert, ohne erneuten PUT. Workspace-Revisionen verhindern unbemerktes
+  Überschreiben nach unklarer/verlorener Commitantwort; dann Serverstand nachladen.
+- Dashboard: bis fünf bestätigte Aktionen, neueste zuerst, DE/EN und lokale Datumsanzeige.
+  Klick öffnet aktuelles Objekt im passenden Tab. Kunde inkl. Kontakte/Notizen, Projekt inkl.
+  Aufgaben/Epics/Sprints/Dateien; persönliche allgemeine Einstellungen öffnen die Settings-
+  Hauptseite. Keine Profil-/Passwort-/Admin-/Branchenereignisse, kein vollständiges Auditlog.
+  Keine Ereignisse bei Lesen/No-op/fehlgeschlagenem Schreiben; gelöschte Ziele entfernen
+  bestehende Einträge. Namen begrenzt, keine Inhalts-/Passwort-/REST-Headerkopien.
+- Eigener authentifizierter `GET /api/v1/me/recent-activity`, keine Client-Schreibschnittstelle.
+  V10 `ff_recent_activity`: Konto-FK und JSON-Payload, höchstens fünf Metadatensätze, atomar
+  in derselben Kontosperre/Transaktion wie Workspace-/Settings-Commit. Auch KI-Schreiben
+  über WorkspaceStorage erfasst. Kein neues Workspace-Feld oder Gesprächsformat; bestehende
+  Konten beginnen ohne künstliche Ereignisse. PostgreSQL dauerhaft, Memory/Preview flüchtig.
+  Private API-Ladefehler werden angezeigt, kein lokaler Fallback im API-Modus.
+- Verifiziert: **234 Frontend-Tests**, ESLint und strikter API-Produktionsbuild erfolgreich.
+  Neue reale Komponentenfälle prüfen Tabreset/aktive Navigation, Draft behalten/verwerfen,
+  Kunden/Profile/Settings-Kategorien, unveränderte Formulare, fünf Historienlinks sowie
+  wartende Navigation bei erfolgreicher/fehlgeschlagener Übertragung. Storetests prüfen
+  Verwerfen bestätigter Snapshots ohne Replay und dass Fehler keine Historieneinträge erzeugen.
+- Backend normal: **227 erfolgreich + drei Skips = 230**. Echter isolierter PostgreSQL-
+  Gesamtlauf mit Performance/Maven package: **229 erfolgreich + ein optionaler OpenAI-Live-
+  Skip = 230**, keine Fehler. Prüft Kontoisolation, Grenzen, No-op/Revisionsschutz, Persistenz
+  in einer zweiten Instanz und Workspace-/Historienrollback bei Historien-Speicherfehlern.
+  Testcluster `postgres-test-88617104fc034c09bfbb19cf17693377` gestoppt, PID-/Passwortdateien
+  entfernt. Bestehende Datenbanken/Dienste unberührt, keine OpenAI-Anfragen.
+- 125 OpenAPI-Verweise/API-Bundle, gepacktes Archiv, JAR mit V10/History-Klasse und beide
+  Prüfsummen geprüft. Update-Skripte offline: sieben Erfolge, Symlinktest Windows-Skip;
+  beim Ubuntu-Deployment erneut ausführen. Bekannte Chunkwarnung 616,77 kB/gzip 189,09 kB.
+  Keine visuelle Browserabnahme und kein Remote-Deployment. Manuelle Prüfliste ergänzt.
+- Aktuelles vollständiges Uploadpaar `node_modules/.tmp/forgeflow-chat-*`, Asset
+  **`index-BG_A8046.js`**. Backend-SHA256
+  `fd1834663a9c06d9ce23d604ce28c99456c3434907ec2df5f87ed91437a394cc`, Frontend-Tar-SHA256
+  `2804d1d324a57b4a185b879904be777ba1d879138c0c1508a078a96b10ebcb62`.
+  Beide Artefakte samt Prüfsummen und bestehenden Update-/Testskripten übertragen; V10
+  automatisch. Offen: Anwender-Deployment und visuelle Abnahme. [Bedienung/Vertrag](navigation-and-history.md).
+
+ForgeFlow-Symbol im Login, 25. Oktober 2026:
+
+- Anmeldeüberschrift mit 40-px-Symbol ergänzt. Wiederverwendbare `BrandMark`-Komponente
+  nutzt exakt den bisherigen SVG-Pfad und Theme-Farben; Kopfzeile verwendet dieselbe
+  Komponente weiterhin mit 28 px. Titel kann auf kleinen Fenstern umbrechen; Symbol
+  dekorativ/aria-hidden, bestehende Logintexte, Fokus und Authentifizierung erhalten.
+- **225 Frontend-Tests**, ESLint und strikter API-Build erfolgreich. Keine neuen Tests
+  für reine Darstellung; vorhandene Login-/Sprachtests mit ausgeführt. Visuelle Abnahme
+  offen. Backend unverändert zum unten dokumentierten PostgreSQL-Lauf, kein neuer DB-Lauf.
+- SVG-/PNG-Downloads der beiden Symbolvarianten unter `frontend/public/downloads/`
+  liegen im neuen Frontend-Paket. Produktionsasset **`index-v42BXDKf.js`**, bekannte
+  Chunkwarnung 605,98 kB / gzip 186,17 kB. 121 OpenAPI-Verweise/API-Bundle sowie tatsächlich
+  gepacktes Archiv und beide Prüfsummen geprüft. Kein Remote-Deployment ausgeführt.
+- Aktuelles vollständiges Uploadpaar `node_modules/.tmp/forgeflow-chat-*`:
+  Backend `1a8a371989e5c9addb5643aa5c30debb5f3c5709e672e20cbc18c63a721898b8`,
+  Frontend-Tar `d969b2883f7180b10fc6968df53d5af4fee5864d23ac58b804129dc63ff0f8e2`.
+  Bestehende Chat-Update-/Testskripte verwenden; Anmeldung nach Update und Strg+F5 prüfen.
 
 Kompakte Dev Tools und private REST-Collections, 25. Oktober 2026:
 

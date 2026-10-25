@@ -1,10 +1,18 @@
 # Kundendetails, Ansprechpartner und Notizen
 
-Ein Klick auf einen Kundennamen oder „Details öffnen“ führt zu
+Der Haupttab Kunden öffnet eine kompakte Tabelle mit Name, Branche und Ort für alle
+Kunden des eigenen Kontos. Fehlende Branche/Ort erscheinen als Gedankenstrich. Die
+Suche berücksichtigt weiterhin Name, E-Mail, PLZ, Ort und Branche. Kunden ohne Projekte
+werden ebenfalls angezeigt. Spalten und Leerzustände sind auf Deutsch/Englisch verfügbar.
+
+Ein Klick auf eine Zeile oder den per Tastatur erreichbaren Kundennamen führt zu
 `#/projectManager/customers?customer=ID`. Die Seite zeigt Stammdaten/Anschrift,
 zugeordnete Projekte, Ansprechpartner und interne Notizen. Projektbuttons öffnen die
 vorhandene Projektdetailansicht. Zurück entfernt nur den customer-Parameter; andere
 Parameter bleiben erhalten. Unbekannte Kennungen zeigen einen Fehler statt Ersatzdaten.
+Bearbeiten und Löschen befinden sich in der Detailansicht. Bei zugeordneten Projekten
+ist Löschen mit einem Hinweis gesperrt. Nach bestätigtem Löschen kehrt die Ansicht zur
+Tabelle zurück; das vorhandene Speicher-/Fehlerverhalten bleibt erhalten.
 
 ## Bedienung und Speicherung
 

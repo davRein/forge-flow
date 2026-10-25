@@ -79,5 +79,6 @@ public class WorkspaceController {
         Settings values = storage.loadSettings(owner(auth));
         return values == null ? tools.jackson.databind.node.NullNode.getInstance() : values;
     }
+    @GetMapping("/me/recent-activity") Object recentActivity(Authentication auth) { return Map.of("entries", storage.loadRecentActivity(owner(auth))); }
     @PutMapping("/me/settings") ResponseEntity<Void> settings(Authentication auth, @Valid @RequestBody Settings values) { storage.saveSettings(owner(auth), values); return ResponseEntity.noContent().build(); }
 }

@@ -19,6 +19,30 @@ function deferred<T>() {
 }
 
 export const settingsTests = [
+    { name: 'Aurora and Dune survive settings reloads without changing other preferences or accounts', async run() {
+        const repository = createSessionSettingsRepository();
+        for (const themeMode of ['aurora', 'dune'] as const) {
+            const expected = { ...defaultSettings, themeMode, language: 'de' as const, defaultTaskPriority: 'high' as const };
+            const store = createSettingsStore(repository, themeMode);
+            await store.load();
+            store.updateSettings(expected);
+            await store.whenIdle();
+            equal(store.getSnapshot().status, 'ready');
+            const reloaded = createSettingsStore(repository, themeMode);
+            await reloaded.load();
+            equal(reloaded.getSnapshot().settings, expected);
+        }
+        equal(decodeSettings(await repository.load('aurora')).themeMode, 'aurora');
+        equal(decodeSettings(await repository.load('dune')).themeMode, 'dune');
+        equal(decodeSettings({ version: 1, settings: { ...defaultSettings, themeMode: 'unknown' } }).themeMode, defaultSettings.themeMode);
+    } },
+    { name: 'Discard failed preferences restores the latest confirmed settings without another write', async run() {
+        let fail = false, writes = 0;
+        const store = createSettingsStore({ persistence: 'account', async load() { return null; }, async save() { writes++; if (fail) throw new Error('Offline'); } }, 'discard-test', 'en');
+        await store.load(); store.updateSettings({ ...store.getSnapshot().settings, themeMode: 'light' }); await store.whenIdle();
+        fail = true; store.updateSettings({ ...store.getSnapshot().settings, language: 'de' }); await store.whenIdle();
+        store.discardUnsaved(); assert(store.getSnapshot().settings.language === 'en' && store.getSnapshot().settings.themeMode === 'light' && store.getSnapshot().status === 'ready' && writes === 2, 'Discard must keep confirmed preferences without replaying a write');
+    } },
     { name: 'Sprache wird pro Konto gespeichert und alte Einstellungen bleiben kompatibel', async run() {
         const repository = createSessionSettingsRepository();
         await repository.save('anna', encodeSettings({ ...defaultSettings, language: 'en' }));

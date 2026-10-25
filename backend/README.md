@@ -1,5 +1,23 @@
 # Spring-Boot-Backend lokal betreiben
 
+V13 ergänzt private Business-Daten, persistente Stoppuhren, PDF-Berichte und Portal-Konten
+mit eigener Zugriffsrolle (`ff_business`, `ff_portal_links`, `ff_accounts.portal_only`).
+Migration automatisch, keine neuen Pflicht-Umgebungsvariablen; Frontend und Backend gemeinsam
+aktualisieren. PDFs nutzen PDFBox 3.0.8. [Bedienung und Downgradegrenze](../docs/business-suite.md).
+
+V12 ergänzt private Zeiteinträge für TimeTracker (`ff_time_tracking`). Automatisch beim
+PostgreSQL-Start, keine neue Konfiguration. Frontend und Backend gemeinsam aktualisieren.
+[Datenmodell und Bedienung](../docs/time-tracker.md).
+
+V11 erlaubt die beiden zusätzlichen Farbthemen Aurora und Dune in `ff_settings`.
+Die Migration läuft beim PostgreSQL-Start automatisch und erhält vorhandene Werte.
+Frontend und Backend gemeinsam aktualisieren; keine neue Konfiguration.
+[Details und Kompatibilität](../docs/user-settings.md).
+
+V10 ergänzt die Dashboard-Historie (`ff_recent_activity`, maximal fünf Einträge pro
+Konto), atomar mit den erfolgreichen Fach-/Einstellungsschreibvorgängen. Migration
+automatisch beim PostgreSQL-Start, keine neue Konfiguration. [Details](../docs/navigation-and-history.md).
+
 V9 ergänzt private REST-Collections (`ff_rest_collections`). Die Migration läuft beim
 PostgreSQL-Start automatisch; keine neue Konfiguration. Anfragen sind vom Workspace
 und den KI-Werkzeugen getrennt. Das Backend speichert Definitionen und sendet keine

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import styled from 'styled-components';
+import { useRef } from 'react';
+import { useUnsavedChanges } from '../../../../../hooks/navigationGuard';
 import Dialog from '../../../components/Dialog';
 import type { Epic, EpicDraft } from '../../../types/epic.types';
 import type { Task } from '../../../types/task.types';
@@ -69,6 +71,8 @@ export default function EpicForm({ epic, epics, tasks, onSave, onClose }: Props)
         taskIds: epic ? tasks.filter((task) => task.epicId === epic.id).map((task) => task.id) : []
     }));
     const [query, setQuery] = useState('');
+    const initial = useRef(JSON.stringify(draft));
+    useUnsavedChanges(JSON.stringify(draft) !== initial.current, onClose);
     const [error, setError] = useState('');
     const search = query.trim().toLocaleLowerCase('de');
     const filteredTasks = tasks.filter((task) => `${task.code} ${task.title}`.toLocaleLowerCase('de').includes(search));

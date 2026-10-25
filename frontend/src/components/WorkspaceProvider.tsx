@@ -5,11 +5,13 @@ import { createWorkspaceStore } from '../services/workspace/workspaceStore';
 import type { WorkspaceRepository } from '../services/workspace/workspaceTypes';
 import { ErrorText, FormCard, SecondaryButton } from './ui/formStyles';
 import { useTranslation } from '../hooks/languageContext';
+import { useUnsavedChanges } from '../hooks/navigationGuard';
 
 export default function WorkspaceProvider({ repository, children }: { repository: WorkspaceRepository; children: ReactNode }) {
     const { t, language } = useTranslation();
     const store = useMemo(() => createWorkspaceStore(repository), [repository]);
     const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+    useUnsavedChanges(!!state.data && !!state.error, store.discardUnsaved, !!state.data && state.status === 'saving');
     useEffect(() => { void store.load(); return () => store.dispose(); }, [store]);
     useEffect(() => {
         const prevent = (event: BeforeUnloadEvent) => { if (state.status === 'saving' || (state.error && state.data)) event.preventDefault(); };

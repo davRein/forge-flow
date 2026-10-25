@@ -14,9 +14,9 @@ const Layout = styled.div`
     .project { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 16px 0; border-top: 1px solid ${({ theme }) => theme.colors.border}; }
     @media (max-width: 850px) { grid-template-columns: minmax(0, 1fr); }
 `;
-type Props = { customer: Customer; projects: Project[]; onBack: () => void; onEdit: () => void; onOpenProject: (id: number) => void;
+type Props = { customer: Customer; projects: Project[]; onBack: () => void; onEdit: () => void; onDelete: () => void; onOpenProject: (id: number) => void;
     onAddContact: () => void; onEditContact: (contact: CustomerContact) => void; onRemoveContact: (contact: CustomerContact) => void; onEditNotes: () => void };
-export default function CustomerDetails({ customer, projects, onBack, onEdit, onOpenProject, onAddContact, onEditContact, onRemoveContact, onEditNotes }: Props) {
+export default function CustomerDetails({ customer, projects, onBack, onEdit, onDelete, onOpenProject, onAddContact, onEditContact, onRemoveContact, onEditNotes }: Props) {
     const { t } = useTranslation(); const contacts = customer.contacts ?? []; const ownProjects = projects.filter(project => project.customerId === customer.id);
     const value = (text: string | undefined) => text || t('Nicht hinterlegt');
     return <section aria-label={t('Kundendetails')}>
@@ -28,6 +28,8 @@ export default function CustomerDetails({ customer, projects, onBack, onEdit, on
                 <dl><dt>{t('Kundenname')}</dt><dd>{customer.name}</dd><dt>{t('Branche')}</dt><dd>{value(customer.industry)}</dd>
                     <dt>{t('Anschrift')}</dt><dd>{value(customer.street)}<br />{[customer.postalCode, customer.city].filter(Boolean).join(' ') || t('Nicht hinterlegt')}<br />{customer.country}</dd>
                     <dt>{t('E-Mail')}</dt><dd>{value(customer.email)}</dd><dt>{t('Telefonnummer')}</dt><dd>{value(customer.phone)}</dd><dt>{t('Internetadresse')}</dt><dd>{value(customer.website)}</dd></dl>
+                <FormActions><DangerButton disabled={ownProjects.length > 0} aria-describedby={ownProjects.length > 0 ? 'customer-delete-hint' : undefined} onClick={onDelete}>{t('Kunde löschen')}</DangerButton></FormActions>
+                {ownProjects.length > 0 && <p className="muted" id="customer-delete-hint">{t('Zum Löschen zuerst die Projekte einem anderen Kunden zuordnen oder löschen.')}</p>}
             </FormCard>
             <FormCard as="section"><div className="heading"><h2>{t('Ansprechpartner')} ({contacts.length})</h2><PrimaryButton onClick={onAddContact} disabled={contacts.length >= 100}>{t('+ Ansprechpartner')}</PrimaryButton></div>
                 {!contacts.length && <p className="muted">{t('Noch keine Ansprechpartner hinterlegt.')}</p>}

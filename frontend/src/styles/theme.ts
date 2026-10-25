@@ -1,4 +1,5 @@
 import type { DefaultTheme } from 'styled-components';
+import type { ThemeMode } from '../types/settings.types';
 
 const layout = { headerHeight: '64px', sidebarWidth: '232px' };
 
@@ -62,6 +63,36 @@ export const lightTheme: DefaultTheme = {
     layout
 };
 
-export const themes = { dark: darkTheme, light: lightTheme };
+export const auroraTheme: DefaultTheme = {
+    ...darkTheme,
+    colors: {
+        background: '#101e24', sidebar: '#13262d', header: '#1b3038', content: '#14272e',
+        primary: '#78ddc7', primaryHover: '#a2eddd', primarySubtle: '#23473f',
+        surfaceHover: '#29424b', text: '#e4f0ed', textSecondary: '#b0c5c5',
+        border: '#36515a', borderStrong: '#70958f', onPrimary: '#102e29',
+        success: '#9de2b2', successSubtle: '#254336', danger: '#ffb6a3',
+        dangerHover: '#ffd0c3', dangerBorder: '#a06c61'
+    }
+};
+
+export const duneTheme: DefaultTheme = {
+    ...lightTheme,
+    colors: {
+        background: '#f4eee4', sidebar: '#eee5d8', header: '#fffbf4', content: '#f6f0e7',
+        primary: '#98452e', primaryHover: '#783421', primarySubtle: '#f7e3d7',
+        surfaceHover: '#eee1d2', text: '#3c3029', textSecondary: '#6c5849',
+        border: '#d9caba', borderStrong: '#9d8069', onPrimary: '#fffaf4',
+        success: '#2d6545', successSubtle: '#e6efdf', danger: '#a9322a',
+        dangerHover: '#86251f', dangerBorder: '#c99082'
+    }
+};
+
+export const themes: Record<ThemeMode, DefaultTheme> = { dark: darkTheme, light: lightTheme, aurora: auroraTheme, dune: duneTheme };
+export const themeOptions: ReadonlyArray<{ id: ThemeMode; label: string; description: string }> = [
+    { id: 'dark', label: 'Dunkel', description: 'Graphit und Blau' },
+    { id: 'light', label: 'Hell', description: 'Klares Weiß und Blau' },
+    { id: 'aurora', label: 'Aurora', description: 'Petrol und Mint' },
+    { id: 'dune', label: 'Dune', description: 'Sand und Terrakotta' }
+];
 
 export default darkTheme;

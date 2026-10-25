@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Dialog from '../../../components/Dialog';
+import { useUnsavedChanges } from '../../../../../hooks/navigationGuard';
 import type { ProjectFile } from '../../../types/file.types';
 import { ErrorText, Field, FormActions, Input, PrimaryButton, SecondaryButton } from '../../../styles/projectStyles';
 import { splitFileName } from '../utils/fileLogic';
@@ -14,6 +15,7 @@ export default function RenameFileDialog({ file, onSave, onClose }: Props) {
     const { stem, extension } = splitFileName(file.name);
     const [name, setName] = useState(stem);
     const [error, setError] = useState('');
+    useUnsavedChanges(name !== stem, onClose);
 
     return (
         <Dialog title="Datei umbenennen" onClose={onClose}>

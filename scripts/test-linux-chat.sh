@@ -7,6 +7,16 @@ cleanup() {
     case "$test_dir" in /tmp/forgeflow-chat-test.*) rm -rf -- "$test_dir" ;; *) printf 'Unexpected test directory; retained.\n' >&2 ;; esac
 }
 trap cleanup EXIT
+sed -n '/# BEGIN CHAT_TARGET_CHECK/,/# END CHAT_TARGET_CHECK/p' "$script_dir/update-linux-chat.sh" > "$test_dir/target-check.sh"
+source "$test_dir/target-check.sh"
+for target in forge-flow.de www.forge-flow.de 185.56.150.178 127.0.0.1; do
+    validate_target "$target" || exit 1
+done
+for target in '' localhost https://forge-flow.de forge-flow.de/path forge-flow.de:443 'bad host.de' '-bad.de' 'bad-.de' 'bad..de' 'forge-flow.de.' '999.2.3.4' '127.0.0' 'bad;command.de'; do
+    if validate_target "$target"; then printf 'Invalid target accepted: %s\n' "$target" >&2; exit 1; fi
+done
+if validate_target "$(printf '%064d' 0).de"; then exit 1; fi
+printf 'PASS: Domain and IPv4 targets accepted; invalid hosts rejected\n'
 sed -n '/# BEGIN CHAT_ARCHIVE_CHECK/,/# END CHAT_ARCHIVE_CHECK/p' "$script_dir/update-linux-chat.sh" > "$test_dir/archive-check.sh"
 sed -n '/# BEGIN CHAT_ROLLBACK/,/# END CHAT_ROLLBACK/p' "$script_dir/update-linux-chat.sh" > "$test_dir/rollback.sh"
 sed -n '/# BEGIN CHAT_PUBLISH/,/# END CHAT_PUBLISH/p' "$script_dir/update-linux-chat.sh" > "$test_dir/publish.sh"

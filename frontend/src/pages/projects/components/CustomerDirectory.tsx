@@ -1,42 +1,55 @@
 ﻿import { useState } from 'react';
 import styled from 'styled-components';
 import { useTranslation } from '../../../hooks/languageContext';
-import { Customer, Project } from '../types/project.types';
-import { DangerButton, Field, FormActions, FormCard, Input, SecondaryButton } from '../styles/projectStyles';
+import type { Customer } from '../types/project.types';
+import { Field, Input } from '../styles/projectStyles';
 import { FilterRow, ResultCount } from '../styles/pageStyles';
 
-const Grid = styled.div`
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-    gap: 16px;
-    margin-top: 20px;
+const TableFrame = styled.div`
+    overflow-x: auto;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: 8px;
+    background: ${({ theme }) => theme.colors.header};
 `;
-const Card = styled(FormCard)`
-    margin: 0;
-    min-width: 0;
-    overflow-wrap: anywhere;
-    h2 { margin-top: 0; }
-    dl { display: grid; grid-template-columns: 100px 1fr; gap: 10px; }
-    dt { color: ${({ theme }) => theme.colors.textSecondary}; }
-    dd { margin: 0; }
+const Table = styled.table`
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 13px;
+    line-height: 1.5;
+    th, td { padding: 12px 16px; text-align: left; overflow-wrap: anywhere; }
+    thead { background: ${({ theme }) => theme.colors.content}; }
+    thead th { color: ${({ theme }) => theme.colors.textSecondary}; font-size: 12px; font-weight: 600; }
+    thead th:first-child { width: 44%; }
+    tbody tr { border-top: 1px solid ${({ theme }) => theme.colors.border}; }
+    tbody tr[data-customer] { cursor: pointer; }
+    tbody tr[data-customer]:hover, tbody tr:focus-within { background: ${({ theme }) => theme.colors.surfaceHover}; }
+    tbody th { font-weight: 500; }
+    .empty { padding: 24px 16px; color: ${({ theme }) => theme.colors.textSecondary}; }
+    @media (max-width: 580px) { th, td { padding: 10px 8px; } }
 `;
-const ProjectLink = styled(SecondaryButton)`
+const CustomerName = styled.button`
     display: block;
     width: 100%;
-    margin-top: 8px;
     text-align: left;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: ${({ theme }) => theme.colors.text};
+    font: inherit;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+    &:hover { color: ${({ theme }) => theme.colors.primary}; text-decoration: underline; }
+    &:focus-visible { outline: 2px solid ${({ theme }) => theme.colors.primary}; outline-offset: 4px; border-radius: 2px; }
 `;
 
 type Props = {
     customers: Customer[];
-    projects: Project[];
-    onEdit: (customer: Customer) => void;
-    onDelete: (customer: Customer) => void;
-    onOpenProject: (projectId: number) => void;
     onOpenCustomer: (customerId: number) => void;
 };
 
-export default function CustomerDirectory({ customers, projects, onEdit, onDelete, onOpenProject, onOpenCustomer }: Props) {
+export default function CustomerDirectory({ customers, onOpenCustomer }: Props) {
     const { t } = useTranslation();
     const [query, setQuery] = useState('');
     const search = query.trim().toLocaleLowerCase('de');
@@ -44,37 +57,22 @@ export default function CustomerDirectory({ customers, projects, onEdit, onDelet
     return (
         <>
             <FilterRow><Field>
-                Kunden suchen
-                <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, E-Mail, Ort oder Branche" />
+                {t('Kunden suchen')}
+                <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('Name, E-Mail, Ort oder Branche')} />
             </Field>
-            <ResultCount aria-live="polite">{filtered.length} von {customers.length} Kunden</ResultCount></FilterRow>
-            {filtered.length === 0 && <FormCard>{customers.length === 0 ? 'Noch keine Kunden vorhanden. Lege den ersten Kunden an.' : 'Keine Kunden für diese Suche gefunden.'}</FormCard>}
-            <Grid>
-                {filtered.map((customer) => {
-                    const customerProjects = projects.filter((project) => project.customerId === customer.id);
-                    return (
-                        <Card as="article" key={customer.id}>
-                            <h2><SecondaryButton onClick={() => onOpenCustomer(customer.id)} style={{ padding: 0, border: 0, background: 'transparent', color: 'inherit', font: 'inherit', textAlign: 'left' }}>{customer.name}</SecondaryButton></h2>
-                            <dl>
-                                <dt>Adresse</dt><dd>{[customer.street, [customer.postalCode, customer.city].filter(Boolean).join(' '), customer.country].filter(Boolean).join(', ') || 'Nicht hinterlegt'}</dd>
-                                <dt>E-Mail</dt><dd>{customer.email || 'Nicht hinterlegt'}</dd>
-                                <dt>Telefon</dt><dd>{customer.phone || 'Nicht hinterlegt'}</dd>
-                                <dt>Website</dt><dd>{customer.website || 'Nicht hinterlegt'}</dd>
-                                <dt>Branche</dt><dd>{customer.industry || 'Nicht hinterlegt'}</dd>
-                            </dl>
-                            <h3>Projekte ({customerProjects.length})</h3>
-                            {customerProjects.length === 0 && <p>Keine Projekte zugeordnet.</p>}
-                            {customerProjects.map((project) => <ProjectLink key={project.id} onClick={() => onOpenProject(project.id)}>{project.name} öffnen</ProjectLink>)}
-                            <FormActions>
-                                <SecondaryButton onClick={() => onOpenCustomer(customer.id)}>{t('Details öffnen')}</SecondaryButton>
-                                <SecondaryButton onClick={() => onEdit(customer)}>Bearbeiten</SecondaryButton>
-                                <DangerButton disabled={customerProjects.length > 0} onClick={() => onDelete(customer)}>Löschen</DangerButton>
-                            </FormActions>
-                            {customerProjects.length > 0 && <p>Zum Löschen zuerst die Projekte einem anderen Kunden zuordnen oder löschen.</p>}
-                        </Card>
-                    );
-                })}
-            </Grid>
+            <ResultCount aria-live="polite">{t('{count} von {total} Kunden', { count: filtered.length, total: customers.length })}</ResultCount></FilterRow>
+            <TableFrame>
+                <Table aria-label={t('Kunden')}>
+                    <thead><tr><th scope="col">{t('Name')}</th><th scope="col">{t('Branche')}</th><th scope="col">{t('Ort')}</th></tr></thead>
+                    <tbody>
+                        {filtered.map(customer => <tr key={customer.id} data-customer={customer.id} onClick={() => onOpenCustomer(customer.id)}>
+                            <th scope="row"><CustomerName onClick={event => { event.stopPropagation(); onOpenCustomer(customer.id); }}>{customer.name}</CustomerName></th>
+                            <td>{customer.industry || '—'}</td><td>{customer.city || '—'}</td>
+                        </tr>)}
+                        {filtered.length === 0 && <tr><td className="empty" colSpan={3}>{t(customers.length === 0 ? 'Noch keine Kunden vorhanden. Lege den ersten Kunden an.' : 'Keine Kunden für diese Suche gefunden.')}</td></tr>}
+                    </tbody>
+                </Table>
+            </TableFrame>
         </>
     );
 }

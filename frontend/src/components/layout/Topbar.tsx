@@ -1,6 +1,6 @@
 import { useTranslation } from '../../hooks/languageContext';
 import styled from 'styled-components';
-import { NavLink } from 'react-router-dom';
+import { GuardedNavLink } from '../navigation/GuardedLink';
 import { AppModule, ModuleKey } from '../../config/moduleConfig';
 
 const Container = styled.nav`
@@ -18,7 +18,7 @@ const Container = styled.nav`
     @media (max-width: 760px) { padding-inline: 16px; gap: 16px; }
 `;
 
-const NavItem = styled(NavLink)`
+const NavItem = styled(GuardedNavLink)`
     text-decoration: none;
     background: transparent;
     border: none;
@@ -48,7 +48,7 @@ export default function Topbar({ items, moduleKey }: Props) {
     return (
         <Container lang={language} aria-label={t('Modulnavigation')}>
             {items.map((item) => (
-                <NavItem key={item.key} to={`/${moduleKey}/${item.key}`}>{t(item.label)}</NavItem>
+                <NavItem key={item.key} to={`/${moduleKey}/${item.key}`} state={{ projectOverview: true }}>{t(item.label)}</NavItem>
             ))}
         </Container>
     );

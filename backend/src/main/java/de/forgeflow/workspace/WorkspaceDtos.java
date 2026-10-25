@@ -56,7 +56,7 @@ public final class WorkspaceDtos {
     public record Category(@Positive @Max(9007199254740991L) long id, @NotBlank @Size(max=1000) String name,
         @NotNull @Size(max=1000000) String description, @NotBlank String createdAt, @NotBlank String updatedAt) {}
     public record Settings(@Min(1) @Max(1) int version, @NotNull @Valid SettingsValues settings) {}
-    public record SettingsValues(@NotNull @Pattern(regexp="dark|light") String themeMode, @NotNull @Pattern(regexp="dashboard|projects") String defaultProjectView,
+    public record SettingsValues(@NotNull @Pattern(regexp="dark|light|aurora|dune") String themeMode, @NotNull @Pattern(regexp="dashboard|projects") String defaultProjectView,
         @NotNull @Pattern(regexp="low|medium|high") String defaultTaskPriority,
         @NotNull @Pattern(regexp="de|en") String language) {
         public SettingsValues {

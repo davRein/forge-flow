@@ -32,6 +32,10 @@ public final class AccountSessionFilter extends OncePerRequestFilter {
                     ApiErrors.write(response, 401, "UNAUTHENTICATED", "Die Sitzung ist nicht mehr gültig. Bitte erneut anmelden.");
                     return;
                 }
+                String path = request.getRequestURI();
+                if (user.portalOnly() && !java.util.Set.of("/api/v1/auth/session", "/api/v1/auth/logout", "/api/v1/me/password").contains(path) && !path.startsWith("/api/v1/portal/")) {
+                    ApiErrors.write(response, 403, "PORTAL_ONLY", "Dieses Konto hat nur Zugriff auf das Kundenportal."); return;
+                }
             } catch (DataAccessException error) {
                 ApiErrors.write(response, 503, "STORAGE_UNAVAILABLE", "Das Konto konnte nicht geprüft werden. Bitte erneut versuchen.");
                 return;

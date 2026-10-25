@@ -1,5 +1,49 @@
 # Backend-Vertrag und Frontend-Anbindung
 
+Business und Portal verwenden Flyway V13; Details und Betriebsgrenzen:
+[business-suite.md](business-suite.md). Alle nachfolgenden Pfade unter `/api/v1`:
+
+| Methode | Pfad | Zweck |
+| --- | --- | --- |
+| GET / PUT | `/me/business` | Private Profile, Budgets, Vorlagen, Dokumente, serververwaltete Stoppuhr |
+| POST | `/me/business/timer/{action}` | `start`, `pause`, `resume`, `complete`, `discard` mit If-Match |
+| POST | `/me/business/templates/{id}/apply` | Projekt atomar erstellen; Business-/Workspace-Revision im Body |
+| GET | `/me/business/documents/{id}/pdf` | Eigenes Angebot oder Rechnung als PDF |
+| GET | `/me/business/timesheet/pdf` | Monatlicher Nachweis; `month`, optional Kunde/Projekt/Kommentare/Sprache |
+| GET / POST | `/me/business/portal-accounts` | Eigene Portal-Konten auflisten / anlegen |
+| PUT | `/me/business/portal-accounts/{id}` | Explizite Veröffentlichung oder Widerruf, If-Match |
+| GET | `/portal/home` | Ausschließlich veröffentlichte Portal-Inhalte |
+| GET | `/portal/documents/{id}/pdf` | Veröffentlichtes Dokument |
+| GET | `/portal/timesheet/pdf` | Veröffentlichter Monat, ohne Kommentare |
+| GET | `/portal/files/{id}` | Explizit freigegebene Dateiversion mit Hashprüfung |
+
+Business-GET/PUT verwendet Version 1, Revision/ETag und exakt zitiertes If-Match. PUT muss
+dieselbe Revision im Body enthalten; es darf den Timer nicht frei überschreiben. Timer-POST
+hat die letzte Business-Revision im Header und `zone`, optionale Kunden-/Projektkennung,
+Kommentar sowie Abrechenbar im Body. `complete` setzt eine gespeicherte Zeit mit Timer-UUID
+voraus. Normale Origin-/CSRF-, Eigentümer- und Größenprüfungen gelten für Schreibzugriffe.
+Kein automatischer Retry bei 409 oder unsicherem Schreibausgang.
+
+Das Sitzungsprofil ergänzt `portalOnly`. Der serverseitige Filter lässt solchen Konten nur
+Sitzung, Logout, Passwortänderung und `/portal/*`; interne APIs bleiben auch bei direktem
+Aufruf gesperrt. Ein neues Portal-Konto hat keine Veröffentlichung. Portal-PUT baut unter
+Eigentümersperre eine neue geprüfte Momentaufnahme auf; der Client kann keine eigenen
+Snapshot-Inhalte einschleusen. PDFs werden als `application/pdf` mit Attachment-Header
+geliefert. Vollständige Parameter, Schemas und Fehler stehen in [openapi.json](openapi.json).
+
+TimeTracker: `GET/PUT /me/time-tracking` speichert private, versionierte Zeitbuchungen
+mit Revision/If-Match außerhalb des Workspace. Datums-/Überschneidungsprüfung, echte
+Kunden-/Projektnamen als historische Momentaufnahme und Eigentümerschutz; Flyway V12.
+Höchstens 10000 Einträge und 5 MiB UTF-8. [Vertrag und Grenzen](time-tracker.md).
+
+Persönliche Einstellungen akzeptieren `themeMode: dark|light|aurora|dune` im bisherigen
+Version-1-Dokument. V11 erweitert die Datenbankprüfung ohne Änderung bestehender Werte.
+Frontend und Backend gemeinsam aktualisieren. [Details](user-settings.md).
+
+`GET /me/recent-activity` liefert die fünf neuesten bestätigten, kontogetrennten
+Navigationsereignisse. V10 speichert sie atomar zusammen mit Workspace-/persönlichen
+Einstellungsänderungen. Bestehende Schreibverträge bleiben gleich. [Details](navigation-and-history.md).
+
 Private REST-Collections: `GET/PUT /me/rest-collections`, eigenes Version-1-Dokument mit
 Revision/ETag und If-Match. PUT benötigt aktive Sitzung, Origin und CSRF; keine automatische
 Wiederholung. Kontogetrennt außerhalb von Workspace und KI-Werkzeugen, Migration V9.

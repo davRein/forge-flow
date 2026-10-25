@@ -1,4 +1,79 @@
-# Linux-Server: direkter Zugriff über die öffentliche IP
+# Linux-Server: Domain und bisheriger IP-Zugriff
+
+## Domain `forge-flow.de`
+
+### Nextcloud als zusätzlicher Dienst
+
+Für `cloud.forge-flow.de` sind ein separater Nextcloud-Installer, Offline-Prüfskript und
+konsistente Sicherung vorbereitet. Die ForgeFlow-App ergänzt dafür Cloud → Dateien.
+DNS-A-Record und interaktive SSH-/sudo-Installation sind noch auszuführen; eigene
+Nextcloud-Anmeldung, kein SSO. [Vollständige Befehle und Betrieb](nextcloud.md).
+
+Das aktuelle gemeinsame ForgeFlow-Paket enthält außerdem die Business-Erweiterung;
+zuletzt geprüfter Einstiegspunkt **`index-B_Ba4uIu.js`**. Ältere Assetnamen weiter unten
+beschreiben historische Updates.
+
+### Aktuelles Update über die Domain
+
+Direkter Agenten-Abruf am 25. Oktober: Domain liefert noch `index-v42BXDKf.js`, also den
+Login-Icon-Stand vor Navigations-/Historienänderungen. Die Health-API antwortet mit
+PostgreSQL/ok. Der IP-Zugriff scheitert inzwischen an der Zertifikats-Namensprüfung.
+Deshalb beim aktuellen Update **forge-flow.de** als Prüfhost verwenden, nicht die IP.
+Das Skript unterstützt jetzt validierte Domainnamen und IPv4 und prüft HTTPS mit dem
+passenden SNI/Host. APP_ORIGIN und alle anderen Backend-Einstellungen bleiben erhalten.
+
+In Windows-PowerShell ausführen:
+
+```powershell
+Set-Location 'D:\Projects\Vite\dev-suite'
+scp scripts/update-linux-chat.sh scripts/test-linux-chat.sh `
+  node_modules/.tmp/forgeflow-chat-backend.jar `
+  node_modules/.tmp/forgeflow-chat-frontend.tar.gz `
+  node_modules/.tmp/forgeflow-chat.sha256 `
+  dreinerts@185.56.150.178:
+
+ssh -t dreinerts@185.56.150.178 'bash ~/test-linux-chat.sh && sudo bash ~/update-linux-chat.sh forge-flow.de'
+
+curl.exe -fsS 'https://forge-flow.de/?check=navigation-update' |
+  Select-String 'index-.*\.js'
+```
+
+Erwarteter Assetname: **`index-BG_A8046.js`**. Dann Strg+F5 und neu anmelden.
+Backend-Neustart allein veröffentlicht keine neuen Frontend-Dateien. Agenten-SSH mit
+BatchMode wurde abgewiesen (`Permission denied (publickey,password)`); deshalb ist die
+Installation weiterhin vom Anwender über dessen interaktive SSH-/sudo-Anmeldung auszuführen.
+
+### Erlaubter Backend-Ursprung
+
+Der Anwender hat die Domain `forge-flow.de` zugewiesen und einen zusätzlichen Nginx-
+VirtualHost nach einer externen Anleitung eingerichtet. Der aktuelle Login-Screenshot
+zeigt „Invalid request origin“. `SecurityConfig` prüft Schreibanfragen einschließlich
+Login gegen exakt einen konfigurierten Ursprung (`forgeflow.origin` aus `APP_ORIGIN`).
+Die bisherige öffentliche Einrichtung verwendet `https://185.56.150.178`.
+
+Für den Betrieb unter `https://forge-flow.de` muss in `/etc/forgeflow/backend.env`
+`APP_ORIGIN=https://forge-flow.de` stehen, ohne abschließenden Slash oder URL-Pfad.
+`COOKIE_SECURE=true` bleibt für HTTPS erforderlich. Vor dem Bearbeiten die Datei mit
+`sudo cp -p` in eine eigene, rootgeschützte Sicherung kopieren; anschließend den Dienst
+`forgeflow` neu starten und die lokale Health-API prüfen. Kein Frontend-/Backend-Neubuild
+und keine Änderung der Datenbank oder Konten erforderlich.
+
+`https://www.forge-flow.de`, die IP-Adresse und HTTP sind andere Ursprünge. Der aktuelle
+Backend-Vertrag akzeptiert keine kommagetrennte Origin-Liste. Als Hauptadresse die Domain
+ohne www verwenden; weitere Namen gegebenenfalls in Nginx auf diese HTTPS-Adresse umleiten.
+Parallel ausgelieferte IP-/Domain-Seiten bedeuten noch keine parallele Login-Unterstützung.
+Origin-/CSRF-Prüfung nicht deaktivieren und den Origin-Header nicht im Proxy umschreiben.
+
+Die vorhandene Installation verwendet bereits Certbot als Snap. Zusätzliche apt-
+Installationen aus fremden Anleitungen sind für diesen Login-Fehler nicht nötig.
+Nginx-/Zertifikatstatus und externe Domain-Erreichbarkeit wurden in diesem Schritt
+nicht am Server verifiziert; die Anpassung muss der Anwender per SSH ausführen.
+
+## Bisheriges Deployment
+
+Das neue Navigations-/Historienpaket verwendet Flyway V10. Beide Artefakte zusammen
+mit den vorhandenen Chat-Update-/Testskripten installieren. Keine neue Umgebungsvariable;
+nach Update neu anmelden und Strg+F5. [Änderungen und Grenzen](navigation-and-history.md).
 
 Das aktuelle Paket ergänzt kompakte Dev Tools und private REST-Collections. Beide
 Artefakte zusammen mit dem bestehenden Chat-Update-Skript veröffentlichen; V9 läuft
@@ -6,7 +81,7 @@ automatisch. PostgreSQL-Konfiguration und KI-Einstellungen bleiben erhalten. Det
 [REST-Collections](rest-collections.md). Anschließend mit Strg+F5 neu laden und anmelden.
 
 Ziel des Anwenders: Frontend und Backend laufen auf dem Ubuntu-Server und sind direkt
-unter `https://185.56.150.178` erreichbar. Kein laufender SSH-Tunnel, keine Domain.
+unter `https://185.56.150.178` erreichbar. Die neue Domain-Konfiguration steht oben.
 SSH wird weiterhin für Administration und Dateiübertragung verwendet.
 
 ## Vorhandene Installation

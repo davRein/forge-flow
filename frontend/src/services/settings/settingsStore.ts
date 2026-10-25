@@ -10,6 +10,7 @@ export function createSettingsStore(repository: SettingsRepository, userId: stri
     let loadRevision = 0;
     let writeRevision = 0;
     let saveQueue = Promise.resolve();
+    let confirmed = { ...defaults };
 
     function publish(next: SettingsSnapshot) {
         snapshot = next;
@@ -23,7 +24,8 @@ export function createSettingsStore(repository: SettingsRepository, userId: stri
         try {
             const stored = await repository.load(userId);
             if (revision !== loadRevision || writesAtStart !== writeRevision) return;
-            publish({ settings: decodeSettings(stored, defaultLanguage), status: 'ready', error: null });
+            confirmed = decodeSettings(stored, defaultLanguage);
+            publish({ settings: confirmed, status: 'ready', error: null });
         } catch {
             if (revision !== loadRevision || writesAtStart !== writeRevision) return;
             publish({ ...snapshot, status: 'error', error: {
@@ -42,6 +44,7 @@ export function createSettingsStore(repository: SettingsRepository, userId: stri
         saveQueue = saveQueue.then(async () => {
             try {
                 await repository.save(userId, record);
+                confirmed = settings;
                 if (revision === writeRevision) publish({ ...snapshot, status: 'ready', error: null });
             } catch {
                 if (revision === writeRevision) publish({ ...snapshot, status: 'error', error: {
@@ -71,6 +74,10 @@ export function createSettingsStore(repository: SettingsRepository, userId: stri
         updateSettings,
         resetSettings,
         retry,
+        discardUnsaved() {
+            if (snapshot.status === 'saving' || snapshot.error?.operation !== 'save') return;
+            writeRevision++; publish({ settings: { ...confirmed }, status: 'ready', error: null });
+        },
         // A future sign-out flow can await pending writes before ending the session.
         whenIdle: () => saveQueue
     };

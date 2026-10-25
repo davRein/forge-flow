@@ -60,6 +60,23 @@ async function fixture(initial = '/projectManager/settings', initialSettings: Ap
 }
 
 export const settingsPageTests = [
+    { name: 'Four accessible appearance choices apply Aurora and Dune immediately in both languages', async run() {
+        for (const language of ['de', 'en'] as const) {
+            const ui = await fixture('/projectManager/settings', { ...defaultSettings, language, defaultTaskPriority: 'high' });
+            try {
+                const choices = () => ui.root.findAllByType('input').filter((node) => visible(node) && node.props.name === 'theme-mode');
+                assert(choices().length === 4, 'All four themes need native radio controls');
+                for (const themeMode of ['aurora', 'dune'] as const) {
+                    await act(async () => choices().find((node) => node.props.value === themeMode)!.props.onChange());
+                    assert(ui.getSettings().themeMode === themeMode, 'Theme selection must apply immediately');
+                    assert(ui.getSettings().language === language && ui.getSettings().defaultTaskPriority === 'high', 'Other preferences must remain unchanged');
+                    assert(choices().filter((node) => node.props.checked).length === 1 && choices().find((node) => node.props.value === themeMode)!.props.checked, 'Only the current theme may be selected');
+                }
+                const descriptions = ui.root.findAllByType('small').map(text);
+                assert(descriptions.includes(language === 'en' ? 'Sand and terracotta' : 'Sand und Terrakotta'), 'Palette descriptions must follow the selected language');
+            } finally { await ui.close(); }
+        }
+    } },
     { name: 'Speicherfehler lassen sich auch aus der Nutzerverwaltung wiederholen', async run() {
         const ui = await fixture('/projectManager/settings?category=users', { ...defaultSettings, language: 'de' }, true);
         try {

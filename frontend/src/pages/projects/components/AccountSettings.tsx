@@ -11,6 +11,7 @@ import type { ManagedAccount } from '../../../services/auth/accountRepository';
 import { DangerButton, ErrorText, Field, FormActions, FormCard, FormGrid, Input, PrimaryButton, SecondaryButton } from '../../../components/ui/formStyles';
 import Dialog from '../../../components/ui/Dialog';
 import { useChatNavigationBlocker } from '../../../hooks/chatNavigationContext';
+import { useUnsavedChanges } from '../../../hooks/navigationGuard';
 
 const Section = styled(FormCard)`
     max-width: 850px;
@@ -70,6 +71,9 @@ export default function AccountSettings({ unsavedSettings, client = apiClient }:
     useChatNavigationBlocker(busy || name !== (auth.user?.name ?? '') || email !== (auth.user?.email ?? '')
         || !!(profilePassword || currentPassword || newPassword || confirmation || newName || newEmail || userPassword || userConfirmation));
     const pendingData = unsavedSettings || workspace.status === 'saving' || !!workspace.error;
+    useUnsavedChanges(name !== (auth.user?.name ?? '') || email !== (auth.user?.email ?? '') || !!(profilePassword || currentPassword || newPassword || confirmation || newName || newEmail || userPassword || userConfirmation), () => {
+        setName(auth.user?.name ?? ''); setEmail(auth.user?.email ?? ''); setProfilePassword(''); setCurrentPassword(''); setNewPassword(''); setConfirmation(''); setNewName(''); setNewEmail(''); setUserPassword(''); setUserConfirmation(''); setTarget(null); setError(null);
+    }, busy || auth.busy);
     const disabled = auth.busy || busy || pendingData;
     const feedbackError = error ?? (action === 'profile' || action === 'password' ? auth.error : null);
 
@@ -110,7 +114,7 @@ export default function AccountSettings({ unsavedSettings, client = apiClient }:
         event.preventDefault();
         if (disabled) return;
         begin('profile');
-        if (await auth.updateProfile({ name, email, currentPassword: profilePassword })) setMessage('Profil gespeichert.');
+        if (await auth.updateProfile({ name, email, currentPassword: profilePassword })) { setName(name.trim()); setEmail(email.trim().toLowerCase()); setMessage('Profil gespeichert.'); }
         setProfilePassword('');
     }
 

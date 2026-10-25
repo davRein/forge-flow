@@ -68,7 +68,7 @@ public class AccountController {
         boolean changedEmail = !before.email().equals(email);
         if (changedEmail) verify(input.currentPassword(), before);
         var next = new Accounts.User(before.id(), email, input.name().strip(), before.passwordHash(),
-            before.administrator(), true, before.sessionVersion() + (changedEmail ? 1 : 0));
+            before.administrator(), true, before.sessionVersion() + (changedEmail ? 1 : 0), before.portalOnly());
         Accounts.User saved = accounts.replace(next, before.sessionVersion());
         return changedEmail ? AccountSessions.renew(saved, request, response, contexts, csrf)
             : AccountSessions.response(saved, request, response, csrf);
@@ -79,7 +79,7 @@ public class AccountController {
         verify(input.currentPassword(), before);
         AccountRules.password(input.newPassword());
         var next = new Accounts.User(before.id(), before.email(), before.name(), encoder.encode(input.newPassword()),
-            before.administrator(), true, before.sessionVersion() + 1);
+            before.administrator(), true, before.sessionVersion() + 1, before.portalOnly());
         accounts.replace(next, before.sessionVersion());
         var session = request.getSession(false);
         if (session != null) session.invalidate();
@@ -107,7 +107,7 @@ public class AccountController {
             throw new ApiFailure(400, "ADMIN_ACCOUNT_PROTECTED", "Das Administratorkonto kann hier nicht deaktiviert werden.");
         if (before.active() == input.active()) return AccountSessions.profile(before);
         var next = new Accounts.User(before.id(), before.email(), before.name(), before.passwordHash(),
-            false, input.active(), before.sessionVersion() + 1);
+            false, input.active(), before.sessionVersion() + 1, before.portalOnly());
         return AccountSessions.profile(accounts.replace(next, before.sessionVersion()));
     }
 }

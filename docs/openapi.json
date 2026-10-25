@@ -1477,6 +1477,1944 @@
           }
         }
       }
+    },
+    "/me/recent-activity": {
+      "get": {
+        "operationId": "getRecentActivity",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Private read-only dashboard navigation history. Project events also cover tasks, epics, sprints and files; customer events include contacts and notes. Earlier existing data does not produce synthetic backfill events.",
+        "responses": {
+          "200": {
+            "description": "Confirmed recent activity for the authenticated active account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentActivity"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/time-tracking": {
+      "get": {
+        "operationId": "getTimeTracking",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Private time entries; an empty document before the first save.",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Quoted revision."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeTracking"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "saveTimeTracking",
+        "description": "Replace the authenticated account’s private time document atomically. Exact quoted If-Match must equal the body revision and the latest saved revision. Validates dates, non-overlapping intervals including breaks, and own customer/project associations. Customer/project names are canonical server snapshots; existing historical links survive deletion. No automatic write retry. Separate from the workspace and AI tools.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TimeTracking"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Confirmed private time entries with a new revision and canonical customer/project names.",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Quoted revision."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeTracking"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid structure or field bounds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin or CSRF rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Time entries have changed; explicitly reload before writing again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Serialized time document exceeds 5 MiB in UTF-8.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid date, overlapping interval, midnight crossing, duplicate entry ID, unavailable/foreign relationship, or If-Match/body mismatch.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Save failed; previous confirmed data retained.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/business": {
+      "get": {
+        "operationId": "getBusinessData",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Own business settings, budgets, templates, documents and timer; empty defaults on first use.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessData"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "saveBusinessData",
+        "description": "Atomic owner-private business aggregate with exact quoted If-Match matching body and stored revision. Maximum 5 MiB UTF-8. Timer is preserved through PUT. Budget/project and document/customer links are verified. Issuing and numbering occur under the account lock. No automatic write retry.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessData"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Confirmed business aggregate and new revision.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessData"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Portal-only, origin, CSRF or authorization rejection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision changed; reload explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Aggregate exceeds its storage limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business rule validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage or PDF unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/business/timer/{action}": {
+      "post": {
+        "operationId": "controlTimer",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "start",
+                "pause",
+                "resume",
+                "complete",
+                "discard"
+              ]
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TimerInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated durable timer. Complete requires a saved time entry with the same UUID; stopping into a review draft does not itself book time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessData"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Portal-only, origin, CSRF or authorization rejection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision changed; reload explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Aggregate exceeds its storage limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business rule validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage or PDF unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/business/templates/{id}/apply": {
+      "post": {
+        "operationId": "applyProjectTemplate",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyTemplate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project, todo tasks, milestone epics and documentation created atomically with fresh IDs. Both business and workspace revisions are checked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "business": {
+                      "$ref": "#/components/schemas/BusinessData"
+                    },
+                    "projectId": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "business",
+                    "projectId"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Portal-only, origin, CSRF or authorization rejection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision changed; reload explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Aggregate exceeds its storage limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business rule validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage or PDF unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/business/documents/{id}/pdf": {
+      "get": {
+        "operationId": "downloadBusinessPdf",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "de",
+                "en"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated attachment download.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Portal-only, origin, CSRF or authorization rejection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision changed; reload explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Aggregate exceeds its storage limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business rule validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage or PDF unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/business/timesheet/pdf": {
+      "get": {
+        "operationId": "downloadMonthlyTimesheet",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$"
+            }
+          },
+          {
+            "name": "customerId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "projectId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "comments",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "de",
+                "en"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated attachment download.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Portal-only, origin, CSRF or authorization rejection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision changed; reload explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Aggregate exceeds its storage limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business rule validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage or PDF unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/business/portal-accounts": {
+      "get": {
+        "operationId": "listOwnPortalAccounts",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Own portal accounts only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "link": {
+                        "$ref": "#/components/schemas/PortalLink"
+                      },
+                      "user": {
+                        "type": "object",
+                        "description": "Public account profile including portalOnly, never password/hash."
+                      }
+                    },
+                    "required": [
+                      "link",
+                      "user"
+                    ]
+                  },
+                  "maxItems": 100
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Portal-only, origin, CSRF or authorization rejection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision changed; reload explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Aggregate exceeds its storage limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business rule validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage or PDF unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createPortalAccount",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewPortalAccount"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "New portal-only account with no shared resources. Credentials are never sent automatically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "link": {
+                      "$ref": "#/components/schemas/PortalLink"
+                    },
+                    "user": {
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "link",
+                    "user"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Portal-only, origin, CSRF or authorization rejection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision changed; reload explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Aggregate exceeds its storage limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business rule validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage or PDF unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/business/portal-accounts/{id}": {
+      "put": {
+        "operationId": "publishPortalAccess",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalLink"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Explicitly publishes a bounded snapshot, or revokes access. Customer/account binding cannot change. Shared project IDs must belong to the customer; files require a shared project; only issued documents can be shared. Report comments are removed. Snapshot <= 5 MiB UTF-8; shared documentation <= 2 Mi characters and files <= 25 MiB. Publication runs under the owner account lock.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalLink"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Portal-only, origin, CSRF or authorization rejection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision changed; reload explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Aggregate exceeds its storage limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business rule validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage or PDF unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/portal/home": {
+      "get": {
+        "operationId": "getCustomerPortal",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active portal-only account, active owner and active grant required. Only the published snapshot is returned; no workspace, private notes or live time comments.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "customerName",
+                    "projects",
+                    "articles",
+                    "files",
+                    "documents",
+                    "reportMonths"
+                  ],
+                  "properties": {
+                    "customerName": {
+                      "type": "string",
+                      "maxLength": 1000
+                    },
+                    "projects": {
+                      "type": "array",
+                      "description": "Published project name/deadline and task/done counts only."
+                    },
+                    "articles": {
+                      "type": "array",
+                      "description": "Explicitly published page title/content."
+                    },
+                    "files": {
+                      "type": "array",
+                      "description": "Published file id/name/size only."
+                    },
+                    "documents": {
+                      "type": "array",
+                      "description": "Published document id/title/number/kind/status only."
+                    },
+                    "reportMonths": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "maxItems": 120
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Portal-only, origin, CSRF or authorization rejection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision changed; reload explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Aggregate exceeds its storage limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business rule validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage or PDF unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/portal/documents/{id}/pdf": {
+      "get": {
+        "operationId": "downloadPublishedDocument",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "de",
+                "en"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated attachment download.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Portal-only, origin, CSRF or authorization rejection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision changed; reload explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Aggregate exceeds its storage limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business rule validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage or PDF unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/portal/timesheet/pdf": {
+      "get": {
+        "operationId": "downloadPublishedTimesheet",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "de",
+                "en"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated attachment download.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Portal-only, origin, CSRF or authorization rejection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision changed; reload explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Aggregate exceeds its storage limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business rule validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage or PDF unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/portal/files/{id}": {
+      "get": {
+        "operationId": "downloadPublishedFile",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated attachment download.",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Portal-only, origin, CSRF or authorization rejection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision changed; reload explicitly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Aggregate exceeds its storage limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business rule validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage or PDF unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1539,6 +3477,12 @@
           },
           "active": {
             "type": "boolean"
+          },
+          "portalOnly": {
+            "type": "boolean",
+            "default": false,
+            "readOnly": true,
+            "description": "Portal-only principals may access auth/session/logout, own password change and /portal/* only. Never an internal workspace principal."
           }
         },
         "required": [
@@ -2400,7 +4344,9 @@
               "themeMode": {
                 "enum": [
                   "light",
-                  "dark"
+                  "dark",
+                  "aurora",
+                  "dune"
                 ]
               },
               "defaultProjectView": {
@@ -2590,7 +4536,16 @@
               "/devTools/json",
               "/devTools/rest",
               "/devTools/calculator",
-              "/devTools/converter"
+              "/devTools/converter",
+              "/timeTracker/calendar",
+              "/timeTracker/reports",
+              "/projectManager/today",
+              "/business/budgets",
+              "/business/documents",
+              "/business/templates",
+              "/business/portal",
+              "/business/profile",
+              "/cloud/files"
             ]
           },
           "projectId": {
@@ -4943,6 +6898,831 @@
           }
         },
         "description": "Private account collections, separate from workspace and AI tools. Maximum 1000 requests and 1 MiB serialized UTF-8 in total. All collection and request UUIDs must be unique across the document. PUT replaces the complete document atomically with its own revision."
+      },
+      "RecentActivityEntry": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "action",
+          "entityId",
+          "name",
+          "at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "project",
+              "settings"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "created",
+              "updated"
+            ]
+          },
+          "entityId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "const": "settings"
+              },
+              "entityId": {
+                "type": "null"
+              }
+            }
+          },
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "customer",
+                  "project"
+                ]
+              },
+              "entityId": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        ],
+        "description": "Navigation metadata for a confirmed save. The latest object state is opened, not a historical revision. No form contents, passwords or private request definitions."
+      },
+      "RecentActivity": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entries"
+        ],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/RecentActivityEntry"
+            }
+          }
+        },
+        "description": "The five newest available account-local actions, newest first. Recorded atomically during workspace and personal preference saves. No-op and failed saves produce no entry. Entries for deleted objects are removed."
+      },
+      "TimeEntry": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "date",
+          "startMinute",
+          "minutes",
+          "breakMinutes",
+          "customerName",
+          "projectName",
+          "comment",
+          "billable"
+        ],
+        "description": "Local wall-clock booking on one calendar day. Work minutes exclude breaks; startMinute + minutes + breakMinutes must be <= 1440. Intervals including breaks must not overlap. An internal booking has null customerId and projectId. Project is optional but must belong to the selected own customer. Names supplied by clients are ignored and resolved server-side; stored names retain historical context after deletion.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Real ISO calendar date, year 0001–9999."
+          },
+          "startMinute": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1439
+          },
+          "minutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440
+          },
+          "breakMinutes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1439
+          },
+          "customerId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "projectId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "customerName": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "projectName": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "billable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TimeTracking": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "revision",
+          "entries"
+        ],
+        "properties": {
+          "version": {
+            "const": 1
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "entries": {
+            "type": "array",
+            "maxItems": 10000,
+            "items": {
+              "$ref": "#/components/schemas/TimeEntry"
+            }
+          }
+        }
+      },
+      "BusinessProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 3000
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254
+          },
+          "taxId": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "bank": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "currency": {
+            "enum": [
+              "EUR",
+              "USD",
+              "CHF",
+              "GBP"
+            ]
+          },
+          "taxBasisPoints": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "hourlyRateCents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000
+          },
+          "paymentDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 365
+          }
+        },
+        "required": [
+          "company",
+          "address",
+          "email",
+          "taxId",
+          "bank",
+          "currency",
+          "taxBasisPoints",
+          "hourlyRateCents",
+          "paymentDays"
+        ]
+      },
+      "ProjectBudget": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "projectId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "minutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000000
+          },
+          "hourlyRateCents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000
+          }
+        },
+        "required": [
+          "projectId",
+          "minutes",
+          "hourlyRateCents"
+        ]
+      },
+      "ProjectTemplate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "maxLength": 1000,
+                  "minLength": 1
+                },
+                "description": {
+                  "type": "string",
+                  "maxLength": 10000
+                },
+                "priority": {
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ]
+                }
+              },
+              "required": [
+                "title",
+                "description",
+                "priority"
+              ]
+            },
+            "maxItems": 100
+          },
+          "milestones": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 1000,
+              "minLength": 1
+            },
+            "maxItems": 30
+          },
+          "pages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "maxLength": 1000,
+                  "minLength": 1
+                },
+                "content": {
+                  "type": "string",
+                  "maxLength": 100000
+                }
+              },
+              "required": [
+                "title",
+                "content"
+              ]
+            },
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "tasks",
+          "milestones",
+          "pages"
+        ]
+      },
+      "BusinessLine": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^(?:0|[1-9][0-9]{0,6})(?:\\.[0-9]{1,3})?$",
+            "description": "Positive decimal quantity for manual lines. Work-time lines use minutes / 60 exactly before rounding."
+          },
+          "unitPriceCents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000
+          },
+          "taxBasisPoints": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "minutes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unitPriceCents",
+          "taxBasisPoints",
+          "minutes"
+        ]
+      },
+      "BusinessDocument": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "enum": [
+              "offer",
+              "invoice"
+            ]
+          },
+          "customerId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "projectId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "issued",
+              "accepted",
+              "rejected",
+              "paid",
+              "cancelled"
+            ]
+          },
+          "number": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "issuer": {
+            "type": "string",
+            "maxLength": 6000
+          },
+          "recipient": {
+            "type": "string",
+            "maxLength": 6000
+          },
+          "currency": {
+            "enum": [
+              "EUR",
+              "USD",
+              "CHF",
+              "GBP"
+            ]
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusinessLine"
+            },
+            "maxItems": 100
+          },
+          "timeEntryIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 10000
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 10000
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "customerId",
+          "title",
+          "date",
+          "dueDate",
+          "status",
+          "number",
+          "issuer",
+          "recipient",
+          "currency",
+          "lines",
+          "timeEntryIds",
+          "notes"
+        ],
+        "description": "Issuing assigns an owner-private OFF/INV-year sequence and canonical sender/recipient snapshots. Issued contents cannot change or be removed; issued offers can become accepted/rejected, issued invoices paid/cancelled. Active invoices cannot reuse billed time IDs, including simultaneous issue operations. Integer cents and basis points round HALF_UP per line; maximum document total 9,000,000,000,000 minor units. Dates must be real and dueDate >= date."
+      },
+      "RunningTimer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "elapsedSeconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "originAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "zone": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "customerId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "projectId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "billable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "startedAt",
+          "elapsedSeconds",
+          "originAt",
+          "zone",
+          "customerId",
+          "projectId",
+          "comment",
+          "billable"
+        ]
+      },
+      "BusinessData": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "const": 1
+          },
+          "revision": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1
+          },
+          "profile": {
+            "$ref": "#/components/schemas/BusinessProfile"
+          },
+          "budgets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectBudget"
+            },
+            "maxItems": 10000
+          },
+          "templates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectTemplate"
+            },
+            "maxItems": 500
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusinessDocument"
+            },
+            "maxItems": 1000
+          },
+          "timer": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RunningTimer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Read-only through ordinary PUT: timer actions own this field; stale clients cannot overwrite it."
+          }
+        },
+        "required": [
+          "version",
+          "revision",
+          "profile",
+          "budgets",
+          "templates",
+          "documents",
+          "timer"
+        ]
+      },
+      "TimerInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "zone": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "customerId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "projectId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "billable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "zone",
+          "comment",
+          "billable"
+        ]
+      },
+      "ApplyTemplate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1
+          },
+          "workspaceRevision": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1
+          },
+          "customerId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [
+          "revision",
+          "workspaceRevision",
+          "customerId",
+          "name",
+          "deadline"
+        ]
+      },
+      "PortalLink": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "userId": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "ownerId": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "revision": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "customerId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "projectIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxItems": 1000
+          },
+          "articleIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxItems": 1000
+          },
+          "fileIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxItems": 1000
+          },
+          "documentIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 1000
+          },
+          "reportMonths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$"
+            },
+            "maxItems": 120
+          },
+          "snapshot": {
+            "type": "string",
+            "maxLength": 5242880,
+            "readOnly": true,
+            "description": "Server-generated immutable publication snapshot; incoming value is ignored. Files are pinned by SHA-256. Later workspace ID reuse never grants new content automatically."
+          }
+        },
+        "required": [
+          "userId",
+          "ownerId",
+          "revision",
+          "customerId",
+          "active",
+          "projectIds",
+          "articleIds",
+          "fileIds",
+          "documentIds",
+          "reportMonths"
+        ]
+      },
+      "NewPortalAccount": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 72,
+            "minLength": 12,
+            "writeOnly": true,
+            "description": "12 code points minimum, 72 UTF-8 bytes maximum; server-side BCrypt. Never sent to AI or returned."
+          },
+          "customerId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "password",
+          "customerId"
+        ]
       }
     }
   }

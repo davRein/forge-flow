@@ -1,6 +1,7 @@
 import { defaultSettings } from '../../config/appSettings.js';
-import type { AppLanguage, AppSettings } from '../../types/settings.types';
+import type { AppLanguage, AppSettings, ThemeMode } from '../../types/settings.types';
 import type { StoredSettings } from './settingsRepository';
+import { themeModes } from '../../types/settings.types.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -9,7 +10,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function normalizeSettings(value: unknown, defaultLanguage: AppLanguage = defaultSettings.language): AppSettings {
     const input = isRecord(value) ? value : {};
     return {
-        themeMode: input.themeMode === 'light' || input.themeMode === 'dark' ? input.themeMode : defaultSettings.themeMode,
+        themeMode: themeModes.includes(input.themeMode as ThemeMode) ? input.themeMode as ThemeMode : defaultSettings.themeMode,
         defaultProjectView: input.defaultProjectView === 'projects' || input.defaultProjectView === 'dashboard'
             ? input.defaultProjectView : defaultSettings.defaultProjectView,
         defaultTaskPriority: input.defaultTaskPriority === 'low' || input.defaultTaskPriority === 'medium' || input.defaultTaskPriority === 'high'

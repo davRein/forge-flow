@@ -6,6 +6,10 @@ Skip any steps that have already been completed.
 
 ## 1. Prerequisites
 
+For the optional Nextcloud deployment on the existing Ubuntu server, including DNS,
+HTTPS, first login and backups, follow [docs/nextcloud.md](docs/nextcloud.md).
+It uses a separate installation and separate Nextcloud accounts.
+
 - Node.js 22 with npm.
 - Java JDK 21; `JAVA_HOME` must point to the JDK.
 - Maven 3.9; Java and Maven must be available on your `PATH`.

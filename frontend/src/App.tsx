@@ -8,6 +8,14 @@ import { modules } from './config/moduleConfig';
 import ProjectsPage from './pages/projects/ProjectsPage';
 import WikiPage from './pages/wiki/WikiPage';
 import DevToolsPage from './pages/devTools/DevToolsPage';
+import TimeTrackerPage from './pages/timeTracker/TimeTrackerPage';
+import BusinessPage from './pages/business/BusinessPage';
+import CloudPage from './pages/cloud/CloudPage';
+import PortalApp from './pages/business/PortalApp';
+import BusinessProvider from './components/BusinessProvider';
+import { createApiBusinessRepository, createSessionBusinessRepository } from './services/business/business';
+import TimeTrackingProvider from './components/TimeTrackingProvider';
+import { createApiTimeTrackingRepository, createSessionTimeTrackingRepository } from './services/time/timeTracking';
 import { Container, Title } from './pages/projects/styles/pageStyles';
 import { useAppSettings } from './hooks/useAppSettings';
 import type { SettingsRepository } from './services/settings/settingsRepository';
@@ -28,16 +36,20 @@ import ChatWidget from './components/chat/ChatWidget';
 import ChatPageContextProvider from './components/chat/ChatPageContextProvider';
 import ChatNavigationProvider from './components/chat/ChatNavigationProvider';
 import GlobalSettingsProvider from './components/GlobalSettingsProvider';
+import NavigationGuardProvider from './components/navigation/NavigationGuardProvider';
+import { useNavigationGuard, useUnsavedChanges } from './hooks/navigationGuard';
 import RestCollectionsProvider from './components/RestCollectionsProvider';
 import { createApiRestCollectionsRepository, createSessionRestCollectionsRepository } from './services/rest/restCollections';
 import { createGlobalSettingsRepository, createSessionGlobalSettingsRepository } from './services/settings/globalSettings';
 
 type SettingsState = ReturnType<typeof useAppSettings>;
 
-function AppContent({ settings, updateSettings, resetSettings, status, error, retry, persistence }: SettingsState) {
+function AppContent({ settings, updateSettings, resetSettings, discardUnsaved, status, error, retry, persistence }: SettingsState) {
     const { t } = useTranslation();
     const { pathname } = useLocation();
     const navigate = useNavigate();
+    const guard = useNavigationGuard();
+    useUnsavedChanges(error?.operation === 'save', discardUnsaved, status === 'saving');
     const [, moduleKey, pageKey] = pathname.split('/');
     const matchedModule = modules.find((module) => module.key === moduleKey);
     const matchedPage = matchedModule?.topbarItems.find((item) => item.key === pageKey);
@@ -67,14 +79,15 @@ function AppContent({ settings, updateSettings, resetSettings, status, error, re
             unsavedSettings={status === 'saving' || error?.operation === 'save'}
             onModuleChange={(key) => {
                 const module = modules.find((entry) => entry.key === key)!;
-                navigate(key === 'projectManager' ? projectStartPath : `/${key}/${module.topbarItems[0].key}`,
-                    { state: { projectOverview: true } });
+                guard.request(() => navigate(key === 'projectManager' ? projectStartPath : `/${key}/${module.topbarItems[0].key}`,
+                    { state: { projectOverview: true } }));
             }}
         >
             <WorkspaceNotifications />
             {!validRoute && <Navigate to={projectStartPath} state={{ projectOverview: true }} replace />}
             <div hidden={currentModule.key !== 'projectManager'}>
                 <ProjectsPage
+                    active={currentModule.key === 'projectManager'}
                     section={currentModule.key === 'projectManager' ? currentPage.key : settings.defaultProjectView}
                     settings={settings}
                     onSettingsChange={updateSettings}
@@ -91,6 +104,13 @@ function AppContent({ settings, updateSettings, resetSettings, status, error, re
             <div hidden={currentModule.key !== 'devTools'}>
                 <DevToolsPage section={currentModule.key === 'devTools' ? currentPage.key : 'json'} active={currentModule.key === 'devTools'} />
             </div>
+            <div hidden={currentModule.key !== 'timeTracker'}>
+                <TimeTrackerPage section={currentModule.key === 'timeTracker' ? currentPage.key : 'calendar'} active={currentModule.key === 'timeTracker'} />
+            </div>
+            <div hidden={currentModule.key !== 'business'}>
+                <BusinessPage section={currentModule.key === 'business' ? currentPage.key : 'budgets'} active={currentModule.key === 'business'} />
+            </div>
+            <div hidden={currentModule.key !== 'cloud'}><CloudPage /></div>
         </MainLayout>
     );
 }
@@ -105,15 +125,17 @@ function SignedInApp({ userId = null, settingsRepository }: AppProps) {
     const settingsState = useAppSettings({ userId: ownerId, repository });
     const globalRepository = useMemo(() => apiEnabled ? createGlobalSettingsRepository(apiClient) : createSessionGlobalSettingsRepository(), []);
     const restRepository = useMemo(() => apiEnabled ? createApiRestCollectionsRepository(apiClient) : createSessionRestCollectionsRepository(), []);
+    const timeRepository = useMemo(() => apiEnabled ? createApiTimeTrackingRepository(apiClient) : createSessionTimeTrackingRepository(), []);
+    const businessRepository = useMemo(() => apiEnabled ? createApiBusinessRepository(apiClient) : createSessionBusinessRepository(), []);
     return (
         <ThemeProvider theme={themes[settingsState.settings.themeMode]}>
             <GlobalStyle />
             <LanguageProvider language={settingsState.settings.language}>
-                <HashRouter><ChatPageContextProvider><ChatNavigationProvider>
-                    <WorkspaceProvider repository={workspaceRepository}><GlobalSettingsProvider repository={globalRepository}><RestCollectionsProvider repository={restRepository}><AppContent {...settingsState} />
+                <HashRouter><ChatPageContextProvider><ChatNavigationProvider><NavigationGuardProvider>
+                    <WorkspaceProvider repository={workspaceRepository}><GlobalSettingsProvider repository={globalRepository}><RestCollectionsProvider repository={restRepository}><TimeTrackingProvider repository={timeRepository}><BusinessProvider repository={businessRepository}><AppContent {...settingsState} />
                         {apiEnabled && <ChatWidget />}
-                    </RestCollectionsProvider></GlobalSettingsProvider></WorkspaceProvider>
-                </ChatNavigationProvider></ChatPageContextProvider></HashRouter>
+                    </BusinessProvider></TimeTrackingProvider></RestCollectionsProvider></GlobalSettingsProvider></WorkspaceProvider>
+                </NavigationGuardProvider></ChatNavigationProvider></ChatPageContextProvider></HashRouter>
             </LanguageProvider>
         </ThemeProvider>
     );
@@ -123,7 +145,7 @@ function AuthGate(props: AppProps) {
     const auth = useAuth();
     return apiEnabled && auth.status !== 'authenticated'
         ? <LanguageProvider language={getBrowserLanguage()}><LoginPage /></LanguageProvider>
-        : <SignedInApp key={`${auth.user?.id ?? 'local'}:${auth.epoch}`} {...props} />;
+        : auth.user?.portalOnly ? <PortalApp key={`${auth.user.id}:${auth.epoch}`} /> : <SignedInApp key={`${auth.user?.id ?? 'local'}:${auth.epoch}`} {...props} />;
 }
 
 export default function App(props: AppProps) {

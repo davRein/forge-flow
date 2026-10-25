@@ -31,7 +31,7 @@ public class JpaAccounts implements Accounts {
     }
 
     private User user(AccountRow row) {
-        return new User(row.id, row.email, row.name, row.passwordHash, row.administrator, row.active, row.sessionVersion);
+        return new User(row.id, row.email, row.name, row.passwordHash, row.administrator, row.active, row.sessionVersion, row.portalOnly);
     }
     private void values(AccountRow row, User user) {
         row.email = AccountRules.email(user.email());
@@ -40,6 +40,7 @@ public class JpaAccounts implements Accounts {
         row.administrator = user.administrator();
         row.active = user.active();
         row.sessionVersion = user.sessionVersion();
+        row.portalOnly = user.portalOnly();
     }
     private void flush() {
         try { entityManager.flush(); }

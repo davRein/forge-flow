@@ -1,5 +1,41 @@
 # Browserprüfung des lokalen PostgreSQL-Betriebs
 
+## Haupttabs, Entwurfswarnung und Dashboard-Historie
+
+Diese Sicht-/Browserprüfung bleibt manuell offen:
+
+- Dashboard → Projekt öffnen: Projects/Projekte aktiv, richtige Projektdetails. Projects
+  erneut anklicken: Liste ohne Projekt offen. Dashboard/Customers/Settings anklicken
+  und zurück: jeweils Hauptseite; Settings startet mit Optik, Kunden ohne Detailauswahl.
+- Projektformular ändern und Haupttab/Projektuntertab/Modul wechseln. Kleines Popup:
+  Bleiben sowie Escape/Schließen erhalten Eingaben und aktuelle Ansicht; Verwerfen wechselt,
+  schließt den Entwurf und speichert nichts. Unverändertes Formular wechselt ohne Warnung.
+- Kundendaten/Kontakte/Notizen und Aufgaben/Epics/Sprints/Dateinamen ebenso prüfen.
+  Eigene Dialoge zunächst wie vorgesehen bedienen; Rückfragen müssen den Fokus korrekt
+  führen. Bei verschachtelten Dialogen bleibt die jeweils oberste Rückfrage bedienbar.
+- Profil/Passwort/Benutzeranlage und globale Branchenliste ändern; Settings-Kategorie oder
+  Haupttab wechseln: erst nach Bestätigung. Verwerfen leert auch Passwortfelder. Danach
+  zurückkehren: verworfene Eingaben erscheinen nicht wieder.
+- Allgemeine Vorgaben werden weiter automatisch gespeichert: bei bestätigtem Erfolg kein
+  Verlust-Popup. Netzwerk drosseln: während PUT ist Verwerfen deaktiviert; erfolgreicher
+  Abschluss setzt den angeforderten Wechsel fort. Offline/Fehler: Änderungen bleiben bis
+  ausdrücklichem Verwerfen erhalten. Kein automatischer Wiederholungs-PUT durch Navigation.
+- Kunde/Projekt anlegen/ändern, Aufgaben ändern und persönliche Einstellungen ändern.
+  Dashboard zeigt höchstens fünf bestätigte Aktionen mit übersetztem Datum. Klick öffnet
+  das aktuelle Objekt und den richtigen Haupttab; alte Einträge öffnen keinen alten Stand.
+- Backend neu starten und erneut anmelden: PostgreSQL-Historie bleibt. Anderes Konto sieht
+  keine fremden Einträge. Gelöschte Objekte verschwinden aus der Historie; unverändertes
+  Speichern oder ein fehlgeschlagener Commit erzeugt keinen Eintrag.
+- DE/EN, hell/dunkel und schmale Fenster prüfen; Tastaturfokus in Rückfrage, Escape,
+  Rückkehrfokus, Zeilenumbrüche langer Namen und fünf kompakte Historienzeilen prüfen.
+
+## ForgeFlow-Symbol im Login
+
+- Login auf schmalen und breiten Fenstern in Deutsch/Englisch prüfen: Symbol neben der
+  Überschrift, bei Bedarf mehrzeiliger Titel, keine Überlappung mit den Formularfeldern.
+  Dasselbe Symbol in der Kopfzeile nach Anmeldung; Theme-Farben und Fokus auf E-Mail prüfen.
+  Visuelle Abnahme bleibt offen.
+
 ## Kompakte Dev Tools und REST-Collections
 
 Manuell offen, keine automatisierte visuelle Abnahme:

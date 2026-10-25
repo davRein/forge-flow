@@ -1,11 +1,29 @@
 import { createWorkspaceStore } from './workspaceStore.js';
 import { decodeWorkspace, emptyWorkspace } from './workspaceSchema.js';
+import { decodeRecentActivity, recentActivityPath } from './recentActivity.js';
 import type { Workspace, WorkspaceRepository } from './workspaceTypes';
 
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 const fixture = (): Workspace => ({ ...emptyWorkspace(), files: [] });
 const ticks = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
 export const workspaceTests = [
+    { name: 'Recent activity validates bounded targets and builds only internal object links', run() {
+        const entry = { id: '00000000-0000-0000-0000-000000000001', kind: 'project', action: 'updated', entityId: 42, name: 'Project', at: '2026-10-25T10:00:00Z' };
+        const decoded = decodeRecentActivity({ entries: [entry] }); assert(recentActivityPath(decoded[0]) === '/projectManager/projects?project=42', 'Project link must point to its object');
+        assert(recentActivityPath({ ...decoded[0], kind: 'customer' }) === '/projectManager/customers?customer=42' && recentActivityPath({ ...decoded[0], kind: 'settings', entityId: null }) === '/projectManager/settings', 'History target routes missing');
+        for (const entries of [Array(6).fill(entry), [entry, entry], [{ ...entry, kind: 'external' }], [{ ...entry, entityId: -1 }], [{ ...entry, at: 'invalid' }]]) {
+            let failed = false; try { decodeRecentActivity({ entries }); } catch { failed = true; } assert(failed, 'Malformed history must not be accepted');
+        }
+    } },
+    { name: 'Only confirmed saves enter dashboard history and failed changes can be discarded without a replay', async run() {
+        let reject = false, writes = 0;
+        const store = createWorkspaceStore({ persistence: 'account', async load() { return { data: fixture(), revision: '1' }; }, async save() { writes++; if (reject) throw new Error('Offline'); return '2'; } });
+        await store.load(); const customer = { id: 1, name: 'Saved customer', street: '', city: '', country: '', email: '', phone: '', industry: '' };
+        store.update('customers', [customer]); await ticks(); assert(store.getSnapshot().recentActivity.length === 1, 'Confirmed creation must enter history');
+        reject = true; store.update('customers', [{ ...customer, name: 'Failed update' }]); await ticks();
+        assert(store.getSnapshot().recentActivity.length === 1 && store.getSnapshot().recentActivity[0].name === 'Saved customer', 'Failed update must not enter history');
+        store.discardUnsaved(); assert(store.getSnapshot().data!.customers[0].name === 'Saved customer' && store.getSnapshot().status === 'ready' && writes === 2, 'Discard restores last confirmed snapshot without a PUT'); store.dispose();
+    } },
     { name: 'Alte Kunden erhalten leere Detailfelder; neue Kontakte und Notizen werden ohne Textinterpretation geladen', run() {
         const customer = { id: 1, name: 'Customer', street: '', city: '', country: '', email: '', phone: '', industry: '' };
         const base = { version: 1, revision: '1', data: { ...emptyWorkspace(), customers: [customer] } };

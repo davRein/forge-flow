@@ -7,6 +7,7 @@ import { LanguageContext } from '../../../hooks/languageContext';
 import { WorkspaceContext } from '../../../hooks/workspaceContext';
 import { createWorkspaceStore } from '../../../services/workspace/workspaceStore';
 import type { Workspace } from '../../../services/workspace/workspaceTypes';
+import type { AppLanguage } from '../../../types/settings.types';
 import { defaultSettings } from '../../../config/appSettings';
 import ProjectsPage from '../ProjectsPage';
 import { useCustomerDetails } from '../hooks/useCustomerDetails';
@@ -15,7 +16,7 @@ import { isWorkspaceMutation } from '../../../services/ai/workspaceActions';
 
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 const text = (node: ReactTestInstance): string => node.children.map(child => typeof child === 'string' ? child : text(child)).join('');
-async function fixture(route = '/projectManager/customers', hookOnly = false) {
+async function fixture(route = '/projectManager/customers', hookOnly = false, language: AppLanguage = 'en') {
     const data: Workspace = { projects: [{ id: 1, customerId: 1, name: 'Customer one project', planningCompleted: false, deadline: '2026-12-31' }, { id: 2, customerId: 2, name: 'Other project', planningCompleted: false, deadline: '2026-12-31' }],
         customers: [{ id: 1, name: 'Customer one', street: 'Street 1', postalCode: '01234', city: 'Town', country: 'DE', email: 'one@example.test', phone: '', industry: 'IT', notes: '<script>Existing note</script>',
             contacts: [{ id: 1, customerId: 1, name: 'First contact', role: 'Manager', email: 'contact@example.test', phone: '123' }] },
@@ -28,12 +29,56 @@ async function fixture(route = '/projectManager/customers', hookOnly = false) {
         return hookOnly ? null : <ProjectsPage section={location.pathname.endsWith('customers') ? 'customers' : 'projects'} settings={defaultSettings} onSettingsChange={() => {}} onSettingsReset={() => {}} settingsStatus="ready" settingsError={null} settingsPersistence="session" onSettingsRetry={() => {}} />;
     }
     let renderer!: ReactTestRenderer;
-    await act(async () => { renderer = create(<ThemeProvider theme={darkTheme}><LanguageContext.Provider value="en"><MemoryRouter initialEntries={[route]}><WorkspaceContext.Provider value={workspace}><Host /></WorkspaceContext.Provider></MemoryRouter></LanguageContext.Provider></ThemeProvider>); });
+    await act(async () => { renderer = create(<ThemeProvider theme={darkTheme}><LanguageContext.Provider value={language}><MemoryRouter initialEntries={[route]}><WorkspaceContext.Provider value={workspace}><Host /></WorkspaceContext.Provider></MemoryRouter></LanguageContext.Provider></ThemeProvider>, { createNodeMock() { return { showModal() {}, close() {}, focus() {} }; } }); });
     return { get root() { return renderer.root; }, get details() { return details; }, get projects() { return projects; }, get url() { return url; }, workspace,
-        async click(label: string) { const button = renderer.root.findAllByType('button').find(node => text(node) === label); assert(button, `Missing ${label}`); await act(async () => button.props.onClick()); },
+        async click(label: string) { const button = renderer.root.findAllByType('button').find(node => text(node) === label); assert(button, `Missing ${label}`); await act(async () => button.props.onClick({ stopPropagation() {} })); },
         async close() { await act(async () => renderer.unmount()); workspace.dispose(); } };
 }
 export const customerDetailsTests = [
+    { name: 'Customer overview shows only name, industry and city; selecting a row opens its details', async run() {
+        for (const language of ['de', 'en'] as const) {
+            const ui = await fixture('/projectManager/customers', false, language); try {
+                const table = ui.root.findByType('table');
+                assert(table.findAllByType('th').filter(node => node.props.scope === 'col').map(text).join(',') === (language === 'de' ? 'Name,Branche,Ort' : 'Name,Industry,City'), 'The three column headings must be localized');
+                const rows = table.findAllByType('tr').filter(node => node.props['data-customer']);
+                assert(rows.length === 2 && text(rows[0]) === 'Customer oneITTown' && text(rows[1]) === 'Customer two——', 'Every customer must have one compact row, including missing values');
+                assert(!text(ui.root).includes('First contact') && !text(ui.root).includes('one@example.test') && !text(ui.root).includes('Street 1') && !text(ui.root).includes('Customer one project'), 'Detailed cards must not be rendered before selection');
+                assert(rows[0].findAllByType('button').length === 1, 'Each row must provide a native keyboard-accessible customer button');
+                await act(async () => rows[0].props.onClick());
+                assert(ui.url.includes('customer=1') && ui.root.findAllByType('table').length === 0 && text(ui.root).includes('First contact'), 'A row click must open the selected detail card');
+            } finally { await ui.close(); }
+        }
+    } },
+    { name: 'Customer table search retains all search fields and distinguishes an empty directory from no matches', async run() {
+        const ui = await fixture(); try {
+            const input = () => ui.root.findAllByType('input').find(node => node.props.type === 'search')!;
+            const rows = () => ui.root.findByType('table').findAllByType('tr').filter(node => node.props['data-customer']);
+            for (const query of [' customer ONE ', 'it', 'town', '01234', 'one@example.test']) {
+                await act(async () => input().props.onChange({ target: { value: query } }));
+                assert(rows().length === 1 && text(rows()[0]).includes('Customer one'), 'Search must match names, industry, city, postal code and email without opening details');
+            }
+            await act(async () => input().props.onChange({ target: { value: 'missing' } }));
+            assert(rows().length === 0 && text(ui.root).includes('No customers match this search.') && text(ui.root).includes('0 of 2 customers'), 'A filter with no results needs a clear empty state');
+            await act(async () => input().props.onChange({ target: { value: '' } }));
+            assert(rows().length === 2 && !ui.url.includes('customer='), 'Clearing search must restore all rows without navigation');
+            await act(async () => ui.workspace.update('projects', []));
+            await act(async () => ui.workspace.update('customers', []));
+            assert(text(ui.root).includes('No customers yet. Create your first customer.'), 'An empty directory needs its own message');
+        } finally { await ui.close(); }
+    } },
+    { name: 'Customer deletion remains in the detail card with project protection and returns to the table after confirmation', async run() {
+        const ui = await fixture('/projectManager/customers?customer=2&keep=x'); try {
+            const remove = () => ui.root.findAllByType('button').find(node => text(node) === 'Delete customer')!;
+            assert(remove().props.disabled && text(ui.root).includes('Before deleting this customer, reassign or delete their projects.'), 'Linked projects must prevent deletion');
+            await act(async () => ui.workspace.update('projects', values => values.filter(value => value.customerId !== 2)));
+            assert(!remove().props.disabled, 'Unlinked customers must remain deletable');
+            await ui.click('Delete customer');
+            assert(ui.workspace.getSnapshot().data!.customers.length === 2 && ui.root.findAllByType('dialog').length === 1, 'Deletion must require confirmation');
+            await ui.click('Delete permanently');
+            assert(!ui.url.includes('customer=') && ui.url.includes('keep=x') && ui.root.findAllByType('table').length === 1, 'Confirmed deletion must return to the directory and retain unrelated URL parameters');
+            assert(ui.workspace.getSnapshot().data!.customers.length === 1 && !text(ui.root.findByType('table')).includes('Customer two'), 'Only the selected customer may be removed');
+        } finally { await ui.close(); }
+    } },
     { name: 'Kundentitel öffnet Detail-Direktlink mit ausschließlich eigenen Projekten und Kontakten', async run() {
         const ui = await fixture(); try {
             await ui.click('Customer one'); assert(ui.url.includes('customer=1'), 'Kunde muss direkt verlinkbar sein');

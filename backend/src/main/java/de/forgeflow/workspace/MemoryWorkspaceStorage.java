@@ -13,6 +13,8 @@ public class MemoryWorkspaceStorage implements WorkspaceStorage {
     private final Map<String, Envelope> workspaces = new HashMap<>();
     private final Map<String, Map<Long, Attachment>> attachments = new HashMap<>();
     private final Map<String, Settings> settings = new HashMap<>();
+    private final Map<String, List<RecentActivity.Entry>> recentActivity = new HashMap<>();
+    @Override public synchronized List<RecentActivity.Entry> loadRecentActivity(String ownerId) { return recentActivity.getOrDefault(ownerId, List.of()); }
     private GlobalSettings globalSettings = GlobalSettings.defaults();
     @Override public synchronized GlobalSettings loadGlobalSettings() { return globalSettings; }
     @Override public synchronized GlobalSettings saveGlobalSettings(GlobalSettings values) {
@@ -35,6 +37,7 @@ public class MemoryWorkspaceStorage implements WorkspaceStorage {
             next.put(file.id(), content);
         }
         String revision = UUID.randomUUID().toString();
+        recentActivity.put(ownerId, RecentActivity.workspace(loadRecentActivity(ownerId), current.data(), data));
         attachments.put(ownerId, next); workspaces.put(ownerId, new Envelope(1, revision, data));
         return revision;
     }
@@ -43,5 +46,8 @@ public class MemoryWorkspaceStorage implements WorkspaceStorage {
         return attachments.getOrDefault(ownerId, Map.of()).get(fileId);
     }
     @Override public synchronized Settings loadSettings(String ownerId) { return settings.get(ownerId); }
-    @Override public synchronized void saveSettings(String ownerId, Settings values) { settings.put(ownerId, values); }
+    @Override public synchronized void saveSettings(String ownerId, Settings values) {
+        recentActivity.put(ownerId, RecentActivity.settings(loadRecentActivity(ownerId), settings.get(ownerId), values));
+        settings.put(ownerId, values);
+    }
 }

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import styled from 'styled-components';
+import { useRef } from 'react';
+import { useUnsavedChanges } from '../../../../../hooks/navigationGuard';
 import Dialog from '../../../components/Dialog';
 import type { Sprint, SprintDraft } from '../../../types/sprint.types';
 import type { Task } from '../../../types/task.types';
@@ -67,6 +69,8 @@ export default function SprintForm({ sprint, sprints, tasks, onSave, onClose }: 
         };
     });
     const [query, setQuery] = useState('');
+    const initial = useRef(JSON.stringify(draft));
+    useUnsavedChanges(JSON.stringify(draft) !== initial.current, onClose);
     const [error, setError] = useState('');
     const available = tasks.filter((task) => {
         if (sprint?.taskIds.includes(task.id)) return true;

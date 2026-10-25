@@ -14,8 +14,8 @@ DE/EN-Beschriftungen, Formular-Autocomplete und das vorhandene Dialog-/Fokusverh
 internationale Werte wie `SW1A 1AA` bleiben erhalten. Im Kundenformular ist es ein Pflichtfeld;
 für bestehende API-Clients und gespeicherte Kunden bleibt eine leere PLZ zulässig.
 Keine automatische Ergänzung erfundener Postleitzahlen. Beim Bearbeiten eines Kunden ohne
-PLZ muss das Formular vervollständigt werden. Kundenübersicht/Adressanzeige und Suche
-berücksichtigen die PLZ. Die bisherigen übrigen Pflichtfelder bleiben erhalten.
+PLZ muss das Formular vervollständigt werden. Detailansicht und Suche berücksichtigen
+die PLZ; die Übersicht zeigt nur Name, Branche und Ort. Die bisherigen übrigen Pflichtfelder bleiben erhalten.
 
 Flyway **V6** ergänzt `ff_customers.postal_code VARCHAR(32) NOT NULL DEFAULT ''`.
 Vorhandene Kunden erhalten einen leeren Wert; Mapper, DTO, Memory- und JPA-Speicher,

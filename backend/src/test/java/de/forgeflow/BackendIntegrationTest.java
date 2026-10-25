@@ -28,6 +28,214 @@ class BackendIntegrationTest {
     @Autowired JsonMapper json;
     @Autowired Accounts accounts;
     @Autowired WorkspaceStorage storage;
+    @Autowired de.forgeflow.time.TimeTrackingStorage timeTracking;
+    @Autowired de.forgeflow.business.BusinessStorage business;
+    @Autowired de.forgeflow.business.PortalStorage portalLinks;
+    @Autowired de.forgeflow.business.PdfReports pdfReports;
+    private MockHttpSession businessLogin(String email, String password) throws Exception {
+        var response = mvc.perform(post("/api/v1/auth/login").with(csrf()).header("Origin", ORIGIN)
+            .with(request -> { request.setRemoteAddr("127.2." + Math.floorMod(email.hashCode(), 200) + "." + Math.floorMod(password.hashCode(), 200)); return request; })
+            .contentType("application/json").content(json.writeValueAsString(Map.of("email", email, "password", password)))).andExpect(status().isOk()).andReturn();
+        return (MockHttpSession) response.getRequest().getSession(false);
+    }
+    private void businessWorkspace(String owner) {
+        var empty = WorkspaceDtos.Data.empty();
+        var customers = java.util.List.of(new WorkspaceDtos.Customer(1, "Public customer", "Test street 1", "Town", "DE", "public@example.test", "", "", "IT", "01234"), new WorkspaceDtos.Customer(2, "Private customer", "", "", "", "", "", "", ""));
+        var projects = java.util.List.of(new WorkspaceDtos.Project(1, 1, "Public project", false, "2026-12-31"), new WorkspaceDtos.Project(2, 2, "Private project", false, "2026-12-31"));
+        var wiki = new WorkspaceDtos.Wiki(java.util.List.of(new WorkspaceDtos.Article(9, "Public page", "# Shared documentation", null, "2026-10-25", "2026-10-25"), new WorkspaceDtos.Article(10, "Private page", "Private page contents", null, "2026-10-25", "2026-10-25")), java.util.List.of());
+        storage.save(owner, storage.load(owner).revision(), new WorkspaceDtos.Data(projects, customers, empty.tasks(), empty.activities(), empty.epics(), empty.sprints(), empty.files(), wiki), Map.of());
+    }
+    private de.forgeflow.business.BusinessData businessInput(String owner, java.util.List<de.forgeflow.business.BusinessData.Document> documents) {
+        var current = business.load(owner);
+        return new de.forgeflow.business.BusinessData(1, current.revision(), new de.forgeflow.business.BusinessData.Profile("ForgeFlow Test Company", "Test street 2\n01234 Town", "billing@example.test", "Test VAT ID", "Test bank details", "EUR", 1900, 15000, 14), current.budgets(), current.templates(), documents, current.timer());
+    }
+    private de.forgeflow.business.BusinessData.Document businessDocument(String kind) {
+        return new de.forgeflow.business.BusinessData.Document(java.util.UUID.randomUUID(), kind, 1, 1L, "Professional services", "2026-10-25", "2026-11-08", "draft", "", "", "", "EUR", java.util.List.of(new de.forgeflow.business.BusinessData.Line("Project work", "1.5", 15000, 1900, 0)), java.util.List.of(), "Payment within 14 days.\nThank you for your trust.");
+    }
+    private de.forgeflow.business.BusinessData saveBusiness(MockHttpSession session, de.forgeflow.business.BusinessData input) throws Exception {
+        var response = mvc.perform(put("/api/v1/me/business").session(session).with(csrf()).header("Origin", ORIGIN).header("If-Match", "\"" + input.revision() + "\"")
+            .contentType("application/json").content(json.writeValueAsString(input))).andExpect(status().isOk()).andReturn().getResponse();
+        var value = json.readValue(response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8), de.forgeflow.business.BusinessData.class);
+        assertThat(response.getHeader("ETag")).isEqualTo("\"" + value.revision() + "\""); return value;
+    }
+    @Test void businessDocumentsUseExactMoneyAndBecomeImmutableAfterIssuing() throws Exception {
+        var owner = regularUser(); var session = businessLogin(owner.email(), TEST_PASSWORD); businessWorkspace(owner.id());
+        var document = businessDocument("invoice"); var input = businessInput(owner.id(), java.util.List.of(document));
+        mvc.perform(get("/api/v1/me/business")).andExpect(status().isUnauthorized());
+        mvc.perform(put("/api/v1/me/business").session(session).header("Origin", ORIGIN).contentType("application/json").content(json.writeValueAsString(input))).andExpect(status().isForbidden());
+        saveBusiness(session, input);
+        var saved = saveBusiness(session, businessInput(owner.id(), java.util.List.of(document.with("issued", "forged-number", "forged sender", "forged recipient"))));
+        var issued = saved.documents().getFirst(); assertThat(issued.number()).isEqualTo("INV-2026-00001"); assertThat(issued.issuer()).contains("ForgeFlow Test Company"); assertThat(issued.recipient()).contains("Public customer");
+        assertThat(de.forgeflow.business.BusinessRules.totals(issued)).containsExactly(22500, 4275, 26775);
+        assertThat(de.forgeflow.business.BusinessRules.net(new de.forgeflow.business.BusinessData.Line("Exact minutes", "1", 15, 0, 2))).isEqualTo(1);
+        var forbidden = businessInput(owner.id(), java.util.List.of(issued.with("draft", issued.number(), issued.issuer(), issued.recipient())));
+        mvc.perform(put("/api/v1/me/business").session(session).with(csrf()).header("Origin", ORIGIN).header("If-Match", "\"" + forbidden.revision() + "\"").contentType("application/json").content(json.writeValueAsString(forbidden))).andExpect(status().isUnprocessableEntity());
+        saveBusiness(session, businessInput(owner.id(), java.util.List.of(issued.with("paid", issued.number(), issued.issuer(), issued.recipient()))));
+        var other = regularUser(); assertThat(business.load(other.id()).documents()).isEmpty();
+        mvc.perform(get("/api/v1/me/business/documents/" + issued.id() + "/pdf").session(businessLogin(other.email(), TEST_PASSWORD))).andExpect(status().isNotFound());
+    }
+    @Test void projectTemplatesCreateOneAtomicWorkspaceAndRejectStaleVersions() throws Exception {
+        var owner = regularUser(); var session = businessLogin(owner.email(), TEST_PASSWORD); businessWorkspace(owner.id());
+        var template = new de.forgeflow.business.BusinessData.Template(java.util.UUID.randomUUID(), "Website template", "Reusable delivery", java.util.List.of(new de.forgeflow.business.BusinessData.TemplateTask("Plan delivery", "Detailed task", "high")), java.util.List.of("Launch"), java.util.List.of(new de.forgeflow.business.BusinessData.TemplatePage("Project guide", "# Instructions")));
+        var input = businessInput(owner.id(), java.util.List.of()); var saved = saveBusiness(session, new de.forgeflow.business.BusinessData(1, input.revision(), input.profile(), java.util.List.of(new de.forgeflow.business.BusinessData.Budget(1, 2400, 15000)), java.util.List.of(template), input.documents(), null));
+        var body = Map.of("revision", saved.revision(), "workspaceRevision", storage.load(owner.id()).revision(), "customerId", 1, "name", "Created from template", "deadline", "2026-12-31");
+        mvc.perform(post("/api/v1/me/business/templates/" + template.id() + "/apply").session(session).with(csrf()).header("Origin", ORIGIN).contentType("application/json").content(json.writeValueAsString(body))).andExpect(status().isOk());
+        var data = storage.load(owner.id()).data(); assertThat(data.projects()).hasSize(3); assertThat(data.tasks()).hasSize(1); assertThat(data.epics()).hasSize(1); assertThat(data.wiki().articles()).hasSize(3);
+        mvc.perform(post("/api/v1/me/business/templates/" + template.id() + "/apply").session(session).with(csrf()).header("Origin", ORIGIN).contentType("application/json").content(json.writeValueAsString(body))).andExpect(status().isConflict());
+        assertThat(storage.load(owner.id()).data().projects()).hasSize(3);
+    }
+    @Test void portalAccountsNeverAccessInternalApisAndOnlyReceiveExplicitShares() throws Exception {
+        var owner = regularUser(); var session = businessLogin(owner.email(), TEST_PASSWORD); businessWorkspace(owner.id()); String email = java.util.UUID.randomUUID() + "@portal.example.test";
+        var created = mvc.perform(post("/api/v1/me/business/portal-accounts").session(session).with(csrf()).header("Origin", ORIGIN).contentType("application/json").content(json.writeValueAsString(Map.of("name", "Customer portal", "email", email, "password", TEST_PASSWORD, "customerId", 1)))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String id = json.readTree(created).get("user").get("id").stringValue(); assertThat(accounts.findById(id).orElseThrow().portalOnly()).isTrue();
+        var portal = businessLogin(email, TEST_PASSWORD);
+        for (var path : java.util.List.of("/api/v1/workspace", "/api/v1/me/time-tracking", "/api/v1/me/business", "/api/v1/settings/global", "/api/v1/users")) mvc.perform(get(path).session(portal)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/portal/home").session(portal)).andExpect(jsonPath("$.projects").isEmpty()).andExpect(jsonPath("$.articles").isEmpty());
+        var original = portalLinks.find(id).orElseThrow();
+        var grant = new de.forgeflow.business.PortalLink(id, owner.id(), original.revision(), 1, true, java.util.List.of(1L), java.util.List.of(9L), java.util.List.of(), java.util.List.of(), java.util.List.of("2026-10"));
+        var response = mvc.perform(put("/api/v1/me/business/portal-accounts/" + id).session(session).with(csrf()).header("Origin", ORIGIN).header("If-Match", "\"" + grant.revision() + "\"").contentType("application/json").content(json.writeValueAsString(grant))).andExpect(status().isOk()).andReturn().getResponse();
+        var shared = json.readValue(response.getContentAsString(), de.forgeflow.business.PortalLink.class);
+        var home = mvc.perform(get("/api/v1/portal/home").session(portal)).andExpect(jsonPath("$.projects[0].name").value("Public project")).andExpect(jsonPath("$.articles[0].title").value("Public page")).andReturn().getResponse().getContentAsString();
+        assertThat(home).doesNotContain("Private project", "Private page contents", "passwordHash", "Private customer");
+        var reused = WorkspaceDtos.Data.empty();
+        storage.save(owner.id(), storage.load(owner.id()).revision(), new WorkspaceDtos.Data(java.util.List.of(new WorkspaceDtos.Project(1, 1, "Reused private project", false, "2027-01-01")), java.util.List.of(new WorkspaceDtos.Customer(1, "Reused private customer", "", "", "", "", "", "", "")), reused.tasks(), reused.activities(), reused.epics(), reused.sprints(), reused.files(), new WorkspaceDtos.Wiki(java.util.List.of(new WorkspaceDtos.Article(9, "Reused private page", "Reused private contents", null, "2026-10-26", "2026-10-26")), java.util.List.of())), Map.of());
+        var stable = mvc.perform(get("/api/v1/portal/home").session(portal)).andExpect(jsonPath("$.projects[0].name").value("Public project")).andReturn().getResponse().getContentAsString();
+        assertThat(stable).doesNotContain("Reused private");
+        mvc.perform(get("/api/v1/portal/documents/" + java.util.UUID.randomUUID() + "/pdf").session(portal)).andExpect(status().isNotFound());
+        var revoked = new de.forgeflow.business.PortalLink(id, owner.id(), shared.revision(), 1, false, shared.projectIds(), shared.articleIds(), shared.fileIds(), shared.documentIds(), shared.reportMonths());
+        storage.save(owner.id(), storage.load(owner.id()).revision(), WorkspaceDtos.Data.empty(), Map.of());
+        mvc.perform(put("/api/v1/me/business/portal-accounts/" + id).session(session).with(csrf()).header("Origin", ORIGIN).header("If-Match", "\"" + revoked.revision() + "\"").contentType("application/json").content(json.writeValueAsString(revoked))).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/portal/home").session(portal)).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/me/password").session(portal).with(csrf()).header("Origin", ORIGIN).contentType("application/json").content(json.writeValueAsString(Map.of("currentPassword", TEST_PASSWORD, "newPassword", "Changed-Portal-12345")))).andExpect(status().isNoContent());
+        assertThat(accounts.findById(id).orElseThrow().portalOnly()).isTrue();
+    }
+    @Test void stopwatchPersistsPauseResumeAndRequiresSavedTimeBeforeCompletion() throws Exception {
+        var owner = regularUser(); var session = businessLogin(owner.email(), TEST_PASSWORD);
+        var input = new de.forgeflow.business.BusinessController.TimerInput("Europe/Berlin", null, null, "Timer notes", true);
+        String path = "/api/v1/me/business/timer/";
+        for (String action : java.util.List.of("start", "pause", "resume", "pause")) {
+            var value = business.load(owner.id()); mvc.perform(post(path + action).session(session).with(csrf()).header("Origin", ORIGIN).header("If-Match", "\"" + value.revision() + "\"").contentType("application/json").content(json.writeValueAsString(input))).andExpect(status().isOk());
+        }
+        var current = business.load(owner.id()); assertThat(current.timer().startedAt()).isNull();
+        mvc.perform(post(path + "complete").session(session).with(csrf()).header("Origin", ORIGIN).header("If-Match", "\"" + current.revision() + "\"").contentType("application/json").content(json.writeValueAsString(input))).andExpect(status().isUnprocessableEntity());
+        timeTracking.save(owner.id(), new de.forgeflow.time.TimeTracking(1, "time-initial", java.util.List.of(timeEntry(current.timer().id(), 0, null, null))));
+        mvc.perform(post(path + "complete").session(session).with(csrf()).header("Origin", ORIGIN).header("If-Match", "\"" + current.revision() + "\"").contentType("application/json").content(json.writeValueAsString(input))).andExpect(status().isOk());
+        assertThat(business.load(owner.id()).timer()).isNull();
+    }
+    @Test void generatedBusinessPdfsAreReadableAndRenderWithoutClippedPageBounds() throws Exception {
+        var directory = java.nio.file.Path.of("target", "pdf-qa"); java.nio.file.Files.createDirectories(directory);
+        var entry = timeEntry(java.util.UUID.randomUUID(), 540, 1L, 1L).names("Müller & Söhne", "Website launch");
+        for (String kind : java.util.List.of("invoice", "offer", "timesheet")) {
+            var value = businessDocument(kind.equals("offer") ? "offer" : "invoice").with("draft", "", "ForgeFlow Test Company\nTest street 2\n01234 Town", "Müller & Söhne\nExample street 1\n01234 Town");
+            byte[] bytes = kind.equals("timesheet") ? pdfReports.timesheet(java.util.Collections.nCopies(35, entry), "Müller & Söhne", "2026-10", true, "de") : pdfReports.document(value, "de");
+            java.nio.file.Files.write(directory.resolve(kind + ".pdf"), bytes);
+            try (var document = org.apache.pdfbox.Loader.loadPDF(bytes)) {
+                assertThat(new org.apache.pdfbox.text.PDFTextStripper().getText(document)).contains("ForgeFlow", "Müller");
+                var renderer = new org.apache.pdfbox.rendering.PDFRenderer(document);
+                javax.imageio.ImageIO.write(renderer.renderImageWithDPI(0, 100), "png", directory.resolve(kind + "-first.png").toFile());
+                javax.imageio.ImageIO.write(renderer.renderImageWithDPI(document.getNumberOfPages() - 1, 100), "png", directory.resolve(kind + "-last.png").toFile());
+            }
+        }
+    }
+    private de.forgeflow.time.TimeTracking.Entry timeEntry(java.util.UUID id, int start, Long customer, Long project) {
+        return new de.forgeflow.time.TimeTracking.Entry(id, "2026-10-26", start, 60, 15, customer, project, "untrusted customer", "untrusted project", "Private work notes 😀", true);
+    }
+    private de.forgeflow.time.TimeTracking putTime(MockHttpSession session, de.forgeflow.time.TimeTracking value) throws Exception {
+        var response = mvc.perform(put("/api/v1/me/time-tracking").session(session).with(csrf()).header("Origin", ORIGIN)
+            .header("If-Match", "\"" + value.revision() + "\"").contentType("application/json").content(json.writeValueAsString(value)))
+            .andExpect(status().isOk()).andReturn().getResponse();
+        var saved = json.readValue(response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8), de.forgeflow.time.TimeTracking.class);
+        assertThat(response.getHeader("ETag")).isEqualTo("\"" + saved.revision() + "\""); return saved;
+    }
+    @Test void timeTrackingIsPrivateProtectedAndDetectsConflictingWrites() throws Exception {
+        String path = "/api/v1/me/time-tracking";
+        mvc.perform(get(path)).andExpect(status().isUnauthorized());
+        var owner = regularUser(); var session = loginAs(owner.email(), TEST_PASSWORD);
+        mvc.perform(get(path).session(session)).andExpect(jsonPath("$.entries").isEmpty());
+        var input = new de.forgeflow.time.TimeTracking(1, "time-initial", java.util.List.of(timeEntry(java.util.UUID.randomUUID(), 540, null, null)));
+        mvc.perform(put(path).session(session).header("Origin", ORIGIN).contentType("application/json").content(json.writeValueAsString(input))).andExpect(status().isForbidden());
+        mvc.perform(put(path).session(session).with(csrf()).header("Origin", "https://wrong.example.test").contentType("application/json").content(json.writeValueAsString(input))).andExpect(status().isForbidden());
+        mvc.perform(put(path).session(session).with(csrf()).header("Origin", ORIGIN).contentType("application/json").content(json.writeValueAsString(input))).andExpect(status().is(428));
+        var saved = putTime(session, input);
+        assertThat(saved.entries().getFirst().customerName()).isEmpty();
+        mvc.perform(put(path).session(session).with(csrf()).header("Origin", ORIGIN).header("If-Match", "\"time-initial\"")
+            .contentType("application/json").content(json.writeValueAsString(input))).andExpect(status().isConflict());
+        mvc.perform(get(path).session(session)).andExpect(jsonPath("$.entries[0].comment").value("Private work notes 😀"));
+        var other = regularUser(); var otherSession = loginAs(other.email(), TEST_PASSWORD);
+        mvc.perform(get(path).session(otherSession)).andExpect(jsonPath("$.entries").isEmpty());
+        putTime(session, new de.forgeflow.time.TimeTracking(1, saved.revision(), java.util.List.of()));
+        assertThat(timeTracking.load(owner.id()).entries()).isEmpty();
+    }
+    @Test void timeTrackingResolvesOwnCustomerProjectAndRetainsHistoryAfterTheirDeletion() throws Exception {
+        var owner = regularUser(); var session = loginAs(owner.email(), TEST_PASSWORD); var empty = WorkspaceDtos.Data.empty();
+        var customer = new WorkspaceDtos.Customer(51, "Actual customer", "", "", "", "", "", "", "");
+        var project = new WorkspaceDtos.Project(61, 51, "Actual project", false, "2026-12-31");
+        storage.save(owner.id(), storage.load(owner.id()).revision(), new WorkspaceDtos.Data(java.util.List.of(project), java.util.List.of(customer), empty.tasks(), empty.activities(), empty.epics(), empty.sprints(), empty.files(), empty.wiki()), Map.of());
+        var entry = timeEntry(java.util.UUID.randomUUID(), 540, 51L, 61L);
+        var saved = putTime(session, new de.forgeflow.time.TimeTracking(1, "time-initial", java.util.List.of(entry)));
+        assertThat(saved.entries().getFirst().customerName()).isEqualTo("Actual customer");
+        assertThat(saved.entries().getFirst().projectName()).isEqualTo("Actual project");
+        var renamed = new WorkspaceDtos.Customer(51, "Renamed customer", "", "", "", "", "", "", "");
+        var second = new WorkspaceDtos.Customer(52, "New project owner", "", "", "", "", "", "", "");
+        var moved = new WorkspaceDtos.Project(61, 52, "Renamed project", false, "2026-12-31");
+        storage.save(owner.id(), storage.load(owner.id()).revision(), new WorkspaceDtos.Data(java.util.List.of(moved), java.util.List.of(renamed, second), empty.tasks(), empty.activities(), empty.epics(), empty.sprints(), empty.files(), empty.wiki()), Map.of());
+        saved = putTime(session, new de.forgeflow.time.TimeTracking(1, saved.revision(), java.util.List.of(entry)));
+        assertThat(saved.entries().getFirst().customerName()).isEqualTo("Actual customer");
+        assertThat(saved.entries().getFirst().projectName()).isEqualTo("Actual project");
+        var other = regularUser();
+        assertThatThrownBy(() -> timeTracking.save(other.id(), new de.forgeflow.time.TimeTracking(1, "time-initial", java.util.List.of(entry)))).isInstanceOf(de.forgeflow.api.ApiFailure.class);
+        storage.save(owner.id(), storage.load(owner.id()).revision(), empty, Map.of());
+        var resaved = putTime(session, new de.forgeflow.time.TimeTracking(1, saved.revision(), java.util.List.of(entry)));
+        assertThat(resaved.entries().getFirst().customerName()).isEqualTo("Actual customer");
+        assertThat(resaved.entries().getFirst().projectName()).isEqualTo("Actual project");
+        assertThatThrownBy(() -> timeTracking.save(owner.id(), new de.forgeflow.time.TimeTracking(1, resaved.revision(), java.util.List.of(timeEntry(java.util.UUID.randomUUID(), 800, 51L, 61L))))).isInstanceOf(de.forgeflow.api.ApiFailure.class);
+    }
+    @Test void concurrentTimeSavesCommitExactlyOneRevision() throws Exception {
+        var owner = regularUser();
+        var input = new de.forgeflow.time.TimeTracking(1, "time-initial", java.util.List.of(timeEntry(java.util.UUID.randomUUID(), 540, null, null)));
+        var start = new java.util.concurrent.CountDownLatch(1);
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            java.util.concurrent.Callable<Boolean> write = () -> { start.await(); try { timeTracking.save(owner.id(), input); return true; } catch (de.forgeflow.api.ApiFailure failure) { return false; } };
+            var first = executor.submit(write); var second = executor.submit(write); start.countDown();
+            assertThat(java.util.List.of(first.get(15, java.util.concurrent.TimeUnit.SECONDS), second.get(15, java.util.concurrent.TimeUnit.SECONDS))).containsExactlyInAnyOrder(true, false);
+        }
+        assertThat(timeTracking.load(owner.id()).entries()).hasSize(1);
+    }
+    @Test void invalidTimeBookingsDoNotOverwriteSavedEntries() throws Exception {
+        var owner = regularUser(); var session = loginAs(owner.email(), TEST_PASSWORD);
+        var entry = timeEntry(java.util.UUID.randomUUID(), 540, null, null);
+        var saved = putTime(session, new de.forgeflow.time.TimeTracking(1, "time-initial", java.util.List.of(entry)));
+        var overlap = new de.forgeflow.time.TimeTracking(1, saved.revision(), java.util.List.of(entry, timeEntry(java.util.UUID.randomUUID(), 610, null, null)));
+        mvc.perform(put("/api/v1/me/time-tracking").session(session).with(csrf()).header("Origin", ORIGIN).header("If-Match", "\"" + saved.revision() + "\"")
+            .contentType("application/json").content(json.writeValueAsString(overlap))).andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.error.code").value("INVALID_TIME_ENTRY"));
+        var midnight = timeEntry(java.util.UUID.randomUUID(), 1430, null, null);
+        assertThatThrownBy(() -> timeTracking.save(owner.id(), new de.forgeflow.time.TimeTracking(1, saved.revision(), java.util.List.of(midnight)))).isInstanceOf(de.forgeflow.api.ApiFailure.class);
+        var invalidDate = new de.forgeflow.time.TimeTracking.Entry(entry.id(), "2026-02-30", 540, 60, 0, null, null, "", "", "", false);
+        assertThatThrownBy(() -> timeTracking.save(owner.id(), new de.forgeflow.time.TimeTracking(1, saved.revision(), java.util.List.of(invalidDate)))).isInstanceOf(de.forgeflow.api.ApiFailure.class);
+        assertThat(timeTracking.load(owner.id())).isEqualTo(saved);
+        putTime(session, new de.forgeflow.time.TimeTracking(1, saved.revision(), java.util.List.of(entry, timeEntry(java.util.UUID.randomUUID(), 615, null, null))));
+    }
+    @Test void recentActivityIsPrivateLimitedAndRecordsOnlyCommittedChanges() throws Exception {
+        String path = "/api/v1/me/recent-activity"; mvc.perform(get(path)).andExpect(status().isUnauthorized());
+        var user = regularUser(); var session = loginAs(user.email(), TEST_PASSWORD);
+        mvc.perform(get(path).session(session)).andExpect(status().isOk()).andExpect(jsonPath("$.entries").isEmpty());
+        for (int index = 1; index <= 7; index++) {
+            var previous = storage.load(user.id()); var empty = WorkspaceDtos.Data.empty();
+            var customer = new WorkspaceDtos.Customer(1, "Customer " + index, "", "", "", "", "", "", "");
+            var data = new WorkspaceDtos.Data(empty.projects(), java.util.List.of(customer), empty.tasks(), empty.activities(), empty.epics(), empty.sprints(), empty.files(), empty.wiki());
+            storage.save(user.id(), previous.revision(), data, Map.of());
+        }
+        mvc.perform(get(path).session(session)).andExpect(jsonPath("$.entries.length()").value(5)).andExpect(jsonPath("$.entries[0].name").value("Customer 7")).andExpect(jsonPath("$.entries[0].kind").value("customer")).andExpect(jsonPath("$.entries[0].action").value("updated")).andExpect(jsonPath("$.entries[0].entityId").value(1));
+        var saved = storage.loadRecentActivity(user.id()); var previous = storage.load(user.id());
+        storage.save(user.id(), previous.revision(), previous.data(), Map.of()); assertThat(storage.loadRecentActivity(user.id())).isEqualTo(saved);
+        assertThatThrownBy(() -> storage.save(user.id(), previous.revision(), WorkspaceDtos.Data.empty(), Map.of())).isInstanceOf(de.forgeflow.api.ApiFailure.class);
+        assertThat(storage.loadRecentActivity(user.id())).isEqualTo(saved);
+        var other = regularUser(); mvc.perform(get(path).session(loginAs(other.email(), TEST_PASSWORD))).andExpect(jsonPath("$.entries").isEmpty());
+        storage.saveSettings(user.id(), new WorkspaceDtos.Settings(1, new WorkspaceDtos.SettingsValues("light", "projects", "high", "en")));
+        mvc.perform(get(path).session(session)).andExpect(jsonPath("$.entries[0].kind").value("settings")).andExpect(jsonPath("$.entries[0].entityId").doesNotExist());
+        storage.save(user.id(), storage.load(user.id()).revision(), WorkspaceDtos.Data.empty(), Map.of());
+        assertThat(storage.loadRecentActivity(user.id())).allMatch(entry -> entry.kind().equals("settings"));
+    }
     @Autowired de.forgeflow.rest.RestCollectionsStorage restCollections;
     protected de.forgeflow.rest.RestCollections restFixture() {
         return new de.forgeflow.rest.RestCollections(1, "rest-initial", java.util.List.of(new de.forgeflow.rest.RestCollections.Collection(
@@ -150,6 +358,25 @@ class BackendIntegrationTest {
         assertThat(storage.loadSettings("another-user")).isNull();
         mvc.perform(post("/api/v1/auth/logout").session(session).with(csrf()).header("Origin", ORIGIN)).andExpect(status().isNoContent());
         assertThat(session.isInvalid()).isTrue();
+    }
+    @Test void additionalThemesAreValidatedAndRemainAccountScoped() throws Exception {
+        var account = regularUser();
+        MockHttpSession session = loginAs(account.email(), TEST_PASSWORD);
+        for (String theme : java.util.List.of("aurora", "dune")) {
+            var settings = new WorkspaceDtos.Settings(1, new WorkspaceDtos.SettingsValues(theme, "projects", "high", "en"));
+            mvc.perform(put("/api/v1/me/settings").session(session).with(csrf()).header("Origin", ORIGIN)
+                .contentType("application/json").content(json.writeValueAsString(settings))).andExpect(status().isNoContent());
+            mvc.perform(get("/api/v1/me/settings").session(session))
+                .andExpect(jsonPath("$.settings.themeMode").value(theme))
+                .andExpect(jsonPath("$.settings.language").value("en"))
+                .andExpect(jsonPath("$.settings.defaultTaskPriority").value("high"));
+        }
+        var invalid = new WorkspaceDtos.Settings(1, new WorkspaceDtos.SettingsValues("unknown", "projects", "high", "en"));
+        mvc.perform(put("/api/v1/me/settings").session(session).with(csrf()).header("Origin", ORIGIN)
+            .contentType("application/json").content(json.writeValueAsString(invalid))).andExpect(status().isBadRequest());
+        assertThat(storage.loadSettings(account.id()).settings().themeMode()).isEqualTo("dune");
+        var other = regularUser();
+        assertThat(storage.loadSettings(other.id())).isNull();
     }
     @Test void settingsLanguageIsValidatedAndMissingLanguageDefaultsToGerman() throws Exception {
         MockHttpSession session = login();

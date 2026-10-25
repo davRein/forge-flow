@@ -39,6 +39,7 @@ public final class PersistenceEntities {
         @Column(nullable = false) public boolean administrator;
         @Column(nullable = false) public boolean active = true;
         @Column(name = "session_version", nullable = false) public long sessionVersion;
+        @Column(name = "portal_only", nullable = false) public boolean portalOnly;
     }
 
     @Entity(name = "StoredAccountSetup")
@@ -48,9 +49,40 @@ public final class PersistenceEntities {
         @Column(name = "administrator_assigned", nullable = false) public boolean administratorAssigned;
     }
 
+    @Entity(name = "StoredRecentActivity")
+    @Table(name = "ff_recent_activity")
+    public static class RecentActivityRow {
+        @Id @Column(name = "owner_id", length = 128) public String ownerId;
+        @Column(nullable = false, columnDefinition = "text") public String payload;
+    }
+
     @Entity(name = "StoredRestCollections")
     @Table(name = "ff_rest_collections")
     public static class RestCollectionsRow {
+        @Id @Column(name = "owner_id", length = 128) public String ownerId;
+        @Column(nullable = false, length = 128) public String revision;
+        @Column(nullable = false, columnDefinition = "text") public String payload;
+    }
+
+    @Entity(name = "StoredBusiness")
+    @Table(name = "ff_business")
+    public static class BusinessRow {
+        @Id @Column(name = "owner_id", length = 128) public String ownerId;
+        @Column(nullable = false, length = 128) public String revision;
+        @Column(nullable = false, columnDefinition = "text") public String payload;
+    }
+    @Entity(name = "StoredPortalLink")
+    @Table(name = "ff_portal_links")
+    public static class PortalRow {
+        @Id @Column(name = "user_id", length = 128) public String userId;
+        @Column(name = "owner_id", nullable = false, length = 128) public String ownerId;
+        @Column(nullable = false, length = 128) public String revision;
+        @Column(nullable = false, columnDefinition = "text") public String payload;
+    }
+
+    @Entity(name = "StoredTimeTracking")
+    @Table(name = "ff_time_tracking")
+    public static class TimeTrackingRow {
         @Id @Column(name = "owner_id", length = 128) public String ownerId;
         @Column(nullable = false, length = 128) public String revision;
         @Column(nullable = false, columnDefinition = "text") public String payload;

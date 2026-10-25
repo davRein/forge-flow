@@ -21,6 +21,13 @@ Vorgaben über denselben Speicherweg. Ein Speicherfehler erhält die Auswahl und
 
 ## Datenformat
 
+`themeMode` unterstützt `dark`, `light`, `aurora` und `dune`. Aurora kombiniert dunkles
+Petrol mit Mint, Dune helle Sandtöne mit Terrakotta. Unter Optik stehen vier kompakte
+Vorschauen mit nativen Radiobuttons in zwei Spalten, auf schmalen Fenstern in einer
+Spalte. Auswahl und Beschreibung sind auf Deutsch/Englisch verfügbar. Eine Auswahl
+gilt sofort für die gesamte Anwendung und wird über den vorhandenen Kontospeicher
+gesichert. Es gibt keine zusätzliche Browser- oder globale Theme-Einstellung.
+
 ```json
 {
   "version": 1,
@@ -87,6 +94,15 @@ speichert nur bis zum Backend-Neustart. Das PostgreSQL-Profil speichert Einstell
 kontogetrennt in `ff_settings`. Flyway V4 ergänzt die Sprachspalte mit Vorgabe `de` für
 bestehende Zeilen; bisherige Optik- und Projektmanager-Vorgaben bleiben erhalten.
 Einstellungen bleiben von Projekt-, Kunden-, Aufgaben-, Datei- und Wiki-Daten getrennt.
+
+Flyway V11 erweitert die bestehende CHECK-Bedingung von `ff_settings.theme_mode` um
+Aurora und Dune; vorhandene Werte, andere Einstellungen und Kontozuordnungen bleiben
+erhalten. Eine Java-Migration ermittelt den durch PostgreSQL bzw. H2 erzeugten Namen
+der alten Bedingung, da V1 keinen expliziten Namen vergeben hat. Keine neue Spalte,
+Konfiguration oder Abhängigkeit. Frontend und Backend gemeinsam aktualisieren: Ein
+alter Server lehnt die neuen Werte ab; ein alter Client kennt sie nicht und zeigt
+stattdessen seine Vorgabe an. Vor einem Rückwechsel zu einem alten Client alle
+betroffenen Konten mit dem neuen Client auf Hell/Dunkel zurückstellen.
 
 Weitere Details: [Backend-Vertrag](backend-api.md), [Spring-Boot-Gerüst](../backend/README.md).
 

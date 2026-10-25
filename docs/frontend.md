@@ -1,5 +1,28 @@
 # Frontend-Funktionen
 
+Die App Cloud öffnet die separate Nextcloud-Installation über einen konfigurierbaren
+HTTPS-Link in einem neuen Tab. Anmeldung und Dateifreigaben bleiben in Nextcloud;
+kein automatisches SSO oder Übertragen von ForgeFlow-Konten. [Einrichtung](nextcloud.md).
+
+Business ergänzt Budgets, Angebote/Rechnungen mit PDF, Projektvorlagen und ein eigenes
+Kundenportal mit ausdrücklich veröffentlichten Inhalten. TimeTracker erhält eine persistente
+Stoppuhr und Monats-PDFs; Strg/Cmd+K sucht im Workspace, „Meine Arbeit“ bündelt Aufgaben,
+Projekttermine und heutige Zeiten. [Bedienung, Speicher und Grenzen](business-suite.md).
+
+TimeTracker steht als eigene App unter Dev Tools: Wochenkalender, manuelle Zeiten mit
+Kunde/Projekt, Netto-Minuten, Pausen, Kommentar und Abrechenbar-Kennzeichnung. Dazu Tages-/
+Wochensummen, Filter, Wochenauswertung und CSV-Export; kontogetrennte API-Speicherung und
+Schutz ungespeicherter Entwürfe. [Bedienung und Datenmodell](time-tracker.md).
+
+Haupttabs öffnen immer ihre Hauptansicht. Projektlinks aktivieren Projekte; veränderte
+Formulare und nicht gespeicherte Einstellungen schützen einen Ansichtswechsel mit
+einer Rückfrage. Das Dashboard zeigt die letzten fünf gespeicherten Aktionen mit
+Direktlinks. [Navigation und Historie](navigation-and-history.md).
+
+Anmeldebildschirm und Kopfzeile verwenden dasselbe ForgeFlow-Symbol als gemeinsame,
+themenabhängige SVG-Komponente. Im Login steht es neben der Anmeldeüberschrift;
+Schrift und Symbol passen sich dem verfügbaren Platz an.
+
 Dev Tools sind kompakter: maximal 1160 px, kleinere Abstände und korrekt ausgerichtete
 JSON-Aktionen. Der REST-Client hat eine Collection-Seitenleiste und Reiter für Header,
 Body und Zeitlimit. Anfragen lassen sich privat im Konto speichern, laden, aktualisieren,
@@ -18,7 +41,8 @@ Formatierungsleiste und Vorschau. Bestehende Inhalte/Links bleiben gültig. Such
 Entwürfe und DE/EN sind integriert; Hierarchie dauerhaft in PostgreSQL über V8.
 Bedienung und Grenzen: [documentation.md](documentation.md).
 
-Kundennamen/„Details öffnen“ führen zu einer direkt verlinkbaren Detailseite mit Stammdaten,
+Der Kundentab zeigt eine kompakte Tabelle mit Name, Branche und Ort. Eine Zeile bzw.
+der per Tastatur erreichbare Kundenname öffnet die direkt verlinkbare Detailseite mit Stammdaten,
 zugeordneten Projekten, mehreren Ansprechpartnern und Klartextnotizen. Eigene Dialoge für
 Kontakte/Notizen, Bestätigung beim Entfernen und Erhalt bei Stammdatenänderungen.
 Die KI kann Kontakte und Notizen lesen sowie bestätigte Anlage/Änderung vorbereiten.
@@ -44,13 +68,13 @@ separaten privaten Feld direkt ans Backend gesendet. Umfang, Beispiele und Grenz
 [ai-workspace.md](ai-workspace.md). Die älteren Beschreibungen der Projektwerkzeuge unten
 bleiben als Teil dieses erweiterten Funktionsumfangs gültig.
 
-Die Oberfläche verwendet eine gemeinsame helle/dunkle Farbpalette, abgestufte
+Die Oberfläche bietet Hell, Dunkel, Aurora (Petrol/Mint) und Dune (Sand/Terrakotta), abgestufte
 Systemtypografie und dezente Hover-/Fokus-Übergänge. Dialoge und Aufgabenansichten
 blenden kurz ein; die Systemeinstellung für reduzierte Bewegung wird berücksichtigt.
 Modulnavigation und Tabs passen sich schmalen Fenstern an.
 
 Die Navigation nutzt Hash-URLs, zum Beispiel `#/projectManager/customers`.
-Unter Project Manager → Einstellungen lassen sich das helle oder dunkle Design, die Startansicht
+Unter Project Manager → Einstellungen lassen sich das Design über vier kompakte Vorschauen, die Startansicht
 (Dashboard oder Projektliste) und die Standardpriorität neuer Aufgaben ändern. Die Einstellungen
 wirken sofort und lassen sich auf ihre Vorgaben zurücksetzen. Die Startansicht wird beim Öffnen
 über die Seitenleiste sowie bei der Weiterleitung unbekannter URLs verwendet; direkte Seitenlinks

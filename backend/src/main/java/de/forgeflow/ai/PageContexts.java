@@ -10,6 +10,7 @@ public final class PageContexts {
     private PageContexts() {}
     private static final tools.jackson.databind.json.JsonMapper JSON = tools.jackson.databind.json.JsonMapper.builder().build();
     private static final Map<String, String> PAGES = Map.ofEntries(
+        Map.entry("/cloud/files", "Cloud: open the separately hosted Nextcloud in a new tab with its own login. No Nextcloud files, users, credentials or permissions are supplied to the assistant; no Nextcloud tools are available."),
         Map.entry("/projectManager/dashboard", "Project dashboard: browse projects, search, create or open a project."),
         Map.entry("/projectManager/projects", "Project list: search, create or open a project."),
         Map.entry("/projectManager/customers", "Customers: browse and open a customer detail page with company details, contacts, notes and linked projects; edit in dialogs. Customer deletion is subject to project relationships. Selected customer identity is not supplied in page context: ask for name/#ID."),
@@ -21,7 +22,15 @@ public final class PageContexts {
         Map.entry("/devTools/json", "JSON formatter: validate, format or compact pasted JSON. Editor contents are not shared."),
         Map.entry("/devTools/rest", "REST tester: manually send HTTP requests. URLs, headers, credentials and bodies are not shared. Browser CORS applies."),
         Map.entry("/devTools/calculator", "Calculator: calculate expressions and view local history. Expressions/history are not shared."),
-        Map.entry("/devTools/converter", "Converters: Base64, URLs, units and number systems. Input values are not shared.")
+        Map.entry("/devTools/converter", "Converters: Base64, URLs, units and number systems. Input values are not shared."),
+        Map.entry("/timeTracker/calendar", "TimeTracker: private weekly calendar, customer/project bookings, breaks and billable time. Time entries, dates, filters and comments are not shared with the assistant. No time-tracking tools are available; do not claim to read or change entries."),
+        Map.entry("/timeTracker/reports", "TimeTracker reports: weekly totals by customer/project and manual CSV export. Time entries and reports are private and unavailable to assistant tools."),
+        Map.entry("/projectManager/today", "Personal work overview: open tasks, upcoming project deadlines and unlogged weekdays."),
+        Map.entry("/business/budgets", "Private project budgets. Business and time data are not available to assistant tools."),
+        Map.entry("/business/documents", "Quotations and invoices. Draft, review, issue and PDF download. Business documents and financial settings are private and unavailable to assistant tools."),
+        Map.entry("/business/templates", "Project templates: tasks, milestones and documentation. No template tools are available to the assistant."),
+        Map.entry("/business/portal", "Customer portal access management. Portal accounts only receive explicitly shared content; no portal management tools are available to the assistant."),
+        Map.entry("/business/profile", "Private billing profile and defaults. Not available to assistant tools.")
     );
     private static final Map<String, String> TABS = Map.of(
         "overview", "Project overview: saved project planning, deadline and task counts.",

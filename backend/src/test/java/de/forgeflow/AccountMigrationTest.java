@@ -60,6 +60,8 @@ class AccountMigrationTest {
             assertThat(settings.themeMode()).isEqualTo("light");
             assertThat(settings.defaultProjectView()).isEqualTo("projects");
             assertThat(settings.defaultTaskPriority()).isEqualTo("high");
+            context.getBean(WorkspaceStorage.class).saveSettings(user.id(), new de.forgeflow.workspace.WorkspaceDtos.Settings(1,
+                new de.forgeflow.workspace.WorkspaceDtos.SettingsValues("aurora", "projects", "high", "de")));
             // Simulate a later explicit database privilege change. Bootstrap must not undo it.
             context.getBean(JdbcTemplate.class).update("update ff_accounts set administrator = false where id = 'legacy-admin'");
         }
@@ -67,6 +69,7 @@ class AccountMigrationTest {
             assertThat(context.getBean(Accounts.class).findById("legacy-admin").orElseThrow().administrator()).isFalse();
             assertThat(context.getBean(WorkspaceStorage.class).load("legacy-admin").data().customers().getFirst().postalCode()).isEqualTo("SW1A 1AA");
             assertThat(context.getBean(WorkspaceStorage.class).loadGlobalSettings().industries()).containsExactly("Persistente Branche");
+            assertThat(context.getBean(WorkspaceStorage.class).loadSettings("legacy-admin").settings().themeMode()).isEqualTo("aurora");
         }
     }
 }

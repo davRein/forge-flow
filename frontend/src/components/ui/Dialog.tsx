@@ -5,8 +5,8 @@ import { CloseButton, FormHeader } from './formStyles';
 import { enter } from '../../styles/primitives';
 import { useChatNavigationBlocker } from '../../hooks/chatNavigationContext';
 
-const Surface = styled.dialog`
-    width: min(680px, calc(100vw - 40px));
+const Surface = styled.dialog<{ $width: number }>`
+    width: min(${({ $width }) => $width}px, calc(100vw - 40px));
     max-height: calc(100dvh - 40px);
     overflow: auto;
     box-sizing: border-box;
@@ -21,9 +21,9 @@ const Surface = styled.dialog`
     &::backdrop { background: rgb(10 20 35 / 55%); }
 `;
 
-type Props = { title: string; onClose: () => void; children: ReactNode };
+type Props = { title: string; onClose: () => void; children: ReactNode; width?: number };
 
-export default function Dialog({ title, onClose, children }: Props) {
+export default function Dialog({ title, onClose, children, width = 680 }: Props) {
     useChatNavigationBlocker(true);
     const { t } = useTranslation();
     const ref = useRef<HTMLDialogElement>(null);
@@ -35,7 +35,7 @@ export default function Dialog({ title, onClose, children }: Props) {
     }, []);
 
     return (
-        <Surface ref={ref} aria-labelledby={titleId} onCancel={(event) => { event.preventDefault(); onClose(); }}>
+        <Surface $width={width} ref={ref} aria-labelledby={titleId} onCancel={(event) => { event.preventDefault(); onClose(); }}>
             <FormHeader>
                 <h2 id={titleId}>{title}</h2>
                 <CloseButton type="button" aria-label={t('Dialog schließen')} onClick={onClose}>×</CloseButton>

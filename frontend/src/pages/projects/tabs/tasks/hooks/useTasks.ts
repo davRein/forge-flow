@@ -39,6 +39,8 @@ export function useTasks(projectId: number, defaultPriority: TaskPriorityKey = '
     const [priority, setPriority] =
         useState<TaskPriorityKey>(defaultPriority);
     const [epicId, setEpicId] = useState<number | undefined>();
+    const formBaseline = useRef('');
+    const formFingerprint = JSON.stringify([title, description, status, priority, epicId ?? null]);
 
     const projectTasks = taskList.filter(
         (task) => task.projectId === projectId
@@ -74,6 +76,7 @@ export function useTasks(projectId: number, defaultPriority: TaskPriorityKey = '
 
     function startCreateTask() {
         resetForm();
+        formBaseline.current = JSON.stringify(['', '', 'todo', defaultPriority, null]);
         setShowForm(true);
     }
 
@@ -175,6 +178,7 @@ export function useTasks(projectId: number, defaultPriority: TaskPriorityKey = '
     }
 
     function startEditTask(task: Task) {
+        formBaseline.current = JSON.stringify([task.title, task.description ?? '', task.status, task.priority, task.epicId ?? null]);
 
         setEditingTaskId(task.id);
 
@@ -309,6 +313,7 @@ export function useTasks(projectId: number, defaultPriority: TaskPriorityKey = '
     }
 
     return {
+        formDirty: showForm && formFingerprint !== formBaseline.current,
 
         projectTasks,
 

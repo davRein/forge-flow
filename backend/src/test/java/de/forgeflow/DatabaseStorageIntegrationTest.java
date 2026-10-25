@@ -191,10 +191,20 @@ class DatabaseStorageIntegrationTest extends BackendIntegrationTest {
     void aNewBackendInstanceReadsCommittedAccountsSettingsWorkspaceAndFiles() {
         String owner = newOwner();
         var savedRestCollections = restCollections.save(owner, restFixture());
+        var savedTimes = timeTracking.save(owner, new de.forgeflow.time.TimeTracking(1, "time-initial", List.of(
+            new de.forgeflow.time.TimeTracking.Entry(UUID.randomUUID(), "2026-10-26", 540, 90, 15, null, null, "", "", "Persistent private work 😀", true))));
         var original = fixture("Dauerhaft");
         String revision = storage.save(owner, storage.load(owner).revision(), original, file("Hallo"));
-        var settings = new Settings(1, new SettingsValues("light", "projects", "high", "en"));
+        var settings = new Settings(1, new SettingsValues("aurora", "projects", "high", "en"));
         storage.saveSettings(owner, settings);
+        String secondOwner = newOwner();
+        var savedBusiness = business.mutate(owner, before -> new de.forgeflow.business.BusinessData(1, before.revision(), before.profile(), List.of(new de.forgeflow.business.BusinessData.Budget(1, 2400, 12500)), before.templates(), before.documents(), new de.forgeflow.business.BusinessData.Timer(UUID.randomUUID(), "2026-10-25T10:00:00Z", 60, "2026-10-25T09:00:00Z", "Europe/Berlin", null, null, "Persistent timer", true)));
+        String portalUser = UUID.randomUUID().toString();
+        accounts.insert(new Accounts.User(portalUser, portalUser + "@example.test", "Persistent portal user", new BCryptPasswordEncoder(10).encode("Portal-Test-12345"), false, true, 0, true));
+        var savedPortal = portalLinks.save(new de.forgeflow.business.PortalLink(portalUser, owner, "portal-initial", 1, true, List.of(1L), List.of(), List.of(), List.of(), List.of()));
+        var secondSettings = new Settings(1, new SettingsValues("dune", "dashboard", "low", "de"));
+        storage.saveSettings(secondOwner, secondSettings);
+        var savedHistory = storage.loadRecentActivity(owner);
         var previousGlobal = storage.loadGlobalSettings();
         var savedGlobal = storage.saveGlobalSettings(new de.forgeflow.workspace.GlobalSettings(previousGlobal.revision(), List.of("Persistent industry")));
         try (var context = new SpringApplicationBuilder(BackendApplication.class).run(
@@ -204,9 +214,15 @@ class DatabaseStorageIntegrationTest extends BackendIntegrationTest {
                 "--forgeflow.user.email=", "--forgeflow.user.password-hash=",
                 "--spring.main.banner-mode=off", "--logging.level.root=ERROR")) {
             WorkspaceStorage other = context.getBean(WorkspaceStorage.class);
+            assertThat(other.loadRecentActivity(owner)).isEqualTo(savedHistory);
             assertThat(context.getBean(de.forgeflow.rest.RestCollectionsStorage.class).load(owner)).isEqualTo(savedRestCollections);
+            assertThat(context.getBean(de.forgeflow.time.TimeTrackingStorage.class).load(owner)).isEqualTo(savedTimes);
+            assertThat(context.getBean(de.forgeflow.business.BusinessStorage.class).load(owner)).isEqualTo(savedBusiness);
+            assertThat(context.getBean(de.forgeflow.business.PortalStorage.class).find(portalUser)).contains(savedPortal);
+            assertThat(context.getBean(Accounts.class).findById(portalUser).orElseThrow().portalOnly()).isTrue();
             assertThat(other.load(owner)).isEqualTo(new Envelope(1, revision, original));
             assertThat(other.loadSettings(owner)).isEqualTo(settings);
+            assertThat(other.loadSettings(secondOwner)).isEqualTo(secondSettings);
             assertThat(other.loadGlobalSettings()).isEqualTo(savedGlobal);
             assertThat(other.attachment(owner, 1, 1).bytes()).isEqualTo("Hallo".getBytes(java.nio.charset.StandardCharsets.UTF_8));
             assertThat(context.getBean(Accounts.class).findByEmail(owner + "@example.test")).isPresent();
@@ -228,6 +244,16 @@ class DatabaseStorageIntegrationTest extends BackendIntegrationTest {
             assertThat(List.of(first.get(15, TimeUnit.SECONDS), second.get(15, TimeUnit.SECONDS))).containsExactlyInAnyOrder(200, 409);
         }
         assertThat(restCollections.load(owner).collections()).isEqualTo(input.collections());
+    }
+
+    @Test void historyStorageFailureRollsBackTheWorkspaceAndItsRevision() {
+        String owner = newOwner(); var original = fixture("Before history failure");
+        String revision = storage.save(owner, storage.load(owner).revision(), original, file("Hallo")); var history = storage.loadRecentActivity(owner);
+        jdbc.execute("alter table ff_recent_activity add constraint test_history_failure check (payload not like '%reject-history-write%')");
+        try {
+            assertThatThrownBy(() -> storage.save(owner, revision, fixture("reject-history-write"), Map.of())).isInstanceOf(DataIntegrityViolationException.class);
+            assertThat(storage.load(owner)).isEqualTo(new Envelope(1, revision, original)); assertThat(storage.loadRecentActivity(owner)).isEqualTo(history);
+        } finally { jdbc.execute("alter table ff_recent_activity drop constraint test_history_failure"); }
     }
 
     @Test void failedRestCollectionWriteRollsBackPayloadAndRevision() {

@@ -34,6 +34,7 @@ class PageContextsTest {
         assertThat(PageContexts.normalize(null)).isNull();
         assertThat(PageContexts.metadata(new PageContext("/projectManager/projects", 17L, "tickets"))).contains("postponed", "unavailable");
         assertThat(PageContexts.metadata(new PageContext("/devTools/rest", null, null))).contains("not shared", "CORS");
+        assertThat(PageContexts.metadata(new PageContext("/cloud/files", null, null))).contains("own login", "no Nextcloud tools");
     }
     @Test void selectedProjectsAreLoadedUnderTheAuthenticatedOwnerEvenForAnAdministrator() {
         var storage = mock(WorkspaceStorage.class); when(storage.load("alice")).thenReturn(saved());

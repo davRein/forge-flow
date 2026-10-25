@@ -1,12 +1,17 @@
 ﻿import { useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useNavigationGuard, useUnsavedChanges } from '../../hooks/navigationGuard';
 import ProjectDashboard from './components/ProjectDashboard';
 import ProjectList from './components/ProjectList';
 import ProjectFrame from './components/ProjectFrame';
+import RecentActivityList from './components/RecentActivityList';
+import { recentActivityPath } from '../../services/workspace/recentActivity';
 import ProjectDetails from './components/ProjectDetails';
 import ProjectForm from './components/ProjectForm';
 import CustomerModal from './components/CustomerModal';
 import CustomerDirectory from './components/CustomerDirectory';
+import PersonalOverview from '../business/PersonalOverview';
 import CustomerDetails from './components/CustomerDetails';
 import CustomerDetailDialogs from './components/CustomerDetailDialogs';
 import { useCustomerDetails } from './hooks/useCustomerDetails';
@@ -30,6 +35,7 @@ import { DangerButton, FormActions, FormCard, PrimaryButton, SecondaryButton } f
 
 type DeleteTarget = { kind: 'project' | 'customer'; id: number; name: string } | { kind: 'contact'; id: number; name: string; customerId: number };
 type Props = {
+    active?: boolean;
     section?: string;
     settings: AppSettings;
     onSettingsChange: (settings: AppSettings) => void;
@@ -41,31 +47,53 @@ type Props = {
 };
 
 export default function ProjectsPage({
-    section = 'dashboard', settings, onSettingsChange, onSettingsReset,
+    section = 'dashboard', active = true, settings, onSettingsChange, onSettingsReset,
     settingsStatus, settingsError, settingsPersistence, onSettingsRetry
 }: Props) {
     const t = useSettingsText();
     const state = useProjects();
     const details = useCustomerDetails();
     const [params, setParams] = useSearchParams();
+    const guard = useNavigationGuard();
+    const projectParam = params.get('project');
+    const selectedProject = projectParam && /^[1-9]\d*$/.test(projectParam) ? state.projectList.find(project => project.id === Number(projectParam)) : undefined;
     const customerParam = params.get('customer');
     const selectedCustomer = customerParam && /^[1-9]\d*$/.test(customerParam) ? state.customerList.find(customer => customer.id === Number(customerParam)) : undefined;
-    function showCustomer(id: number | null) { const next = new URLSearchParams(params); if (id === null) next.delete('customer'); else next.set('customer', String(id)); setParams(next); }
+    function showCustomer(id: number | null) { guard.request(() => { const next = new URLSearchParams(params); if (id === null) next.delete('customer'); else next.set('customer', String(id)); setParams(next); }); }
     const workspace = useWorkspacePersistence();
-    const taskState = useTasks(state.selectedProjectId ?? 0, settings.defaultTaskPriority);
-    const epicState = useEpics(state.selectedProjectId ?? 0, taskState);
-    const sprintState = useSprints(state.selectedProjectId ?? 0, taskState);
-    const fileState = useProjectFiles(state.selectedProjectId ?? 0, taskState);
+    const taskState = useTasks(selectedProject?.id ?? 0, settings.defaultTaskPriority);
+    const epicState = useEpics(selectedProject?.id ?? 0, taskState);
+    const sprintState = useSprints(selectedProject?.id ?? 0, taskState);
+    const fileState = useProjectFiles(selectedProject?.id ?? 0, taskState);
     const navigate = useNavigate();
     const location = useLocation();
     const overviewRequested = (location.state as { projectOverview?: boolean } | null)?.projectOverview === true;
-    const [detailSection, setDetailSection] = useState<string | null>(null);
     const [activeProjectTab, setActiveProjectTab] = useState<ProjectTab>('overview');
     const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
     const [query, setQuery] = useState('');
     const isProjectSection = section === 'dashboard' || section === 'projects';
-    const showDetails = isProjectSection && detailSection === section && !!state.selectedProject && !overviewRequested;
-    useChatProjectSelection(showDetails && location.pathname === `/projectManager/${section}` ? state.selectedProjectId : null, activeProjectTab);
+    const showDetails = section === 'projects' && !!selectedProject && !overviewRequested;
+    useChatProjectSelection(showDetails && location.pathname === '/projectManager/projects' ? selectedProject?.id ?? null : null, activeProjectTab);
+    function closeDrafts() {
+        state.closeProjectEditor(); state.closeCustomerEditor(); details.closeContact(); details.closeNotes(); taskState.closeForm(); taskState.closeTask(); setDeleteTarget(null);
+    }
+    const contactDirty = !!details.contactEditor && JSON.stringify(details.contactEditor.draft) !== JSON.stringify(details.contactEditor.original ? {
+        name: details.contactEditor.original.name, role: details.contactEditor.original.role, email: details.contactEditor.original.email, phone: details.contactEditor.original.phone
+    } : { name: '', role: '', email: '', phone: '' });
+    useUnsavedChanges(state.projectDirty || state.customerDirty || contactDirty || !!details.notesEditor && details.notesEditor.original !== details.notesEditor.draft || taskState.formDirty, closeDrafts);
+    useEffect(() => {
+        if (overviewRequested) { closeDrafts(); setActiveProjectTab('overview'); setQuery(''); }
+        // Main-tab clicks reset view state, including clicks on the active tab.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.key]);
+    const taskParam = params.get('task');
+    useEffect(() => {
+        if (section === 'projects' && selectedProject && taskParam && /^[1-9]\d*$/.test(taskParam) && taskState.projectTasks.some(value => value.id === Number(taskParam))) {
+            setActiveProjectTab('tasks'); taskState.openTask(Number(taskParam));
+        }
+        // Opening a task is driven by navigation, not by every edit to the task list.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.key, selectedProject?.id]);
     const navigationBlocked = !!state.projectEditor || !!state.customerEditor || !!details.contactEditor || !!details.notesEditor || taskState.showForm || !!taskState.selectedTask || !!deleteTarget;
     useChatNavigationBlocker(navigationBlocked || workspace.getSnapshot().status !== 'ready');
     useChatNavigator(action => {
@@ -76,9 +104,8 @@ export default function ProjectsPage({
         const name = project?.name;
         const displayedName = name && name.length > 200 ? name.slice(0, /[\uD800-\uDBFF]/.test(name[199]) ? 199 : 200) : name;
         if (!project || displayedName !== action.projectName) throw new NavigationError('NAVIGATION_UNAVAILABLE');
-        openProject(action.projectId, 'projects');
+        openProject(action.projectId);
         setActiveProjectTab(action.projectTab);
-        navigate('/projectManager/projects', { state: null });
     });
     const search = query.trim().toLocaleLowerCase('de');
     const filteredProjects = state.projectList.filter((project) => {
@@ -86,16 +113,11 @@ export default function ProjectsPage({
         return `${project.name} ${customer?.name ?? ''}`.toLocaleLowerCase('de').includes(search);
     });
 
-    function openProject(projectId: number, targetSection = section) {
-        if (targetSection === section && overviewRequested) {
-            navigate(location.pathname, { replace: true, state: null });
-        }
-        state.setSelectedProjectId(projectId);
-        state.closeProjectEditor();
-        taskState.closeForm();
-        taskState.closeTask();
-        setActiveProjectTab('overview');
-        setDetailSection(targetSection);
+    function openProject(projectId: number) {
+        guard.request(() => {
+            closeDrafts(); state.setSelectedProjectId(projectId); setActiveProjectTab('overview');
+            navigate(`/projectManager/projects?project=${projectId}`, { state: null });
+        });
     }
 
     function confirmDelete() {
@@ -106,26 +128,29 @@ export default function ProjectsPage({
             epicState.removeProjectEpics(deleteTarget.id);
             sprintState.removeProjectSprints(deleteTarget.id);
             fileState.removeProjectFiles(deleteTarget.id);
-            if (deleteTarget.id === state.selectedProjectId) setDetailSection(null);
+            if (deleteTarget.id === selectedProject?.id) navigate('/projectManager/projects', { state: { projectOverview: true } });
         } else if (deleteTarget.kind === 'contact') {
             details.removeContact(deleteTarget.customerId, deleteTarget.id);
         } else {
+            if (state.projectList.some(project => project.customerId === deleteTarget.id)) { setDeleteTarget(null); return; }
             state.deleteCustomer(deleteTarget.id);
+            if (deleteTarget.id === selectedCustomer?.id) { const next = new URLSearchParams(params); next.delete('customer'); setParams(next); }
         }
         setDeleteTarget(null);
     }
 
-    const selectedProject = state.selectedProject;
     const title = section === 'customers' ? selectedCustomer?.name ?? t('Kunden') : section === 'settings' ? t('Einstellungen')
-        : showDetails ? selectedProject?.name : section === 'projects' ? t('Projekte') : t('Projekt Dashboard');
+        : section === 'today' ? t('Meine Arbeit') : showDetails ? selectedProject?.name : section === 'projects' ? t('Projekte') : t('Projekt Dashboard');
 
     return (
-        <Container $compact={isProjectSection && !showDetails}>
+        <Container $compact={isProjectSection && !showDetails || section === 'customers' && !customerParam}>
             <HeaderRow>
                 <Title lang={section === 'settings' ? settings.language : undefined}>{title}</Title>
                 {section === 'customers' && !customerParam && <PrimaryButton onClick={() => state.openCustomerEditor()}>+ Kunde anlegen</PrimaryButton>}
-                {showDetails && <SecondaryButton onClick={() => { setDetailSection(null); state.closeProjectEditor(); }}>← Zurück zur Übersicht</SecondaryButton>}
+                {showDetails && <SecondaryButton onClick={() => guard.request(() => navigate('/projectManager/projects', { state: { projectOverview: true } }))}>← Zurück zur Übersicht</SecondaryButton>}
             </HeaderRow>
+            {active && section === 'today' && <PersonalOverview />}
+            {active && section === 'dashboard' && <PersonalOverview compact />}
 
             {state.projectEditor && isProjectSection && (
                 <ProjectForm
@@ -155,16 +180,16 @@ export default function ProjectsPage({
             {section === 'customers' && !customerParam && (
                 <CustomerDirectory
                     customers={state.customerList}
-                    projects={state.projectList}
-                    onEdit={(customer) => state.openCustomerEditor(customer)}
-                    onDelete={(customer) => setDeleteTarget({ kind: 'customer', id: customer.id, name: customer.name })}
-                    onOpenProject={(id) => { openProject(id, 'projects'); navigate('/projectManager/projects'); }}
                     onOpenCustomer={id => showCustomer(id)}
                 />
             )}
+            {active && section === 'dashboard' && <RecentActivityList settingsStatus={settingsStatus} onOpen={entry => guard.request(() => {
+                closeDrafts(); setActiveProjectTab('overview'); navigate(recentActivityPath(entry), { state: null });
+            })} />}
             {section === 'customers' && customerParam && (selectedCustomer ? <CustomerDetails customer={selectedCustomer} projects={state.projectList}
                 onBack={() => showCustomer(null)} onEdit={() => state.openCustomerEditor(selectedCustomer)}
-                onOpenProject={id => { openProject(id, 'projects'); navigate('/projectManager/projects'); }}
+                onDelete={() => setDeleteTarget({ kind: 'customer', id: selectedCustomer.id, name: selectedCustomer.name })}
+                onOpenProject={openProject}
                 onAddContact={() => details.openContact(selectedCustomer.id)} onEditContact={contact => details.openContact(selectedCustomer.id, contact)}
                 onRemoveContact={contact => setDeleteTarget({ kind: 'contact', id: contact.id, customerId: selectedCustomer.id, name: contact.name })}
                 onEditNotes={() => details.openNotes(selectedCustomer.id)} /> : <FormCard><p>{t('Kunde nicht gefunden.')}</p><SecondaryButton onClick={() => showCustomer(null)}>{t('← Zurück zu den Kunden')}</SecondaryButton></FormCard>)}
@@ -179,7 +204,7 @@ export default function ProjectsPage({
                     project={selectedProject}
                     customer={state.customer}
                     activeTab={activeProjectTab}
-                    onTabChange={setActiveProjectTab}
+                    onTabChange={tab => { if (tab !== activeProjectTab) guard.request(() => { closeDrafts(); setActiveProjectTab(tab); }); }}
                     taskState={taskState}
                     epicState={epicState}
                     sprintState={sprintState}

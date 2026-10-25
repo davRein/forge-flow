@@ -26,6 +26,7 @@ export function useAppSettings({ userId = null, repository = sessionSettingsRepo
         persistence: repository.persistence,
         updateSettings: store.updateSettings,
         resetSettings: store.resetSettings,
-        retry: store.retry
+        retry: store.retry,
+        discardUnsaved: store.discardUnsaved
     };
 }

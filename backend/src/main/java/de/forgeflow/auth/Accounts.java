@@ -4,7 +4,10 @@ import java.util.Optional;
 import java.util.List;
 
 public interface Accounts {
-    record User(String id, String email, String name, String passwordHash, boolean administrator, boolean active, long sessionVersion) {
+    record User(String id, String email, String name, String passwordHash, boolean administrator, boolean active, long sessionVersion, boolean portalOnly) {
+        public User(String id, String email, String name, String passwordHash, boolean administrator, boolean active, long sessionVersion) {
+            this(id, email, name, passwordHash, administrator, active, sessionVersion, false);
+        }
         public User(String id, String email, String name, String passwordHash) {
             this(id, email, name, passwordHash, false, true, 0);
         }

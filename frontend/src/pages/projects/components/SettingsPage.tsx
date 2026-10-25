@@ -1,5 +1,6 @@
 import styled from 'styled-components';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
+import { GuardedLink } from '../../../components/navigation/GuardedLink';
 import GeneralSettings from './GeneralSettings';
 import type { GeneralSettingsProps } from './GeneralSettings';
 import AccountSettings from './AccountSettings';
@@ -26,7 +27,7 @@ const Navigation = styled.nav`
     @media (max-width: 900px) { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     @media (max-width: 560px) { grid-template-columns: minmax(0, 1fr); }
 `;
-const NavigationItem = styled(Link)`
+const NavigationItem = styled(GuardedLink)`
     display: flex;
     align-items: center;
     gap: 12px;

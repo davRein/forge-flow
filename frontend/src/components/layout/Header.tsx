@@ -6,6 +6,8 @@ import { useState, useSyncExternalStore } from 'react';
 import { useWorkspacePersistence } from '../../hooks/workspaceContext';
 import Dialog from '../ui/Dialog';
 import { ErrorText, SecondaryButton } from '../ui/formStyles';
+import BrandMark from './BrandMark';
+import GlobalSearch from '../GlobalSearch';
 
 const Container = styled.header`
     height: ${({ theme }) => theme.layout.headerHeight};
@@ -31,16 +33,6 @@ const Logo = styled.div`
     letter-spacing: -0.7px;
 
     user-select: none;
-`;
-
-const LogoMark = styled.div`
-    width: 28px;
-    height: 28px;
-    display: grid;
-    place-items: center;
-    border-radius: 7px;
-    background: ${({ theme }) => theme.colors.primary};
-    color: ${({ theme }) => theme.colors.onPrimary};
 `;
 
 const LogoText = styled.div`
@@ -96,7 +88,7 @@ export default function Header({ unsavedSettings = false }: { unsavedSettings?: 
     return (
         <Container lang={language}>
             <Logo>
-                <LogoMark aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M7 19V5h11M7 12h8m-4 7 7-7" /></svg></LogoMark>
+                <BrandMark />
 
                 <LogoText>
                     <Forge>Forge</Forge>
@@ -105,6 +97,7 @@ export default function Header({ unsavedSettings = false }: { unsavedSettings?: 
             </Logo>
 
             <Right>
+                <GlobalSearch />
                 <Avatar aria-hidden="true">{auth.user ? (auth.user.name || auth.user.email).slice(0, 2).toLocaleUpperCase('de') : 'L'}</Avatar>
                 {auth.user ? <><UserName title={auth.user.name || auth.user.email}>{auth.user.name || auth.user.email}</UserName><SecondaryButton disabled={auth.busy} onClick={() => {
                     if (unsavedSettings || workspace.status === 'saving' || workspace.error) setConfirmLogout(true);

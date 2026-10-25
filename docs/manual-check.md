@@ -1,5 +1,8 @@
 # Manuelle Funktionsprüfung
 
+Navigation, Verwerfen offener Entwürfe und die fünf Dashboard-Ereignisse zusätzlich
+nach [browser-check.md](browser-check.md) und [navigation-and-history.md](navigation-and-history.md) prüfen.
+
 Für kompakte Dev Tools und private REST-Collections siehe die zusätzliche Prüfliste
 in [browser-check.md](browser-check.md) und [Funktionsbeschreibung](rest-collections.md).
 
@@ -131,6 +134,76 @@ Diese Liste beschreibt manuell auszuführende Prüfungen; sie bestätigt keine d
     muss einen Versionskonflikt melden. Serverstand laden zuerst abbrechen, danach bestätigen.
     Ungespeicherte Änderungen dürfen nur nach Bestätigung verworfen werden. Auch Abmelden während
     unbestätigter Änderungen prüfen.
+
+40. Unter Einstellungen → Optik alle vier Themen wählen: Dunkel, Hell, Aurora und Dune.
+    Kleine Vorschauen, genau eine Auswahl, Tastaturbedienung/Fokus und schmale Fenster
+    prüfen. Deutsch/Englisch müssen auch die Beschreibungen übersetzen. In jeder Palette
+    Navigation, Formulare, Status-Badges, Dokumentation, Dev Tools und Chat auf Lesbarkeit
+    prüfen. Im API-Modus speichern lassen, neu laden/erneut anmelden und nach Backend-
+    Neustart prüfen; ein anderes Konto darf seine eigene Auswahl behalten. Bei Netzwerkfehler
+    Auswahl aktiv lassen, Speicherfehler anzeigen und Wiederholen ermöglichen.
+
+41. Kunden öffnen: Eine kompakte Tabelle mit Name, Branche und Ort muss alle eigenen
+    Kunden zeigen, auch ohne Projekte. Erst Zeilenklick bzw. Aktivieren des Kundennamens
+    mit Enter/Leertaste öffnet die Detailkarte. Zurück/Haupttab zeigt wieder die Tabelle.
+    Suche nach Name, E-Mail, PLZ, Branche und Ort sowie leere Ergebnisse prüfen, auch DE/EN,
+    lange Werte, fehlende Angaben, alle vier Themes und schmale Fenster. Bearbeiten und
+    Löschen in der Detailkarte prüfen: mit Projekten gesperrt, sonst erst nach Bestätigung;
+    danach Rückkehr zur Tabelle. Neue Kunden müssen nach dem Speichern in der Tabelle erscheinen.
+
+42. TimeTracker unter Dev Tools öffnen. Sieben Tage Montag–Sonntag, Heute, vorherige/
+    nächste Woche und Datumssprung prüfen, auch über Jahr/Sommerzeitwechsel. Zeit mit
+    Kunde/zugehörigem Projekt, Netto-Minuten, Pause, Kommentar und Abrechenbar erfassen;
+    interne Zeit ohne Kunde ebenfalls. Tag-/Wochensummen und gefilterte Auswertung müssen
+    dieselben Netto-Zeiten zeigen. Überlappung/Pause, Mitternacht und ungültige Dauer
+    abweisen. Bearbeiten und bestätigtes Löschen, CSV mit Unicode/Anführungszeichen und
+    Formelpräfixen, DE/EN, alle vier Themes, schmale Fenster und Tastatur prüfen. Ungespeicherter
+    Entwurf muss bei Modul-/Tabwechsel warnen; bei Netzwerkfehler Entwurf erhalten. Zwei
+    Fenster: veraltete Revision darf nicht überschreiben, Serverstand nur nach bestätigtem
+    Verwerfen laden. Neu anmelden/Backend neu starten: Einträge müssen bleiben; anderes
+    Konto sieht keine fremden Zeiten. Historische Namen nach Umbenennen/Projektverschiebung/
+    Löschen prüfen. KI erhält keine Zeitkommentare und hat keine Zeitbuchungswerkzeuge.
+
+43. Business-Erweiterung ([Bedienung](business-suite.md)):
+    - Budgets anlegen/ändern, Restzeit und Überschreitung mit eigenen Zeitbuchungen in
+      Liste und Projektdetail vergleichen. Abrechnungseinstellungen ausdrücklich speichern;
+      Entwurf bei Tabwechsel abbrechen/beibehalten, Fehler und Versionskonflikt prüfen.
+    - Stoppuhr starten, pausieren, Browser neu laden, fortsetzen, stoppen und prüfen.
+      Editor abbrechen darf nichts buchen. Speichern darf genau eine stabile Zeitkennung
+      erzeugen; bei Fehler zwischen Buchung und Abschluss keine zweite Buchung anlegen.
+      Zeitzone, Mitternacht, Pausen, interne Tätigkeit und zwei parallele Fenster prüfen.
+    - Monatliches PDF mit Kunden-/Projektfilter, optionalen Kommentaren, Umlauten und vielen
+      Einträgen öffnen; Summen, Umbrüche und letzte Seite prüfen. CSV bleibt Wochenexport.
+    - Angebot/Rechnung mit manuellen Positionen, Dezimalmengen, unterschiedlichen Steuern
+      und Zeitimport erstellen. Vorschau, Empfänger/Absender und PDF vergleichen. Entwurf
+      bleibt bearbeitbar; Freigabe bestätigt Nummer und feste Inhalte. Statuswechsel,
+      Storno, Angebot→Rechnungsentwurf und Schutz vor doppelter Zeitabrechnung prüfen.
+    - Vorlage mit Aufgaben, Meilensteinen und Seiten speichern/anwenden. Neues Projekt
+      öffnet aktiv den Projekttab; alle Beziehungen/Kennungen prüfen. Veraltete Revision
+      oder fehlgeschlagene Aktualisierung darf keine unbemerkte zweite Anlage erlauben.
+    - Strg/Cmd+K und Suchknopf mit Kunden-, Projekt-, Aufgaben- und Seitentreffern bedienen;
+      Direktlinks, Fokus/Escape, leere Treffer und Entwurfsschutz testen. „Meine Arbeit“:
+      heutige Summe, vergangene Werktage ohne Buchung und Sortierung nach Projekttermin.
+    - Eigenes Portal-Konto mit separaten Testdaten erstellen. Ohne Freigaben bleibt es leer;
+      nur explizite Projekte/Seiten/Dateien/Dokumente/Monate veröffentlichen. Als Portal-Konto
+      anmelden, Passwort ändern und abmelden. Interne Workspace-/KI-/Business-APIs direkt
+      anfragen: 403. Ein anderer Kunde und private Zeitkommentare dürfen nie erscheinen.
+      Interne Änderung darf bis zur erneuten Veröffentlichung nicht sichtbar werden;
+      gelöschte und wiederverwendete Kennungen dürfen keine neuen Inhalte offenlegen.
+      Entfernte/ersetzte Dateibytes dürfen nicht unter altem Link erscheinen. Widerruf und
+      Besitzer-Deaktivierung müssen weitere Abrufe sperren.
+    - Neustart, Konto-/Sitzungswechsel, DE/EN, alle vier Themes, schmale Fenster und reine
+      Tastaturbedienung prüfen. Keine echten Kunden anlegen oder E-Mails versenden.
+
+44. Cloud öffnen, auf Deutsch/Englisch und allen Themes. Der neue Menüpunkt muss die
+    Cloud-Seite aktivieren und bestehende Entwurfsschutz-Dialoge beim Wechsel beachten.
+    Der Öffnen-Link geht per HTTPS in einen neuen Tab, ohne ForgeFlow-Passwörter/Cookies
+    an Nextcloud zu übertragen; die ForgeFlow-Ansicht bleibt bestehen. Separat in Nextcloud
+    anmelden, normale Konten anlegen und Upload/Download/Versionierung/Freigaben prüfen.
+    Ein zweites Konto ohne Freigabe darf keine fremden Dateien sehen. Portal-Konten bleiben
+    in ihrer Portalansicht. Neustart, Cron-Timer, Zertifikatserneuerung und vollständige
+    Sicherung nach [nextcloud.md](nextcloud.md) abnehmen. Leere/ungültige Cloud-URL beim
+    Frontendbuild muss einen Konfigurationshinweis statt eines unsicheren Links ergeben.
 
 Die Tests liegen als `sprintLogic.test.ts`, `fileLogic.test.ts`, `wikiLogic.test.ts`,
 `jsonLogic.test.ts`, `calculatorLogic.test.ts`, `converterLogic.test.ts`, `restLogic.test.ts` und
