@@ -12,6 +12,7 @@ public interface AiModelGateway {
         @Override public String toString() { return "Reply[content=REDACTED]"; }
     }
     Reply reply(String language, List<Message> history, String message);
+    default Reply generateCode(String language, String instructions) { return reply("en",List.of(),"Return only " + language + " source code, without Markdown fences or commentary. Request: " + instructions); }
     default Reply reply(String language, List<Message> history, String message, ProjectTools.Session tools) { return reply(language, history, message); }
     record Chunk(String delta, Reply completed, AgentDtos.ToolEvent tool, AgentDtos.Execution execution) {
         public Chunk(String delta, Reply completed) { this(delta, completed, null, null); }

@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../hooks/languageContext';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from '../../hooks/languageContext';
 import { useTimeTracking } from '../../hooks/timeTrackingContext';
@@ -18,6 +19,8 @@ import { addDays, clock, duration, groupEntries, timeCsv, todayDate, weekEntries
 
 type Editor = { draft: TimeEntry; baseline: string; existing: boolean };
 export default function TimeTrackerPage({ active = true, section = 'calendar' }: { active?: boolean; section?: string }) {
+    const { t: tx } = useUiTranslation();
+
     const { t, locale, language } = useTranslation();
     const { store, data, status, error, conflict } = useTimeTracking();
     const business = useBusiness(active);
@@ -76,7 +79,7 @@ export default function TimeTrackerPage({ active = true, section = 'calendar' }:
     }
     const move = (amount: number) => { const next = addDays(week, amount); if (validDate(next) && validDate(addDays(next, 7))) guard.request(() => setWeek(next)); };
     return <Page lang={language}>
-        <div className="toolbar"><div><h1>TimeTracker</h1><p className="muted">{t('Deine Woche. Deine Zeit. Im Überblick.')}</p></div>
+        <div className="toolbar"><div><h1>{tx('TimeTracker')}</h1><p className="muted">{t('Deine Woche. Deine Zeit. Im Überblick.')}</p></div>
             <div className="actions"><SecondaryButton onClick={exportCsv} disabled={!filtered.length || busy}>{t('CSV exportieren')}</SecondaryButton><PrimaryButton disabled={busy || entries.length >= 10000} onClick={() => open(undefined, todayDate() >= week && todayDate() < addDays(week, 7) ? todayDate() : week)}>{t('+ Zeit erfassen')}</PrimaryButton></div></div>
         <div className="toolbar"><div className="actions">
             <SecondaryButton aria-label={t('Vorherige Woche')} onClick={() => move(-7)}>‹</SecondaryButton>
@@ -100,7 +103,7 @@ export default function TimeTrackerPage({ active = true, section = 'calendar' }:
             : <Calendar aria-label={t('Wochenkalender')}>{Array.from({ length: 7 }, (_, index) => {
                 const date = addDays(week, index), bookings = filtered.filter(entry => entry.date === date);
                 return <Day key={date} $today={date === todayDate()} aria-label={date}><header><div><h2><time dateTime={date}>{dateLabel(date, { weekday: 'short', day: '2-digit', month: 'short' })}</time></h2><span className="day-total">{duration(bookings.reduce((sum, entry) => sum + entry.minutes, 0))}</span></div>
-                    <button className="add" disabled={busy || entries.length >= 10000} aria-label={`${t('Zeit erfassen')}: ${date}`} onClick={() => open(undefined, date)}>+</button></header>
+                    <button className="add" disabled={busy || entries.length >= 10000} aria-label={tx('{value0}: {value1}', { value0: t('Zeit erfassen'), value1: date })} onClick={() => open(undefined, date)}>+</button></header>
                     {bookings.map(entry => <Booking key={entry.id} $billable={entry.billable} onClick={() => open(entry)} disabled={busy}>
                         <span className="range">{clock(entry.startMinute)}–{clock(entry.startMinute + entry.minutes + entry.breakMinutes)}</span><strong>{customerLabel(entry)}</strong><span className="project">{projectLabel(entry)}</span>
                         <span className="duration">{duration(entry.minutes)}</span><span className="billable">{t(entry.billable ? 'Abrechenbar' : 'Nicht abrechenbar')}</span>{entry.comment && <span className="note">{entry.comment}</span>}

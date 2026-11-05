@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../hooks/languageContext';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
@@ -12,13 +13,15 @@ const Result = styled.button`
     &:hover, &:focus-visible { background: ${({ theme }) => theme.colors.surfaceHover}; } strong, small { display: block; } small { color: ${({ theme }) => theme.colors.textSecondary}; margin-top: 4px; }
 `;
 export default function GlobalSearch() {
+    const { t: tx } = useUiTranslation();
+
     const { t } = useTranslation(); const workspace = useWorkspacePersistence(); const guard = useNavigationGuard(); const navigate = useNavigate();
     const [open, setOpen] = useState(false), [query, setQuery] = useState('');
     useEffect(() => { if (typeof window === 'undefined') return; const key = (event: KeyboardEvent) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setOpen(true); } }; window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key); }, []);
     const data = workspace.getSnapshot().data; const results = data ? globalSearch(data, query) : [];
-    return <><SecondaryButton type="button" aria-label={t('Globale Suche')} onClick={() => setOpen(true)}>⌕ <span>{t('Suchen')}</span> <kbd>Ctrl K</kbd></SecondaryButton>
+    return <><SecondaryButton type="button" aria-label={t('Globale Suche')} onClick={() => setOpen(true)}>⌕ <span>{t('Suchen')}</span> <kbd>{tx('Ctrl K')}</kbd></SecondaryButton>
         {open && <Dialog title={t('Globale Suche')} onClose={() => setOpen(false)} width={640}><Input type="search" autoFocus maxLength={200} aria-label={t('Kunden, Projekte, Aufgaben und Seiten suchen')} value={query} onChange={event => setQuery(event.target.value)} placeholder={t('Mindestens zwei Zeichen eingeben …')} style={{ width: '100%' }} />
-            <div role="status" style={{ fontSize: 12, margin: '10px 0' }}>{query.trim().length < 2 ? t('Durchsuche deinen gesamten Arbeitsbereich.') : `${results.length} ${t('Treffer')}`}</div>
+            <div role="status" style={{ fontSize: 12, margin: '10px 0' }}>{query.trim().length < 2 ? t('Durchsuche deinen gesamten Arbeitsbereich.') : tx('{value0} {value1}', { value0: results.length, value1: t('Treffer') })}</div>
             {results.map(result => <Result key={result.key} onClick={() => guard.request(() => { setOpen(false); navigate(result.path); })}><strong>{result.title}</strong><small>{t(result.kind)} · {result.detail}</small></Result>)}
         </Dialog>}
     </>;

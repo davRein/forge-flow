@@ -31,7 +31,7 @@ public class JpaAccounts implements Accounts {
     }
 
     private User user(AccountRow row) {
-        return new User(row.id, row.email, row.name, row.passwordHash, row.administrator, row.active, row.sessionVersion, row.portalOnly);
+        return new User(row.id, row.email, row.name, row.passwordHash, row.administrator, row.active, row.sessionVersion, row.portalOnly, row.expiresAt);
     }
     private void values(AccountRow row, User user) {
         row.email = AccountRules.email(user.email());
@@ -41,6 +41,7 @@ public class JpaAccounts implements Accounts {
         row.active = user.active();
         row.sessionVersion = user.sessionVersion();
         row.portalOnly = user.portalOnly();
+        row.expiresAt = user.expiresAt();
     }
     private void flush() {
         try { entityManager.flush(); }
@@ -79,8 +80,20 @@ public class JpaAccounts implements Accounts {
     public User replace(User user, long expectedSessionVersion) {
         var row = entityManager.find(AccountRow.class, user.id(), LockModeType.PESSIMISTIC_WRITE);
         AccountRules.current(row == null ? null : user(row), expectedSessionVersion);
+        var expiry = row.expiresAt;
         values(row, user);
+        row.expiresAt = expiry;
         flush();
         return user(row);
+    }
+
+    @Override @Transactional public boolean deleteExpired(String id) {
+        var row = entityManager.find(AccountRow.class, id, LockModeType.PESSIMISTIC_WRITE);
+        if (row == null || row.expiresAt == null || row.expiresAt.isAfter(java.time.Instant.now())) return false;
+        entityManager.createNativeQuery("update ff_wiki_articles set parent_id = null where owner_id = :owner").setParameter("owner", id).executeUpdate();
+        for (String table : List.of("ff_customer_contacts", "ff_tasks", "ff_activities", "ff_sprints", "ff_files", "ff_epics", "ff_wiki_articles", "ff_wiki_categories", "ff_projects", "ff_customers", "ff_workspaces", "ff_settings", "ff_ai_conversations", "ff_rest_collections", "ff_recent_activity", "ff_time_tracking", "ff_business", "ff_developer_data"))
+            entityManager.createNativeQuery("delete from " + table + " where owner_id = :owner").setParameter("owner", id).executeUpdate();
+        entityManager.createNativeQuery("delete from ff_portal_links where owner_id = :owner or user_id = :owner").setParameter("owner", id).executeUpdate();
+        entityManager.remove(row); entityManager.flush(); return true;
     }
 }

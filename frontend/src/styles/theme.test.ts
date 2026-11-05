@@ -14,7 +14,7 @@ function checkContrast(foreground: string, background: string, label: string) {
 
 export const themeTests = [
     { name: 'New palettes provide readable text, links and primary actions', run() {
-        for (const name of ['aurora', 'dune'] as const) {
+        for (const name of Object.keys(themes) as Array<keyof typeof themes>) {
             const { colors } = themes[name];
             for (const surface of ['background', 'sidebar', 'header', 'content', 'surfaceHover', 'primarySubtle'] as const) {
                 for (const text of ['text', 'textSecondary', 'primary'] as const) {

@@ -32,14 +32,14 @@ public class SecurityConfig {
     @Bean SecurityContextRepository securityContexts() { return new HttpSessionSecurityContextRepository(); }
     @Bean HttpSessionCsrfTokenRepository csrfTokens() { return new HttpSessionCsrfTokenRepository(); }
     @Bean SecurityFilterChain security(HttpSecurity http, SecurityContextRepository contexts, HttpSessionCsrfTokenRepository csrf,
-            Accounts accounts, @Value("${forgeflow.origin}") String origin) throws Exception {
+            Accounts accounts, de.forgeflow.developer.TrialUsage trials, @Value("${forgeflow.origin}") String origin) throws Exception {
         http.formLogin(form -> form.disable()).httpBasic(basic -> basic.disable())
             .requestCache(cache -> cache.disable())
             .securityContext(context -> context.securityContextRepository(contexts))
             .csrf(config -> config.csrfTokenRepository(csrf).csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
             .authorizeHttpRequests(auth -> auth.dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
-                .requestMatchers("/api/v1/auth/csrf", "/api/v1/auth/login", "/api/v1/health").permitAll()
-                .requestMatchers("/api/v1/users", "/api/v1/users/**").hasRole("ADMIN").anyRequest().authenticated())
+                .requestMatchers("/api/v1/auth/csrf", "/api/v1/auth/login", "/api/v1/auth/trial", "/api/v1/health").permitAll()
+                .requestMatchers("/api/v1/users", "/api/v1/users/**", "/api/v1/auth/showcase-access").hasRole("ADMIN").anyRequest().authenticated())
             .exceptionHandling(errors -> errors
                 .authenticationEntryPoint((req, res, error) -> ApiErrors.write(res, 401, "UNAUTHENTICATED", "Bitte anmelden."))
                 .accessDeniedHandler((req, res, error) -> ApiErrors.write(res, 403,
@@ -56,7 +56,7 @@ public class SecurityConfig {
                     chain.doFilter(request, response);
                 }
             }, CsrfFilter.class)
-            .addFilterBefore(new AccountSessionFilter(accounts), AuthorizationFilter.class);
+            .addFilterBefore(new AccountSessionFilter(accounts,trials), AuthorizationFilter.class);
         return http.build();
     }
 }

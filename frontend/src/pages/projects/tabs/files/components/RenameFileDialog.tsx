@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../../../hooks/languageContext';
 import { useState } from 'react';
 import Dialog from '../../../components/Dialog';
 import { useUnsavedChanges } from '../../../../../hooks/navigationGuard';
@@ -12,13 +13,15 @@ type Props = {
 };
 
 export default function RenameFileDialog({ file, onSave, onClose }: Props) {
+    const { t: tx } = useUiTranslation();
+
     const { stem, extension } = splitFileName(file.name);
     const [name, setName] = useState(stem);
     const [error, setError] = useState('');
     useUnsavedChanges(name !== stem, onClose);
 
     return (
-        <Dialog title="Datei umbenennen" onClose={onClose}>
+        <Dialog title={tx('Datei umbenennen')} onClose={onClose}>
             <form onSubmit={(event) => {
                 event.preventDefault();
                 if (!name.trim()) { setError('Bitte einen Dateinamen angeben.'); return; }
@@ -26,16 +29,16 @@ export default function RenameFileDialog({ file, onSave, onClose }: Props) {
                 if (message) setError(message);
                 else onClose();
             }}>
-                <p style={{ marginBottom: 16, overflowWrap: 'anywhere' }}>Bisheriger Name: {file.name}</p>
+                <p style={{ marginBottom: 16, overflowWrap: 'anywhere' }}>{tx('Bisheriger Name: ')}{file.name}</p>
                 <Field>
-                    Neuer Dateiname{extension ? ` (ohne ${extension})` : ''}
+                    {tx('Neuer Dateiname')}{extension ? tx(' (ohne {value0})', { value0: extension }) : ''}
                     <Input required autoFocus value={name} onChange={(event) => { setName(event.target.value); setError(''); }} />
                 </Field>
-                {extension && <p style={{ marginTop: 12 }}>Die Dateiendung {extension} bleibt erhalten.</p>}
-                {error && <ErrorText role="alert">{error}</ErrorText>}
+                {extension && <p style={{ marginTop: 12 }}>{tx('Die Dateiendung ')}{extension} {tx(' bleibt erhalten.')}</p>}
+                {error && <ErrorText role="alert">{tx(error)}</ErrorText>}
                 <FormActions>
-                    <SecondaryButton type="button" onClick={onClose}>Abbrechen</SecondaryButton>
-                    <PrimaryButton type="submit" disabled={!name.trim()}>Speichern</PrimaryButton>
+                    <SecondaryButton type="button" onClick={onClose}>{tx('Abbrechen')}</SecondaryButton>
+                    <PrimaryButton type="submit" disabled={!name.trim()}>{tx('Speichern')}</PrimaryButton>
                 </FormActions>
             </form>
         </Dialog>

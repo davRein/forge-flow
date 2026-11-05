@@ -64,7 +64,7 @@ export const timeTrackerPageTests = [
     { name: 'TimeTracker follows Dev Tools in the sidebar and loads private entries only when activated', async run() {
         const ui = await fixture('en', '/devTools/json'); try {
             const sidebar = ui.root.findByType('aside'); const buttons = sidebar.findAllByType('button');
-            assert(buttons.map(node => node.props['aria-label']).join(',') === 'Project Manager,Documentation,Dev Tools,TimeTracker,Business,Cloud', 'TimeTracker must follow existing apps');
+            assert(buttons.map(node => node.props['aria-label']).join(',') === 'Project Manager,Git,Documentation,Dev Tools,TimeTracker,Business,Cloud,AI Knowledge Hub,FlowPilot', 'TimeTracker must follow existing apps');
             assert(ui.loads === 0, 'A hidden tracker must not request private time data');
             await ui.click('TimeTracker');
             assert(Number(ui.loads) === 1 && ui.url === '/timeTracker/calendar' && ui.root.findAllByType('time').length === 7, 'Activation must open and load a complete calendar week');

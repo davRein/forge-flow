@@ -362,7 +362,7 @@ class BackendIntegrationTest {
     @Test void additionalThemesAreValidatedAndRemainAccountScoped() throws Exception {
         var account = regularUser();
         MockHttpSession session = loginAs(account.email(), TEST_PASSWORD);
-        for (String theme : java.util.List.of("aurora", "dune")) {
+        for (String theme : java.util.List.of("aurora", "dune", "forest", "ink", "rose")) {
             var settings = new WorkspaceDtos.Settings(1, new WorkspaceDtos.SettingsValues(theme, "projects", "high", "en"));
             mvc.perform(put("/api/v1/me/settings").session(session).with(csrf()).header("Origin", ORIGIN)
                 .contentType("application/json").content(json.writeValueAsString(settings))).andExpect(status().isNoContent());
@@ -374,7 +374,7 @@ class BackendIntegrationTest {
         var invalid = new WorkspaceDtos.Settings(1, new WorkspaceDtos.SettingsValues("unknown", "projects", "high", "en"));
         mvc.perform(put("/api/v1/me/settings").session(session).with(csrf()).header("Origin", ORIGIN)
             .contentType("application/json").content(json.writeValueAsString(invalid))).andExpect(status().isBadRequest());
-        assertThat(storage.loadSettings(account.id()).settings().themeMode()).isEqualTo("dune");
+        assertThat(storage.loadSettings(account.id()).settings().themeMode()).isEqualTo("rose");
         var other = regularUser();
         assertThat(storage.loadSettings(other.id())).isNull();
     }
@@ -494,6 +494,44 @@ class BackendIntegrationTest {
         mvc.perform(multipart("/api/v1/workspace").param("manifest", root.toString()).session(session).with(csrf()).header("Origin", ORIGIN)
             .header("If-Match", "\"" + saved.revision() + "\"").with(request -> { request.setMethod("PUT"); return request; })).andExpect(status().isOk());
         assertThat(storage.load(account.id()).data().wiki().articles().getFirst().parentId()).isNull();
+    }
+
+    @Test void showcaseProxyRequiresALiveAdministratorSessionAndReturnsNoAccountData() throws Exception {
+        String endpoint = "/api/v1/auth/showcase-access";
+        mvc.perform(get(endpoint)).andExpect(status().isUnauthorized());
+        var account = regularUser();
+        mvc.perform(get(endpoint).session(loginAs(account.email(), TEST_PASSWORD)))
+            .andExpect(status().isForbidden());
+        var administrator = login();
+        mvc.perform(get(endpoint).session(administrator)).andExpect(status().isNoContent())
+            .andExpect(content().string(""));
+        mvc.perform(get(endpoint).session(administrator).header("Sec-Fetch-Site", "cross-site"))
+            .andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/auth/logout").session(administrator).with(csrf()).header("Origin", ORIGIN))
+            .andExpect(status().isNoContent());
+        mvc.perform(get(endpoint)).andExpect(status().isUnauthorized());
+    }
+
+    @Test void suiteIdentityAllowsRegularAccountsButRejectsPortalAndRevokedSessions() throws Exception {
+        String endpoint = "/api/v1/auth/showcase-session";
+        mvc.perform(get(endpoint)).andExpect(status().isUnauthorized());
+        var account = regularUser();
+        var session = businessLogin(account.email(), TEST_PASSWORD);
+        String profile = mvc.perform(get(endpoint).session(session)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(account.id())).andExpect(jsonPath("$.issuer").value(ORIGIN))
+            .andExpect(jsonPath("$.active").value(true)).andExpect(jsonPath("$.administrator").value(false))
+            .andReturn().getResponse().getContentAsString();
+        assertThat(profile).doesNotContain("password", "sessionVersion", "csrfToken", "FORGEFLOW_SESSION", TEST_PASSWORD);
+        mvc.perform(get(endpoint).session(session).header("Sec-Fetch-Site", "cross-site"))
+            .andExpect(status().isForbidden());
+        accounts.replace(new Accounts.User(account.id(), account.email(), account.name(), account.passwordHash(),
+            false, false, account.sessionVersion() + 1), account.sessionVersion());
+        mvc.perform(get(endpoint).session(session)).andExpect(status().isUnauthorized());
+        var portal = regularUser();
+        accounts.replace(new Accounts.User(portal.id(), portal.email(), portal.name(), portal.passwordHash(),
+            false, true, portal.sessionVersion(), true), portal.sessionVersion());
+        mvc.perform(get(endpoint).session(businessLogin(portal.email(), TEST_PASSWORD)))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("PORTAL_ONLY"));
     }
 
     private Accounts.User regularUser() {

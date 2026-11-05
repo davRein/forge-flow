@@ -40,6 +40,15 @@ public final class PersistenceEntities {
         @Column(nullable = false) public boolean active = true;
         @Column(name = "session_version", nullable = false) public long sessionVersion;
         @Column(name = "portal_only", nullable = false) public boolean portalOnly;
+        @Column(name = "expires_at") public java.time.Instant expiresAt;
+    }
+
+    @Entity(name = "StoredDeveloperData")
+    @Table(name = "ff_developer_data")
+    public static class DeveloperRow {
+        @Id @Column(name = "owner_id", length = 128) public String ownerId;
+        @Column(nullable = false, length = 128) public String revision;
+        @Column(nullable = false, columnDefinition = "text") public String payload;
     }
 
     @Entity(name = "StoredAccountSetup")

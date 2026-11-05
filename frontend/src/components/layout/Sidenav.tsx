@@ -8,6 +8,7 @@ const Container = styled.aside`
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
     background: ${({ theme }) => theme.colors.sidebar};
     border-right: 1px solid ${({ theme }) => theme.colors.border};
     padding: 26px 14px 18px;
@@ -45,6 +46,8 @@ const NavItem = styled.button<{ $active: boolean }>`
     cursor: pointer;
     margin-bottom: 6px;
     text-align: left;
+    text-decoration: none;
+    flex-shrink: 0;
 
     font-weight: ${({ $active }) => $active ? 600 : 450};
     color: ${({ theme, $active }) => $active ? theme.colors.primary : theme.colors.textSecondary};
@@ -70,7 +73,7 @@ export default function Sidebar({ modules, activeModule, onModuleChange }: Props
     return (
         <Container lang={language} aria-label={t('Module')}>
             <Label>{t('Arbeitsbereich')}</Label>
-            {modules.map((module) => (
+            {modules.filter(module => module.key !== 'settings').map((module) => (
                 <NavItem
                     key={module.key}
                     $active={module.key === activeModule}

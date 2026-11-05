@@ -58,7 +58,7 @@ export const chatNavigationTests = [
             let aborted = '';
             await navigation.execute(action, cancelled.signal).catch(error => { aborted = error instanceof NavigationError ? error.code : ''; });
             assert(aborted === 'CLIENT_CANCELLED', 'Veraltete Sitzung darf nicht navigieren');
-            const back = renderer.root.findAllByType('button').find(button => button.children.includes('← Zurück zur Übersicht'));
+            const back = renderer.root.findAllByType('button').find(button => button.children.includes('← Back to overview'));
             assert(back, 'Übersichtsbutton fehlt'); await act(async () => back.props.onClick());
             const createProject = renderer.root.findAllByType('button').find(button => button.props['aria-label'] === 'New project');
             assert(createProject, 'Projektformular fehlt'); await act(async () => createProject.props.onClick());

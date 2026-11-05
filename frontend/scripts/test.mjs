@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 
 globalThis.File ??= File;
 const suites = [
+    { path: 'services/developer', module: 'developer', tests: 'developerTests', dependencies: ['services/api/apiClient.ts'] },
+    { path: 'pages/devTools/utils', module: 'codeHighlight', tests: 'codeHighlightTests', dependencies: [] },
     { path: 'pages/cloud', module: 'cloudConfig', tests: 'cloudConfigTests', dependencies: [] },
     { path: 'services/business', module: 'business', tests: 'businessTests', dependencies: ['services/api/apiClient.ts', 'services/time/timeTracking.ts'] },
     { path: 'pages/business', module: 'businessLogic', tests: 'businessLogicTests', dependencies: ['pages/timeTracker/timeLogic.ts', 'services/business/business.ts', 'services/api/apiClient.ts', 'services/time/timeTracking.ts'] },
@@ -18,7 +20,7 @@ const suites = [
     { path: 'services/i18n', module: 'browserLanguage', tests: 'browserLanguageTests', dependencies: [] },
     { path: 'services/settings', module: 'globalSettings', tests: 'globalSettingsTests', dependencies: ['services/api/apiClient.ts'] },
     { path: 'services/i18n', module: 'translate', tests: 'translationTests', dependencies: [
-        'config/settingsTranslations.ts', 'config/wikiTranslations.ts', 'config/toolsTranslations.ts', 'config/commonTranslations.ts', 'config/chatTranslations.ts', 'config/timeTranslations.ts', 'config/businessTranslations.ts'
+        'config/settingsTranslations.ts', 'config/wikiTranslations.ts', 'config/toolsTranslations.ts', 'config/commonTranslations.ts', 'config/chatTranslations.ts', 'config/timeTranslations.ts', 'config/businessTranslations.ts', 'config/developerTranslations.ts', 'config/consistencyTranslations.ts'
     ] },
     { path: 'services/api', module: 'apiClient', tests: 'apiTests', dependencies: [] },
     { path: 'services/ai', module: 'eventStream', tests: 'eventStreamTests', dependencies: ['services/api/apiClient.ts'] },
@@ -86,6 +88,12 @@ const componentServer = await createServer({
     }
 });
 try {
+    const { showcasePageTests } = await componentServer.ssrLoadModule('/src/pages/showcase/ShowcasePage.test.tsx');
+    for (const { name, run } of showcasePageTests) await test(name, run);
+    const { sidenavTests } = await componentServer.ssrLoadModule('/src/components/layout/Sidenav.test.tsx');
+    for (const { name, run } of sidenavTests) await test(name, run);
+    const { developerToolsTests } = await componentServer.ssrLoadModule('/src/pages/devTools/developerTools.test.tsx');
+    for (const { name, run } of developerToolsTests) await test(name, run);
     const { businessPageTests } = await componentServer.ssrLoadModule('/src/pages/business/BusinessPage.test.tsx');
     for (const { name, run } of businessPageTests) await test(name, run);
     const { timeTrackerPageTests } = await componentServer.ssrLoadModule('/src/pages/timeTracker/TimeTrackerPage.test.tsx');

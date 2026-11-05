@@ -76,6 +76,16 @@ if bash "$test_dir/rollback-case.sh" "$test_dir" > "$test_dir/result" 2>&1; then
 grep -q 'Previous application restored' "$test_dir/result"
 printf 'PASS: Failed update restores both application parts exactly once\n'
 
+# A pre-V14 backend must never be reactivated after migrating expiring accounts.
+printf 'new backend' > "$test_dir/backend.jar"
+: > "$test_dir/backup/service-calls"
+if expiry_safe_rollback=0 bash "$test_dir/rollback-case.sh" "$test_dir" > "$test_dir/unsafe-result" 2>&1; then exit 1; fi
+[[ "$(cat "$test_dir/backend.jar")" == 'new backend' ]]
+[[ "$(grep -c '^stop forgeflow$' "$test_dir/backup/service-calls")" == 1 ]]
+if grep -q '^start forgeflow$' "$test_dir/backup/service-calls"; then exit 1; fi
+grep -q 'does not enforce V14 trial expiry' "$test_dir/unsafe-result"
+printf 'PASS: Unsafe backend downgrade leaves service stopped and keeps the new JAR\n'
+
 mkdir -p "$test_dir/backup/frontend/assets" "$test_dir/web/assets"
 printf 'previous asset' > "$test_dir/web/assets/old.js"
 printf 'new asset' > "$test_dir/backup/frontend/assets/new.js"

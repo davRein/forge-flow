@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../hooks/languageContext';
 import styled from 'styled-components';
 import { getBadgeTextColor } from '../../../styles/colorUtils';
 
@@ -36,9 +37,11 @@ type Props = {
 };
 
 export default function StatusBadge({ label, color, pulse }: Props) {
+    const { t: tx } = useUiTranslation();
+
     return (
         <Badge $color={color} $pulse={pulse}>
-            {label}
+            {tx(label)}
         </Badge>
     );
 }

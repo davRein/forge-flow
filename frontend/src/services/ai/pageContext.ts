@@ -2,9 +2,9 @@ import type { ProjectTab } from '../../pages/projects/types/projectTabs.types.js
 
 export const chatPages: Readonly<Record<string, string>> = {
     '/projectManager/dashboard': 'Projekt Dashboard', '/projectManager/projects': 'Projekte',
-    '/projectManager/customers': 'Kunden', '/projectManager/settings': 'Einstellungen',
+    '/projectManager/customers': 'Kunden', '/settings/general': 'Globale Einstellungen', '/git/repositories': 'GitHub Repositories',
     '/wiki/home': 'Dokumentationsübersicht', '/wiki/articles': 'Dokumentationsseiten', '/wiki/categories': 'Dokumentationsbereiche', '/wiki/search': 'Dokumentationssuche',
-    '/devTools/json': 'JSON Formatter', '/devTools/rest': 'REST-Test', '/devTools/calculator': 'Rechner', '/devTools/converter': 'Konverter',
+    '/devTools/json': 'JSON Formatter', '/devTools/rest': 'REST-Test', '/devTools/calculator': 'Rechner', '/devTools/converter': 'Konverter', '/devTools/snippeter': 'Snippeter', '/devTools/dbScripter': 'DB Scripter',
     '/timeTracker/calendar': 'TimeTracker Kalender', '/timeTracker/reports': 'TimeTracker Auswertung', '/cloud/files': 'Cloud / Nextcloud',
     '/projectManager/today': 'Meine Arbeit', '/business/budgets': 'Budgets', '/business/documents': 'Angebote & Rechnungen', '/business/templates': 'Vorlagen', '/business/portal': 'Kundenportal', '/business/profile': 'Abrechnungseinstellungen'
 };

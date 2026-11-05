@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../../../hooks/languageContext';
 import styled, { keyframes } from 'styled-components';
 import { getBadgeTextColor } from '../../../../../styles/colorUtils';
 
@@ -130,6 +131,8 @@ type Props = {
 };
 
 export default function TaskDrawer({ task, epics, sprints, onClose }: Props) {
+    const { t: tx } = useUiTranslation();
+
     const taskStatus = taskStatuses[task.status];
     const taskPriority = taskPriorities[task.priority];
 
@@ -150,46 +153,46 @@ export default function TaskDrawer({ task, epics, sprints, onClose }: Props) {
                 </Header>
 
                 <Section>
-                    <SectionTitle>Beschreibung</SectionTitle>
+                    <SectionTitle>{tx('Beschreibung')}</SectionTitle>
 
                     <Description>
-                        {task.description || 'Keine Beschreibung vorhanden.'}
+                        {task.description || tx('Keine Beschreibung vorhanden.')}
                     </Description>
                 </Section>
 
                 <Section>
-                    <SectionTitle>Details</SectionTitle>
+                    <SectionTitle>{tx('Details')}</SectionTitle>
 
                     <MetaGrid>
                         <MetaBox>
-                            <Label>Sprint</Label>
-                            {sprints.find((sprint) => sprint.status !== 'completed' && sprint.taskIds.includes(task.id))?.title ?? 'Kein Sprint'}
+                            <Label>{tx('Sprint')}</Label>
+                            {sprints.find((sprint) => sprint.status !== 'completed' && sprint.taskIds.includes(task.id))?.title ?? tx('Kein Sprint')}
                         </MetaBox>
                         <MetaBox>
-                            <Label>Epic</Label>
-                            {epics.find((epic) => epic.id === task.epicId)?.title ?? 'Kein Epic'}
+                            <Label>{tx('Epic')}</Label>
+                            {epics.find((epic) => epic.id === task.epicId)?.title ?? tx('Kein Epic')}
                         </MetaBox>
                         <MetaBox>
-                            <Label>Status</Label>
+                            <Label>{tx('Status')}</Label>
                             <Badge $color={taskStatus.color}>
-                                {taskStatus.label}
+                                {tx(taskStatus.label)}
                             </Badge>
                         </MetaBox>
 
                         <MetaBox>
-                            <Label>Priorität</Label>
+                            <Label>{tx('Priorität')}</Label>
                             <Badge $color={taskPriority.color}>
-                                {taskPriority.label}
+                                {tx(taskPriority.label)}
                             </Badge>
                         </MetaBox>
 
                         <MetaBox>
-                            <Label>Erstellt</Label>
+                            <Label>{tx('Erstellt')}</Label>
                             {task.createdAt}
                         </MetaBox>
 
                         <MetaBox>
-                            <Label>Aktualisiert</Label>
+                            <Label>{tx('Aktualisiert')}</Label>
                             {task.updatedAt}
                         </MetaBox>
                     </MetaGrid>

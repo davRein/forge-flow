@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../hooks/languageContext';
 import styled from 'styled-components';
 
 import { ProjectTab } from '../types/projectTabs.types';
@@ -60,6 +61,8 @@ export default function ProjectTabs({
                                         activeTab,
                                         onTabChange
                                     }: Props) {
+    const { t: tx } = useUiTranslation();
+
     return (
         <Container>
             {tabs.map((tab) => (
@@ -69,7 +72,7 @@ export default function ProjectTabs({
                     aria-current={tab.key === activeTab ? 'page' : undefined}
                     onClick={() => onTabChange(tab.key)}
                 >
-                    {tab.label}
+                    {tx(tab.label)}
                 </Tab>
             ))}
         </Container>

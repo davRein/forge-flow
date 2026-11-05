@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../../../hooks/languageContext';
 import { useState } from 'react';
 import styled from 'styled-components';
 import { DndContext, DragEndEvent } from '@dnd-kit/core';
@@ -76,6 +77,8 @@ export default function TaskBoard({
                                       onOpenTask,
                                       onUpdateTaskStatus
                                   }: Props) {
+    const { t: tx } = useUiTranslation();
+
 
     const [searchTerm, setSearchTerm] =
         useState('');
@@ -147,7 +150,7 @@ export default function TaskBoard({
                             event.target.value
                         )
                     }
-                    placeholder="Board durchsuchen..."
+                    placeholder={tx('Board durchsuchen...')}
                 />
 
                 <Select
@@ -160,15 +163,14 @@ export default function TaskBoard({
                 >
 
                     <option value="all">
-                        Alle Prioritäten
-                    </option>
+                        {tx('Alle Prioritäten')}</option>
 
                     {Object.values(taskPriorities).map((priority) => (
                         <option
                             key={priority.key}
                             value={priority.key}
                         >
-                            {priority.label}
+                            {tx(priority.label)}
                         </option>
                     ))}
 
@@ -195,7 +197,7 @@ export default function TaskBoard({
                             return (
                                 <TaskColumn
                                     key={column.key}
-                                    title={column.label}
+                                    title={tx(column.label)}
                                     status={column.key as TaskStatusKey}
                                     tasks={columnTasks}
                                     onDeleteTask={onDeleteTask}

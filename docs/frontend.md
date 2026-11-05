@@ -1,5 +1,24 @@
 # Frontend-Funktionen
 
+Unter „Globale Einstellungen → Optik“ stehen Hell, Dunkel, Aurora, Dune sowie
+Forest (Salbei/Waldgrün), Ink (Nachttinte/Lavendel) und Rose (Rosé/Bordeaux) bereit.
+Knowledge Hub und FlowPilot übernehmen die Palette sofort einschließlich Formularen,
+Flächen, Statusfarben und Workflow-Editor. Offene Entwürfe bleiben beim Wechsel erhalten.
+
+Die Sprachwahl unter „Globale Einstellungen → Sprache“ gilt für die gesamte Oberfläche:
+Seitenmenüs, Bereichsnavigation, Projektformulare und Statusanzeigen sowie Knowledge Hub
+und FlowPilot. Datums-, Uhrzeit- und Größenangaben folgen Deutsch bzw. Englisch.
+Die Zusatz-Apps übernehmen die Suite-Sprache sofort ohne Neuladen; standalone haben sie
+eine eigene gespeicherte Sprachwahl. Eigene Texte, Dateinamen und offene Entwürfe bleiben
+beim Sprachwechsel erhalten.
+
+AI Knowledge Hub und FlowPilot sind in die gemeinsame Modul- und Bereichsnavigation
+eingebettet. Eigene App-Seitenleisten/Kopfzeilen verschwinden nur im bestätigten Suite-Modus;
+Standalone behalten beide die bisherige Navigation. Modulwechsel erhalten die Frames und
+Entwürfe, FlowPilots Entwurfswarnung schützt auch vor Wechseln über die Suite-Tabs.
+Der lokale Frontend-Start startet die vier Zusatzdienste automatisch im Fake-/Mock-Modus.
+[Betrieb, Datenbereiche und Konfiguration](local-operation.md#integrierte-apps-und-standalone-betrieb).
+
 Die App Cloud öffnet die separate Nextcloud-Installation über einen konfigurierbaren
 HTTPS-Link in einem neuen Tab. Anmeldung und Dateifreigaben bleiben in Nextcloud;
 kein automatisches SSO oder Übertragen von ForgeFlow-Konten. [Einrichtung](nextcloud.md).
@@ -232,3 +251,20 @@ Laufende Chats können gelesen werden; bis zum Ende und manuellen Nachladen blei
 Nachrichten/Freigaben gesperrt. Unterbrochene Läufe werden nicht automatisch fortgesetzt,
 alte Aktionskarten niemals automatisch ausgeführt. Es werden keine Chatdaten im Local Storage
 oder Session Storage abgelegt. Vor dem M8-Update flüchtige Chats werden nicht importiert.
+# Global settings, developer tools and test access
+
+Suite settings now open through the small header gear beside global search at
+`#/settings/general`; all existing categories remain. Project Manager no longer has a suite
+Settings tab. Legacy settings links redirect to the global route. **Git** appears directly
+below Project Manager in the workspace sidebar. Dev Tools adds **Snippeter** and **DB Scripter**.
+
+Snippeter supports private saved code, selectable language, lexical syntax preview and explicit
+AI generation. DB Scripter supports private PostgreSQL connections, saved/generated SQL and a
+separate immutable confirmation before execution. Git provides token-based repository listing,
+pagination and confirmed private clones on the server. Open editors and token/connection drafts
+use the existing unsaved-changes guard. DE/EN labels are included.
+
+The login page also offers an empty private test account for six hours. The header shows the
+deadline; the server rejects access at expiry and purges owned data. These accounts cannot
+create additional users or connect DB/GitHub credentials. [Usage, setup, limits and manual
+checks](developer-tools.md).

@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../hooks/languageContext';
 import TaskBoard from './tasks/components/TaskBoard';
 import { useState } from 'react';
 import TaskDrawer from './tasks/components/TaskDrawer';
@@ -22,6 +23,8 @@ export default function BoardTab({
                                      epics,
                                      sprints
                                  }: Props) {
+    const { t: tx } = useUiTranslation();
+
     const [filter, setFilter] = useState('all');
     const openSprints = sprints.filter((sprint) => sprint.status !== 'completed');
     const boardTasks = taskState.projectTasks.filter((task) => {
@@ -33,11 +36,10 @@ export default function BoardTab({
     return (
         <>
             <Field style={{ marginBottom: 16 }}>
-                Sprint im Board
-                <Select value={filter} onChange={(event) => setFilter(event.target.value)}>
-                    <option value="all">Alle Aufgaben</option>
-                    <option value="backlog">Backlog</option>
-                    {openSprints.map((sprint) => <option key={sprint.id} value={sprint.id}>{sprint.title}{sprint.status === 'active' ? ' (Aktiv)' : ''}</option>)}
+                {tx('Sprint im Board')}<Select value={filter} onChange={(event) => setFilter(event.target.value)}>
+                    <option value="all">{tx('Alle Aufgaben')}</option>
+                    <option value="backlog">{tx('Backlog')}</option>
+                    {openSprints.map((sprint) => <option key={sprint.id} value={sprint.id}>{sprint.title}{sprint.status === 'active' ? tx(' (Aktiv)') : ''}</option>)}
                 </Select>
             </Field>
             <TaskEditor taskState={taskState} epics={epics} />

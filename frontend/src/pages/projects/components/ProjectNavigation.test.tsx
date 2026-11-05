@@ -17,6 +17,8 @@ import { createAuthStore } from '../../../services/auth/authStore';
 import { createWorkspaceStore } from '../../../services/workspace/workspaceStore';
 import { emptyWorkspace } from '../../../services/workspace/workspaceSchema';
 import ProjectsPage from '../ProjectsPage';
+import SettingsPage from './SettingsPage';
+import Header from '../../../components/layout/Header';
 
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 const text = (node: ReactTestInstance): string => node.children.map(child => typeof child === 'string' ? child : text(child)).join('');
@@ -31,14 +33,14 @@ async function fixture(route = '/projectManager/dashboard') {
     function Host() {
         const location = useLocation(); url = location.pathname + location.search;
         const [settings, setSettings] = useState({ ...defaultSettings, language: 'en' as const });
-        return <><Topbar moduleKey="projectManager" items={modules[0].topbarItems} /><ProjectsPage section={location.pathname.split('/')[2]} settings={settings} onSettingsChange={next => setSettings({ ...next, language: 'en' })} onSettingsReset={() => {}} settingsStatus="ready" settingsError={null} settingsPersistence="session" onSettingsRetry={() => {}} /></>;
+        return <><Header /><Topbar moduleKey={location.pathname.startsWith('/settings/') ? 'settings' : 'projectManager'} items={location.pathname.startsWith('/settings/') ? modules.find(item => item.key === 'settings')!.topbarItems : modules[0].topbarItems} />{location.pathname.startsWith('/settings/') ? <SettingsPage settings={settings} onChange={next => setSettings({ ...next, language: 'en' })} onReset={() => {}} status="ready" error={null} persistence="session" onRetry={() => {}} /> : <ProjectsPage section={location.pathname.split('/')[2]} settings={settings} onSettingsChange={next => setSettings({ ...next, language: 'en' })} onSettingsReset={() => {}} settingsStatus="ready" settingsError={null} settingsPersistence="session" onSettingsRetry={() => {}} />}</>;
     }
     let renderer!: ReactTestRenderer;
     await act(async () => { renderer = create(<ThemeProvider theme={darkTheme}><LanguageContext.Provider value="en"><AuthContext.Provider value={auth}><MemoryRouter initialEntries={[route]}><NavigationGuardProvider><WorkspaceContext.Provider value={workspace}><Host /></WorkspaceContext.Provider></NavigationGuardProvider></MemoryRouter></AuthContext.Provider></LanguageContext.Provider></ThemeProvider>, { createNodeMock() { return { showModal() {}, close() {}, focus() {} }; } }); });
     const nodes = (type: ElementType) => renderer.root.findAllByType(type).filter(visible);
     return { get root() { return renderer.root; }, get url() { return url; }, nodes, workspace,
         async tab(label: string) {
-            const link = nodes('a').find(node => text(node) === label); assert(link, `Missing navigation ${label}`);
+            const link = nodes('a').find(node => node.props['aria-label'] === label || text(node) === label); assert(link, `Missing navigation ${label}`);
             const event = { button: 0, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, metaKey: false, altKey: false, ctrlKey: false, shiftKey: false };
             await act(async () => { link.props.onClick(event); });
         },
@@ -69,7 +71,7 @@ export const projectNavigationTests = [
             await ui.tab('Projects'); assert(String(ui.url) === '/projectManager/projects' && !ui.nodes('h2').some(node => text(node) === 'Alpha'), 'Active Projects click must reset to list');
             await ui.click('Alpha'); await ui.tab('Dashboard'); await ui.tab('Projects'); assert(String(ui.url) === '/projectManager/projects', 'Returning must not restore old details');
             await ui.tab('Customers'); await ui.click('Acme'); assert(String(ui.url).includes('customer=1'), 'Customer detail route missing'); await ui.tab('Customers'); assert(String(ui.url) === '/projectManager/customers', 'Customers must reset detail selection');
-            await ui.tab('Settings'); await ui.tab('Language'); assert(String(ui.url).includes('category=language'), 'Settings category missing'); await ui.tab('Settings'); assert(String(ui.url) === '/projectManager/settings', 'Settings main tab must reset category');
+            await ui.tab('Global settings'); await ui.tab('Language'); assert(String(ui.url).includes('category=language'), 'Settings category missing'); await ui.tab('Global settings'); assert(String(ui.url) === '/settings/general', 'Global gear must reset category');
         } finally { await ui.close(); }
     } },
     { name: 'Changed project forms prompt before tab navigation; stay preserves inputs and discard removes the draft', async run() {
@@ -87,7 +89,7 @@ export const projectNavigationTests = [
             await ui.click('Edit company details'); await ui.change(ui.nodes('dialog')[0].findAllByType('input')[0], 'Unsaved customer');
             await ui.tab('Projects'); await ui.click('Stay on this page'); assert(String(ui.url).includes('customer=1'), 'Stay must retain customer route');
             await ui.tab('Projects'); await ui.click('Discard changes and continue'); assert(ui.workspace.getSnapshot().data!.customers[0].name === 'Acme', 'Discard must not save the customer');
-            await ui.tab('Settings'); await ui.tab('User management');
+            await ui.tab('Global settings'); await ui.tab('User management');
             const profile = ui.nodes('form').find(node => node.props['aria-label'] === 'My profile')!; assert(profile, 'Profile missing'); await ui.change(profile.findAllByType('input')[0], 'Unsaved profile');
             await ui.tab('Appearance'); await ui.click('Stay on this page'); assert(String(ui.url).includes('category=users'), 'Settings category change must be guarded');
             await ui.tab('Appearance'); await ui.click('Discard changes and continue'); await ui.tab('User management');

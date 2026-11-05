@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../../../hooks/languageContext';
 import { useState } from 'react';
 import styled from 'styled-components';
 import { getBadgeTextColor } from '../../../../../styles/colorUtils';
@@ -172,6 +173,8 @@ export default function TaskList({
                                      onDeleteTask,
                                      onEditTask
                                  }: Props) {
+    const { t: tx } = useUiTranslation();
+
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
     const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
@@ -221,8 +224,7 @@ export default function TaskList({
     if (tasks.length === 0) {
         return (
             <EmptyText>
-                Für dieses Projekt gibt es noch keine Tasks.
-            </EmptyText>
+                {tx('Für dieses Projekt gibt es noch keine Tasks.')}</EmptyText>
         );
     }
 
@@ -232,7 +234,7 @@ export default function TaskList({
                 <Input
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder="Tasks suchen..."
+                    placeholder={tx('Tasks suchen...')}
                 />
 
                 <Filters>
@@ -242,11 +244,11 @@ export default function TaskList({
                             setStatusFilter(event.target.value as StatusFilter)
                         }
                     >
-                        <option value="all">Alle Status</option>
+                        <option value="all">{tx('Alle Status')}</option>
 
                         {Object.values(taskStatuses).map((status) => (
                             <option key={status.key} value={status.key}>
-                                {status.label}
+                                {tx(status.label)}
                             </option>
                         ))}
                     </Select>
@@ -257,11 +259,11 @@ export default function TaskList({
                             setPriorityFilter(event.target.value as PriorityFilter)
                         }
                     >
-                        <option value="all">Alle Prioritäten</option>
+                        <option value="all">{tx('Alle Prioritäten')}</option>
 
                         {Object.values(taskPriorities).map((priority) => (
                             <option key={priority.key} value={priority.key}>
-                                {priority.label}
+                                {tx(priority.label)}
                             </option>
                         ))}
                     </Select>
@@ -272,25 +274,24 @@ export default function TaskList({
                             setSortMode(event.target.value as SortMode)
                         }
                     >
-                        <option value="updated">Aktualisiert</option>
-                        <option value="priority">Priorität</option>
-                        <option value="status">Status</option>
+                        <option value="updated">{tx('Aktualisiert')}</option>
+                        <option value="priority">{tx('Priorität')}</option>
+                        <option value="status">{tx('Status')}</option>
                     </Select>
                 </Filters>
             </Toolbar>
 
             {sortedTasks.length === 0 ? (
                 <EmptyText>
-                    Keine Tasks passen zu den aktuellen Filtern.
-                </EmptyText>
+                    {tx('Keine Tasks passen zu den aktuellen Filtern.')}</EmptyText>
             ) : (
                 <Table>
                     <Header>
-                        <span>Task</span>
-                        <span>Status</span>
-                        <span>Priorität</span>
-                        <span>Aktualisiert</span>
-                        <span>Aktionen</span>
+                        <span>{tx('Task')}</span>
+                        <span>{tx('Status')}</span>
+                        <span>{tx('Priorität')}</span>
+                        <span>{tx('Aktualisiert')}</span>
+                        <span>{tx('Aktionen')}</span>
                     </Header>
 
                     {sortedTasks.map((task) => {
@@ -309,8 +310,8 @@ export default function TaskList({
                                         {task.title}
                                     </TaskTitle>
 
-                                    <Description>Epic: {epics.find((epic) => epic.id === task.epicId)?.title ?? 'Kein Epic'}</Description>
-                                    <Description>Sprint: {sprints.find((sprint) => sprint.status !== 'completed' && sprint.taskIds.includes(task.id))?.title ?? 'Kein Sprint'}</Description>
+                                    <Description>{tx('Epic: ')}{epics.find((epic) => epic.id === task.epicId)?.title ?? tx('Kein Epic')}</Description>
+                                    <Description>{tx('Sprint: ')}{sprints.find((sprint) => sprint.status !== 'completed' && sprint.taskIds.includes(task.id))?.title ?? tx('Kein Sprint')}</Description>
 
                                     {task.description && (
                                         <Description>
@@ -321,11 +322,11 @@ export default function TaskList({
                                 </TitleCell>
 
                                 <Badge $color={taskStatus.color}>
-                                    {taskStatus.label}
+                                    {tx(taskStatus.label)}
                                 </Badge>
 
                                 <Badge $color={taskPriority.color}>
-                                    {taskPriority.label}
+                                    {tx(taskPriority.label)}
                                 </Badge>
 
                                 <span>{task.updatedAt}</span>

@@ -128,6 +128,18 @@ Die Secret-Dateien sind im rootgeschützten Verzeichnis `/opt/forgeflow-nextclou
 Einzelne Dateien sind für die Container-UIDs lesbar gemountet; auf dem Host verhindern die
 0700-Elternverzeichnisse Zugriff anderer Benutzer. Dateien nicht ins Repository übertragen.
 
+Ein bestehendes Nextcloud-Passwort lässt sich auf Ubuntu interaktiv zurücksetzen:
+
+```bash
+sudo docker compose --project-directory /opt/forgeflow-nextcloud \
+  --project-name forgeflow-nextcloud exec --user www-data \
+  app php occ user:resetpassword forgeflow-admin
+```
+
+Das neue Passwort zweimal eingeben. Das alte wird nicht benötigt; das initiale Passwortfile
+wird dadurch nicht geändert. Der Befehl setzt eine laufende, fertig initialisierte Nextcloud
+voraus. [Nextcloud-Anleitung](https://docs.nextcloud.com/server/stable/admin_manual/configuration_user/reset_admin_password.html).
+
 Kontrolle auf Ubuntu:
 
 ```bash

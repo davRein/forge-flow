@@ -1,4 +1,5 @@
-﻿import { useState } from 'react';
+import { useTranslation as useUiTranslation } from '../../hooks/languageContext';
+import { useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useNavigationGuard, useUnsavedChanges } from '../../hooks/navigationGuard';
@@ -16,7 +17,6 @@ import CustomerDetails from './components/CustomerDetails';
 import CustomerDetailDialogs from './components/CustomerDetailDialogs';
 import { useCustomerDetails } from './hooks/useCustomerDetails';
 import Dialog from './components/Dialog';
-import SettingsPage from './components/SettingsPage';
 import { useSettingsText } from '../../hooks/languageContext';
 import { useChatProjectSelection } from '../../hooks/chatPageContext';
 import { useChatNavigationBlocker, useChatNavigator } from '../../hooks/chatNavigationContext';
@@ -47,9 +47,10 @@ type Props = {
 };
 
 export default function ProjectsPage({
-    section = 'dashboard', active = true, settings, onSettingsChange, onSettingsReset,
-    settingsStatus, settingsError, settingsPersistence, onSettingsRetry
+    section = 'dashboard', active = true, settings, settingsStatus
 }: Props) {
+    const { t: tx } = useUiTranslation();
+
     const t = useSettingsText();
     const state = useProjects();
     const details = useCustomerDetails();
@@ -146,8 +147,8 @@ export default function ProjectsPage({
         <Container $compact={isProjectSection && !showDetails || section === 'customers' && !customerParam}>
             <HeaderRow>
                 <Title lang={section === 'settings' ? settings.language : undefined}>{title}</Title>
-                {section === 'customers' && !customerParam && <PrimaryButton onClick={() => state.openCustomerEditor()}>+ Kunde anlegen</PrimaryButton>}
-                {showDetails && <SecondaryButton onClick={() => guard.request(() => navigate('/projectManager/projects', { state: { projectOverview: true } }))}>← Zurück zur Übersicht</SecondaryButton>}
+                {section === 'customers' && !customerParam && <PrimaryButton onClick={() => state.openCustomerEditor()}>{tx('+ Kunde anlegen')}</PrimaryButton>}
+                {showDetails && <SecondaryButton onClick={() => guard.request(() => navigate('/projectManager/projects', { state: { projectOverview: true } }))}>{tx('← Zurück zur Übersicht')}</SecondaryButton>}
             </HeaderRow>
             {active && section === 'today' && <PersonalOverview />}
             {active && section === 'dashboard' && <PersonalOverview compact />}
@@ -194,11 +195,6 @@ export default function ProjectsPage({
                 onRemoveContact={contact => setDeleteTarget({ kind: 'contact', id: contact.id, customerId: selectedCustomer.id, name: contact.name })}
                 onEditNotes={() => details.openNotes(selectedCustomer.id)} /> : <FormCard><p>{t('Kunde nicht gefunden.')}</p><SecondaryButton onClick={() => showCustomer(null)}>{t('← Zurück zu den Kunden')}</SecondaryButton></FormCard>)}
 
-            {section === 'settings' && <SettingsPage
-                settings={settings} onChange={onSettingsChange} onReset={onSettingsReset}
-                status={settingsStatus} error={settingsError} persistence={settingsPersistence} onRetry={onSettingsRetry}
-            />}
-
             {showDetails && selectedProject && (
                 <ProjectDetails
                     project={selectedProject}
@@ -228,7 +224,7 @@ export default function ProjectsPage({
             {deleteTarget && (
                 <Dialog title={t(deleteTarget.kind === 'project' ? 'Projekt löschen?' : deleteTarget.kind === 'contact' ? 'Ansprechpartner entfernen?' : 'Kunde löschen?')} onClose={() => setDeleteTarget(null)}>
                     <p>{t('„{name}“ wirklich löschen?', { name: deleteTarget.name })}</p>
-                    {deleteTarget.kind === 'project' && <p>Alle zugehörigen Aufgaben, Epics, Sprints, Dateien und Aktivitäten werden ebenfalls entfernt.</p>}
+                    {deleteTarget.kind === 'project' && <p>{tx('Alle zugehörigen Aufgaben, Epics, Sprints, Dateien und Aktivitäten werden ebenfalls entfernt.')}</p>}
                     {deleteTarget.kind === 'customer' && <p>{t('Zugehörige Ansprechpartner und Notizen werden ebenfalls entfernt.')}</p>}
                     <FormActions>
                         <SecondaryButton autoFocus onClick={() => setDeleteTarget(null)}>{t('Abbrechen')}</SecondaryButton>

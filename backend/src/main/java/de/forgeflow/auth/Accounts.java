@@ -4,7 +4,11 @@ import java.util.Optional;
 import java.util.List;
 
 public interface Accounts {
-    record User(String id, String email, String name, String passwordHash, boolean administrator, boolean active, long sessionVersion, boolean portalOnly) {
+    record User(String id, String email, String name, String passwordHash, boolean administrator, boolean active, long sessionVersion, boolean portalOnly, java.time.Instant expiresAt) {
+        public User(String id, String email, String name, String passwordHash, boolean administrator, boolean active, long sessionVersion, boolean portalOnly) {
+            this(id, email, name, passwordHash, administrator, active, sessionVersion, portalOnly, null);
+        }
+        @Override public boolean active() { return active && (expiresAt == null || expiresAt.isAfter(java.time.Instant.now())); }
         public User(String id, String email, String name, String passwordHash, boolean administrator, boolean active, long sessionVersion) {
             this(id, email, name, passwordHash, administrator, active, sessionVersion, false);
         }
@@ -18,4 +22,5 @@ public interface Accounts {
     List<User> list();
     User insert(User user);
     User replace(User user, long expectedSessionVersion);
+    default boolean deleteExpired(String id) { return false; }
 }

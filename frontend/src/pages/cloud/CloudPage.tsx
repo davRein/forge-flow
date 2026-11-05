@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../hooks/languageContext';
 import styled from 'styled-components';
 import { useTranslation } from '../../hooks/languageContext';
 import { surface } from '../../styles/primitives';
@@ -22,10 +23,12 @@ const OpenLink = styled.a`
 `;
 
 export default function CloudPage() {
+    const { t: tx } = useUiTranslation();
+
     const { t, language } = useTranslation();
     const url = nextcloudUrl(import.meta.env.VITE_NEXTCLOUD_URL);
     return <Page lang={language}><h1>{t('Cloud')}</h1><p>{t('Dateien zentral ablegen, Ordner teilen und gemeinsam organisieren.')}</p>
-        <Card><h2>Nextcloud</h2><p>{t('Dein gemeinsamer Dateibereich mit Uploads, Freigaben und Versionsverlauf.')}</p>
+        <Card><h2>{tx('Nextcloud')}</h2><p>{t('Dein gemeinsamer Dateibereich mit Uploads, Freigaben und Versionsverlauf.')}</p>
             {url ? <><OpenLink href={url} target="_blank" rel="noopener noreferrer">{t('Nextcloud öffnen')}<span aria-hidden="true">↗</span></OpenLink><small>{url} · {t('Öffnet in einem neuen Tab')}</small></>
                 : <p role="alert">{t('Der Cloud-Zugang ist noch nicht konfiguriert. Bitte die Administration kontaktieren.')}</p>}
             <p>{t('Melde dich mit deinem Nextcloud-Konto an. ForgeFlow- und Portal-Konten werden nicht automatisch übertragen.')}</p>

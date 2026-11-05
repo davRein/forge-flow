@@ -17,6 +17,16 @@ import static org.assertj.core.api.Assertions.*;
 import static de.forgeflow.ai.AiTestSupport.*;
 
 class OpenAiModelGatewayTest {
+    @Test void codeGenerationHasNoToolsAndOnlyExplicitInstructions(){
+        var captured=new AtomicReference<Prompt>();var gateway=new OpenAiModelGateway(prompt->{captured.set(prompt);return response("SELECT 1;","stop");});
+        assertThat(gateway.generateCode("sql","A harmless SELECT").text()).isEqualTo("SELECT 1;");
+        assertThat(captured.get().getInstructions()).hasSize(2);
+        assertThat(captured.get().getInstructions().getFirst().getText()).contains("sql");
+        assertThat(captured.get().getInstructions().getLast().getText()).isEqualTo("A harmless SELECT");
+        assertThat(captured.get().getOptions()).isInstanceOf(org.springframework.ai.openai.OpenAiChatOptions.class);
+        var options=(org.springframework.ai.openai.OpenAiChatOptions)captured.get().getOptions();
+        assertThat(options.getToolCallbacks()).isNullOrEmpty();assertThat(options.getToolChoice()).isNull();
+    }
     @Test void currentPageMetadataRemainsUserDataAndSupersedesHistoricalProjectContext() {
         var captured = new AtomicReference<Prompt>();
         var model = org.mockito.Mockito.mock(ChatModel.class);

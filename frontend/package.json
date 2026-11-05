@@ -19,6 +19,7 @@
   "devDependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@eslint/js": "^9.13.0",
+    "@types/node": "^22.20.5",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/react-test-renderer": "18.3.1",

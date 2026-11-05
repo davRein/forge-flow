@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../hooks/languageContext';
 import { useId, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { useWorkspacePersistence } from '../../../hooks/workspaceContext';
@@ -81,6 +82,8 @@ type Props = { fileState: ReturnType<typeof useProjectFiles> };
 type SortMode = 'newest' | 'name' | 'size';
 
 export default function FilesTab({ fileState }: Props) {
+    const { t: tx, locale: uiLocale } = useUiTranslation();
+
     const input = useRef<HTMLInputElement>(null);
     const dragDepth = useRef(0);
     const noteId = useId();
@@ -114,16 +117,16 @@ export default function FilesTab({ fileState }: Props) {
     }
 
     return (
-        <section aria-label="Projektdateien">
+        <section aria-label={tx('Projektdateien')}>
             <Toolbar>
-                <div><h3>Dateien</h3><p>{fileState.projectFiles.length} Dateien · {formatFileSize(totalBytes)}</p></div>
-                <PrimaryButton onClick={() => input.current?.click()}>+ Dateien hinzufügen</PrimaryButton>
+                <div><h3>{tx('Dateien')}</h3><p>{fileState.projectFiles.length} {tx(' Dateien · ')}{formatFileSize(totalBytes, uiLocale)}</p></div>
+                <PrimaryButton onClick={() => input.current?.click()}>{tx('+ Dateien hinzufügen')}</PrimaryButton>
             </Toolbar>
             <input ref={input} type="file" multiple hidden onChange={(event) => {
                 addFiles(Array.from(event.currentTarget.files ?? []));
                 event.currentTarget.value = '';
             }} />
-            <DropZone $dragging={dragging} aria-label="Dateien hinzufügen" aria-describedby={noteId}
+            <DropZone $dragging={dragging} aria-label={tx('Dateien hinzufügen')} aria-describedby={noteId}
                 onDragEnter={(event) => {
                     event.preventDefault();
                     if (!Array.from(event.dataTransfer.types).includes('Files')) return;
@@ -142,50 +145,50 @@ export default function FilesTab({ fileState }: Props) {
                     setDragging(false);
                     addFiles(Array.from(event.dataTransfer.files));
                 }}>
-                <h4>{dragging ? 'Dateien hier loslassen' : 'Dateien hier ablegen'}</h4>
-                <SecondaryButton onClick={() => input.current?.click()}>Dateien auswählen</SecondaryButton>
-                <p id={noteId}>{persistence === 'session' ? 'Dateien sind nur in dieser Sitzung verfügbar. Beim Neuladen gehen die hinzugefügten Dateien verloren.'
-                    : 'Dateien werden mit deinem Konto synchronisiert. Beachte den Speicherstatus und mögliche Upload-Fehler.'}</p>
+                <h4>{dragging ? tx('Dateien hier loslassen') : tx('Dateien hier ablegen')}</h4>
+                <SecondaryButton onClick={() => input.current?.click()}>{tx('Dateien auswählen')}</SecondaryButton>
+                <p id={noteId}>{persistence === 'session' ? tx('Dateien sind nur in dieser Sitzung verfügbar. Beim Neuladen gehen die hinzugefügten Dateien verloren.')
+                    : tx('Dateien werden mit deinem Konto synchronisiert. Beachte den Speicherstatus und mögliche Upload-Fehler.')}</p>
             </DropZone>
             <Notice role="status" aria-live="polite">
-                {message && <p>{message}</p>}
-                {rejected.length > 0 && <><p>{rejected.length} Dateien wurden übersprungen:</p>
-                    <ul>{rejected.map((item, index) => <li key={`${item.name}-${index}`}>{item.name}: {item.reason}</li>)}</ul>
+                {message && <p>{tx(message)}</p>}
+                {rejected.length > 0 && <><p>{rejected.length} {tx(' Dateien wurden übersprungen:')}</p>
+                    <ul>{rejected.map((item, index) => <li key={`${item.name}-${index}`}>{item.name}: {tx(item.reason)}</li>)}</ul>
                 </>}
             </Notice>
-            {error && <ErrorText role="alert">{error}</ErrorText>}
+            {error && <ErrorText role="alert">{tx(error)}</ErrorText>}
             <Filters>
-                <Field>Dateien suchen<Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Dateiname oder Dateityp" /></Field>
-                <Field>Dateityp<Select value={category} onChange={(event) => setCategory(event.target.value as 'all' | FileCategory)}>
-                    <option value="all">Alle Dateitypen</option>
-                    {Object.entries(categoryLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                <Field>{tx('Dateien suchen')}<Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tx('Dateiname oder Dateityp')} /></Field>
+                <Field>{tx('Dateityp')}<Select value={category} onChange={(event) => setCategory(event.target.value as 'all' | FileCategory)}>
+                    <option value="all">{tx('Alle Dateitypen')}</option>
+                    {Object.entries(categoryLabels).map(([key, label]) => <option key={key} value={key}>{tx(label)}</option>)}
                 </Select></Field>
-                <Field>Sortierung<Select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)}>
-                    <option value="newest">Zuletzt hinzugefügt</option>
-                    <option value="name">Dateiname A–Z</option>
-                    <option value="size">Größte zuerst</option>
+                <Field>{tx('Sortierung')}<Select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)}>
+                    <option value="newest">{tx('Zuletzt hinzugefügt')}</option>
+                    <option value="name">{tx('Dateiname A–Z')}</option>
+                    <option value="size">{tx('Größte zuerst')}</option>
                 </Select></Field>
             </Filters>
-            <p aria-live="polite">{filtered.length} von {fileState.projectFiles.length} Dateien</p>
+            <p aria-live="polite">{filtered.length} {tx(' von ')}{fileState.projectFiles.length} {tx(' Dateien')}</p>
             {filtered.length === 0 ? <FormCard style={{ marginTop: 12 }}>{fileState.projectFiles.length === 0
-                ? 'Noch keine Dateien vorhanden. Füge die ersten Projektdateien hinzu.'
-                : 'Keine Dateien passen zur Suche und zum gewählten Dateityp.'}</FormCard> : (
+                ? tx('Noch keine Dateien vorhanden. Füge die ersten Projektdateien hinzu.')
+                : tx('Keine Dateien passen zur Suche und zum gewählten Dateityp.')}</FormCard> : (
                 <TableWrapper>
-                    <Table aria-label="Dateiliste">
-                        <thead><tr><th scope="col">Dateiname</th><th scope="col">Typ & Größe</th><th scope="col">Hinzugefügt</th><th scope="col">Aktionen</th></tr></thead>
+                    <Table aria-label={tx('Dateiliste')}>
+                        <thead><tr><th scope="col">{tx('Dateiname')}</th><th scope="col">{tx('Typ & Größe')}</th><th scope="col">{tx('Hinzugefügt')}</th><th scope="col">{tx('Aktionen')}</th></tr></thead>
                         <tbody>{filtered.map((file) => (
                             <tr key={file.id}>
-                                <td><strong>{file.name}</strong><small>{file.content.type || 'Dateityp nicht angegeben'}</small></td>
-                                <td>{categoryLabels[getFileCategory(file)]}<small>{formatFileSize(file.content.size)}</small></td>
-                                <td><time dateTime={file.addedAt}>{new Date(file.addedAt).toLocaleDateString('de-DE')}</time></td>
+                                <td><strong>{file.name}</strong><small>{file.content.type || tx('Dateityp nicht angegeben')}</small></td>
+                                <td>{tx(categoryLabels[getFileCategory(file)])}<small>{formatFileSize(file.content.size, uiLocale)}</small></td>
+                                <td><time dateTime={file.addedAt}>{new Date(file.addedAt).toLocaleDateString(uiLocale)}</time></td>
                                 <td><Actions>
-                                    <SecondaryButton aria-label={`${file.name} herunterladen`} onClick={() => {
+                                    <SecondaryButton aria-label={tx('{value0} herunterladen', { value0: file.name })} onClick={() => {
                                         const failure = fileState.downloadFile(file.id);
                                         setError(failure ?? '');
                                         if (!failure) setMessage(`Download für „${file.name}“ gestartet.`);
-                                    }}>Herunterladen</SecondaryButton>
-                                    <SecondaryButton aria-label={`${file.name} umbenennen`} onClick={() => { setError(''); setRenameTarget(file); }}>Umbenennen</SecondaryButton>
-                                    <DangerButton aria-label={`${file.name} entfernen`} onClick={() => { setError(''); setDeleteTarget(file); }}>Entfernen</DangerButton>
+                                    }}>{tx('Herunterladen')}</SecondaryButton>
+                                    <SecondaryButton aria-label={tx('{value0} umbenennen', { value0: file.name })} onClick={() => { setError(''); setRenameTarget(file); }}>{tx('Umbenennen')}</SecondaryButton>
+                                    <DangerButton aria-label={tx('{value0} entfernen', { value0: file.name })} onClick={() => { setError(''); setDeleteTarget(file); }}>{tx('Entfernen')}</DangerButton>
                                 </Actions></td>
                             </tr>
                         ))}</tbody>
@@ -197,16 +200,16 @@ export default function FilesTab({ fileState }: Props) {
                 if (!failure) { setMessage('Dateiname gespeichert.'); setQuery(''); }
                 return failure;
             }} onClose={() => setRenameTarget(null)} />}
-            {deleteTarget && <Dialog title="Datei aus Projekt entfernen?" onClose={() => setDeleteTarget(null)}>
-                <p style={{ overflowWrap: 'anywhere' }}>„{deleteTarget.name}“ aus diesem Projekt entfernen? Die Originaldatei auf deinem Gerät bleibt erhalten.</p>
+            {deleteTarget && <Dialog title={tx('Datei aus Projekt entfernen?')} onClose={() => setDeleteTarget(null)}>
+                <p style={{ overflowWrap: 'anywhere' }}>„{deleteTarget.name}{tx('“ aus diesem Projekt entfernen? Die Originaldatei auf deinem Gerät bleibt erhalten.')}</p>
                 <FormActions>
-                    <SecondaryButton autoFocus onClick={() => setDeleteTarget(null)}>Abbrechen</SecondaryButton>
+                    <SecondaryButton autoFocus onClick={() => setDeleteTarget(null)}>{tx('Abbrechen')}</SecondaryButton>
                     <DangerButton onClick={() => {
                         const failure = fileState.removeFile(deleteTarget.id);
                         setError(failure ?? '');
                         if (!failure) setMessage(`Datei „${deleteTarget.name}“ entfernt.`);
                         setDeleteTarget(null);
-                    }}>Datei entfernen</DangerButton>
+                    }}>{tx('Datei entfernen')}</DangerButton>
                 </FormActions>
             </Dialog>}
         </section>

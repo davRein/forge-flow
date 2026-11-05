@@ -3,6 +3,15 @@ import { translate } from './translate.js';
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 
 export const translationTests = [
+    { name: 'Suite-Menüs, Projektstatus und Systemmeldungen folgen der Sprache und erhalten eigene Inhalte', run() {
+        for (const [source, expected] of [['Project Manager', 'Projektverwaltung'], ['Dev Tools', 'Entwicklerwerkzeuge'], ['TimeTracker', 'Zeiterfassung'], ['Workflows', 'Arbeitsabläufe'], ['JSON Formatter', 'JSON-Formatierer'], ['Todo', 'Offen'], ['In Progress', 'In Bearbeitung']] as const)
+            assert(translate(source, 'de') === expected, `Deutscher Begriff fehlt: ${source}`);
+        assert(translate('Dateien', 'en') === 'Files', 'Projektdateien müssen übersetzt werden');
+        assert(translate('2 Dateien hinzugefügt.', 'en') === '2 files added.', 'Dynamische Dateimeldung fehlt');
+        assert(translate('Epic „Dateien {count}“ wurde erstellt', 'en') === 'Epic “Dateien {count}” was created', 'Eigener Titel darf nicht übersetzt oder neu ausgewertet werden');
+        for (const language of ['de', 'en'] as const) for (const key of ['constructor', 'toString', '__proto__'])
+            assert(translate(key, language) === key, 'Geerbte Wörterbucheigenschaften müssen ignoriert werden');
+    } },
     { name: 'Chat-Oberfläche sowie Anbieter-, Limit- und Abbruchdiagnosen werden übersetzt', run() {
         for (const key of ['KI-Assistent öffnen', 'Antwort wird erstellt …', 'Antwort abgebrochen. Teilantworten wurden verworfen.',
             'Zu viele Versuche. Bitte später erneut versuchen.', 'Das API-Guthaben oder Nutzungskontingent bei OpenAI reicht nicht aus. Bitte Abrechnung und Limits prüfen.']) {

@@ -1,5 +1,12 @@
 # Browserprüfung des lokalen PostgreSQL-Betriebs
 
+## Globale Einstellungen und Entwicklerwerkzeuge (V14)
+
+Die Browserabnahme der neuen globalen Einstellungen, Testkonto-Anlage, Snippeter-/SQL-Editoren
+und Git-Anbindung ist noch offen. In der Implementierungsumgebung war kein Browser angebunden.
+Die automatisierten Komponenten-/API-/PostgreSQL-Tests ersetzen keine Sichtprüfung. Schritte:
+[Manuelle V14-Prüfliste](developer-tools.md#manual-verification-after-deployment).
+
 ## Haupttabs, Entwurfswarnung und Dashboard-Historie
 
 Diese Sicht-/Browserprüfung bleibt manuell offen:

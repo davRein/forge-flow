@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../hooks/languageContext';
 import { useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from '../../hooks/languageContext';
 import { apiClient } from '../../services/api/runtime';
@@ -22,6 +23,8 @@ const noWorkspace = () => null;
 const noSubscribe = () => () => {};
 
 export default function ChatWidget({ store: suppliedStore }: { store?: ChatStore }) {
+    const { t: tx } = useUiTranslation();
+
     const store = useMemo(() => suppliedStore ?? createChatStore(createChatRepository(apiClient)), [suppliedStore]);
     const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
     const { t, language } = useTranslation();
@@ -53,7 +56,7 @@ export default function ChatWidget({ store: suppliedStore }: { store?: ChatStore
         }}>
             <PanelHeader>
                 <span className="mark"><Spark /></span>
-                <div><h2 id="forgeflow-chat-title">{t('KI-Assistent')}</h2><small>ForgeFlow</small></div>
+                <div><h2 id="forgeflow-chat-title">{t('KI-Assistent')}</h2><small>{tx('ForgeFlow')}</small></div>
                 <IconButton type="button" disabled={busy} title={t('Unterhaltungen')} aria-label={t('Unterhaltungen')} onClick={() => { setHistoryOpen(value => !value); setConfirm(false); }}>≡</IconButton>
                 <IconButton type="button" disabled={busy} title={t('Neue Unterhaltung')} aria-label={t('Neue Unterhaltung')}
                     onClick={() => { if (state.messages.length) setConfirm(true); else store.newConversation(); }}>＋</IconButton>

@@ -36,7 +36,14 @@ public class ConfiguredAccounts implements Accounts {
         AccountRules.current(users.get(user.id()), expectedSessionVersion);
         if (findByEmail(user.email()).filter(existing -> !existing.id().equals(user.id())).isPresent())
             throw new ApiFailure(409, "EMAIL_IN_USE", "Diese E-Mail-Adresse wird bereits verwendet.");
-        users.put(user.id(), user);
-        return user;
+        var previous = users.get(user.id());
+        var updated = new User(user.id(), user.email(), user.name(), user.passwordHash(), user.administrator(), user.active(), user.sessionVersion(), user.portalOnly(), previous.expiresAt());
+        users.put(user.id(), updated);
+        return updated;
+    }
+    @Override public synchronized boolean deleteExpired(String id) {
+        var user = users.get(id);
+        if (user == null || user.expiresAt() == null || user.expiresAt().isAfter(java.time.Instant.now())) return false;
+        users.remove(id); return true;
     }
 }

@@ -1,0 +1,76 @@
+name: forgeflow-showcase
+x-service: &service
+  restart: unless-stopped
+  network_mode: host
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  pids_limit: 100
+  tmpfs: ['/tmp:rw,nosuid,nodev,noexec,size=32m,mode=1777']
+  logging:
+    driver: json-file
+    options: {max-size: 5m, max-file: '3'}
+services:
+  hub-api:
+    <<: *service
+    image: forgeflow-showcase-hub-api:${RELEASE_ID:?}
+    build:
+      context: ./hub-api
+      dockerfile: Dockerfile
+      args: {PYTHON_IMAGE: '${PYTHON_IMAGE:?}'}
+    env_file: [/etc/forgeflow/showcase/knowledge.env]
+    command: [python, -m, uvicorn, 'app.main:app', --host, 127.0.0.1, --port, '8000', --no-access-log, --no-proxy-headers]
+    mem_limit: 512m
+    cpus: 0.75
+  hub-web:
+    <<: *service
+    image: forgeflow-showcase-hub-web:${RELEASE_ID:?}
+    build:
+      context: ./hub-web
+      dockerfile: Dockerfile
+      args: {NODE_IMAGE: '${NODE_IMAGE:?}'}
+    tmpfs: ['/tmp:rw,nosuid,nodev,noexec,size=32m,mode=1777', '/app/.next/cache:rw,nosuid,nodev,noexec,size=32m,uid=1000,gid=1000']
+    mem_limit: 384m
+    cpus: 0.75
+  hub-cleanup:
+    <<: *service
+    image: forgeflow-showcase-hub-api:${RELEASE_ID:?}
+    env_file: [/etc/forgeflow/showcase/knowledge.env]
+    command:
+      - python
+      - -c
+      - |
+        import subprocess, time
+        while True:
+            subprocess.run(['python', '-m', 'app.manage', 'cleanup'], check=True)
+            time.sleep(3600)
+    mem_limit: 128m
+    cpus: 0.25
+  flow-api:
+    <<: *service
+    image: forgeflow-showcase-flow-api:${RELEASE_ID:?}
+    build:
+      context: ./flow-api
+      dockerfile: Dockerfile
+      args: {PYTHON_IMAGE: '${PYTHON_IMAGE:?}'}
+    env_file: [/etc/forgeflow/showcase/flowpilot.env]
+    command: [python, -m, uvicorn, 'flowpilot.suite_gateway:create_gateway', --factory, --host, 127.0.0.1, --port, '8001', --no-access-log, --no-proxy-headers]
+    mem_limit: 256m
+    cpus: 0.5
+  flow-worker:
+    <<: *service
+    image: forgeflow-showcase-flow-api:${RELEASE_ID:?}
+    env_file: [/etc/forgeflow/showcase/flowpilot.env]
+    command: [python, -m, flowpilot.suite_worker]
+    mem_limit: 256m
+    cpus: 0.5
+  redis:
+    <<: *service
+    image: ${REDIS_IMAGE:?}
+    user: '10001:10001'
+    command: [redis-server, /run/redis.conf]
+    volumes:
+      - /etc/forgeflow/showcase/redis.conf:/run/redis.conf:ro
+      - /var/lib/forgeflow-showcase/redis:/data
+    mem_limit: 192m
+    cpus: 0.25

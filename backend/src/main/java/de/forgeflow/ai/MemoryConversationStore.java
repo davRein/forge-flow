@@ -40,6 +40,8 @@ public final class MemoryConversationStore implements ConversationStore {
         Conversation snapshot() { return new Conversation(id, language, createdAt, updatedAt, messages(), pending != null); }
     }
     private final Map<UUID, Entry> entries = new HashMap<>();
+    private final de.forgeflow.auth.ExpiredOwners expired=new de.forgeflow.auth.ExpiredOwners();
+    @org.springframework.context.event.EventListener public synchronized void erase(de.forgeflow.auth.TrialAccounts.Expired event) { expired.mark(event.owner());entries.entrySet().removeIf(entry -> entry.getValue().ownerId.equals(event.owner())); }
     private final AiProperties properties;
     private final Clock clock;
     private final java.time.Duration ttl;
@@ -105,6 +107,7 @@ public final class MemoryConversationStore implements ConversationStore {
         return new Turn(turn.requestId(), turn.user(), new Message(message.id(), message.role(), message.content(), message.createdAt(), tools, message.context()), turn.usage(), turn.truncated());
     }
     @Override public synchronized Conversation create(String ownerId, String language) {
+        expired.reject(ownerId);
         prune();
         if (entries.size() >= properties.maxConversations()
                 || entries.values().stream().filter(entry -> entry.ownerId.equals(ownerId)).count() >= properties.maxConversationsPerUser())

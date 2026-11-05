@@ -11,9 +11,14 @@ import de.forgeflow.workspace.WorkspaceDtos.*;
 @Profile("!postgres")
 public class MemoryWorkspaceStorage implements WorkspaceStorage {
     private final Map<String, Envelope> workspaces = new HashMap<>();
+    private final de.forgeflow.auth.ExpiredOwners expired=new de.forgeflow.auth.ExpiredOwners();
     private final Map<String, Map<Long, Attachment>> attachments = new HashMap<>();
     private final Map<String, Settings> settings = new HashMap<>();
     private final Map<String, List<RecentActivity.Entry>> recentActivity = new HashMap<>();
+    @org.springframework.context.event.EventListener public synchronized void erase(de.forgeflow.auth.TrialAccounts.Expired event) {
+        expired.mark(event.owner());
+        workspaces.remove(event.owner()); attachments.remove(event.owner()); settings.remove(event.owner()); recentActivity.remove(event.owner());
+    }
     @Override public synchronized List<RecentActivity.Entry> loadRecentActivity(String ownerId) { return recentActivity.getOrDefault(ownerId, List.of()); }
     private GlobalSettings globalSettings = GlobalSettings.defaults();
     @Override public synchronized GlobalSettings loadGlobalSettings() { return globalSettings; }
@@ -22,9 +27,11 @@ public class MemoryWorkspaceStorage implements WorkspaceStorage {
         globalSettings = new GlobalSettings(UUID.randomUUID().toString(), values.normalized().industries()); return globalSettings;
     }
     @Override public synchronized Envelope load(String ownerId) {
+        if(expired.contains(ownerId))return new Envelope(1,"expired",Data.empty());
         return workspaces.computeIfAbsent(ownerId, id -> new Envelope(1, UUID.randomUUID().toString(), Data.empty()));
     }
     @Override public synchronized String save(String ownerId, String expectedRevision, Data data, Map<Long, Attachment> incoming) {
+        expired.reject(ownerId);
         Envelope current = load(ownerId);
         if (!current.revision().equals(expectedRevision)) throw new ApiFailure(409, "VERSION_CONFLICT", "Die Daten wurden inzwischen geändert. Bitte neu laden.");
         data = WorkspaceValidation.preserveCustomerDetails(data, current.data());
@@ -47,6 +54,7 @@ public class MemoryWorkspaceStorage implements WorkspaceStorage {
     }
     @Override public synchronized Settings loadSettings(String ownerId) { return settings.get(ownerId); }
     @Override public synchronized void saveSettings(String ownerId, Settings values) {
+        expired.reject(ownerId);
         recentActivity.put(ownerId, RecentActivity.settings(loadRecentActivity(ownerId), settings.get(ownerId), values));
         settings.put(ownerId, values);
     }

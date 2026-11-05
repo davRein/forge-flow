@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../hooks/languageContext';
 import styled from 'styled-components';
 import { ModuleKey } from '../config/moduleConfig';
 
@@ -10,10 +11,12 @@ type Props = {
 };
 
 export default function Dashboard({ activeModule }: Props) {
+    const { t: tx } = useUiTranslation();
+
     return (
         <Container>
             <h1>{activeModule}</h1>
-            <p>Aktuelles Programm: {activeModule}</p>
+            <p>{tx('Aktuelles Programm: ')}{activeModule}</p>
         </Container>
     );
 }

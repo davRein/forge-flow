@@ -8,9 +8,15 @@ import { modules } from './config/moduleConfig';
 import ProjectsPage from './pages/projects/ProjectsPage';
 import WikiPage from './pages/wiki/WikiPage';
 import DevToolsPage from './pages/devTools/DevToolsPage';
+import GitPage from './pages/devTools/GitPage';
+import DeveloperProvider from './components/DeveloperProvider';
 import TimeTrackerPage from './pages/timeTracker/TimeTrackerPage';
 import BusinessPage from './pages/business/BusinessPage';
 import CloudPage from './pages/cloud/CloudPage';
+import ShowcasePage from './pages/showcase/ShowcasePage';
+import { showcaseAccess } from './config/showcaseProjects';
+import SettingsPage from './pages/projects/components/SettingsPage';
+import { Page as SettingsContainer } from './pages/business/businessStyles';
 import PortalApp from './pages/business/PortalApp';
 import BusinessProvider from './components/BusinessProvider';
 import { createApiBusinessRepository, createSessionBusinessRepository } from './services/business/business';
@@ -46,12 +52,15 @@ type SettingsState = ReturnType<typeof useAppSettings>;
 
 function AppContent({ settings, updateSettings, resetSettings, discardUnsaved, status, error, retry, persistence }: SettingsState) {
     const { t } = useTranslation();
-    const { pathname } = useLocation();
+    const auth = useAuth();
+    const allowShowcase = showcaseAccess(auth.user?.administrator);
+    const availableModules = modules.filter(module => allowShowcase || (module.key !== 'knowledgeHub' && module.key !== 'flowPilot'));
+    const { pathname, search } = useLocation();
     const navigate = useNavigate();
     const guard = useNavigationGuard();
     useUnsavedChanges(error?.operation === 'save', discardUnsaved, status === 'saving');
     const [, moduleKey, pageKey] = pathname.split('/');
-    const matchedModule = modules.find((module) => module.key === moduleKey);
+    const matchedModule = availableModules.find((module) => module.key === moduleKey);
     const matchedPage = matchedModule?.topbarItems.find((item) => item.key === pageKey);
     const validRoute = !!matchedPage && pathname.split('/').length === 3;
     const currentModule = validRoute && matchedModule ? matchedModule : modules[0];
@@ -74,7 +83,7 @@ function AppContent({ settings, updateSettings, resetSettings, discardUnsaved, s
 
     return (
         <MainLayout
-            modules={modules}
+            modules={availableModules}
             activeModule={currentModule.key}
             unsavedSettings={status === 'saving' || error?.operation === 'save'}
             onModuleChange={(key) => {
@@ -84,7 +93,8 @@ function AppContent({ settings, updateSettings, resetSettings, discardUnsaved, s
             }}
         >
             <WorkspaceNotifications />
-            {!validRoute && <Navigate to={projectStartPath} state={{ projectOverview: true }} replace />}
+            {!validRoute && <Navigate to={pathname === '/projectManager/settings' ? `/settings/general${search}` : projectStartPath} state={{ projectOverview: true }} replace />}
+            <div hidden={currentModule.key !== 'settings'}>{currentModule.key === 'settings' && <SettingsContainer><h1>{t('Einstellungen')}</h1><SettingsPage settings={settings} onChange={updateSettings} onReset={resetSettings} status={status} error={error} persistence={persistence} onRetry={retry} /></SettingsContainer>}</div>
             <div hidden={currentModule.key !== 'projectManager'}>
                 <ProjectsPage
                     active={currentModule.key === 'projectManager'}
@@ -104,6 +114,7 @@ function AppContent({ settings, updateSettings, resetSettings, discardUnsaved, s
             <div hidden={currentModule.key !== 'devTools'}>
                 <DevToolsPage section={currentModule.key === 'devTools' ? currentPage.key : 'json'} active={currentModule.key === 'devTools'} />
             </div>
+            <div hidden={currentModule.key !== 'git'}><GitPage active={currentModule.key === 'git'} /></div>
             <div hidden={currentModule.key !== 'timeTracker'}>
                 <TimeTrackerPage section={currentModule.key === 'timeTracker' ? currentPage.key : 'calendar'} active={currentModule.key === 'timeTracker'} />
             </div>
@@ -111,6 +122,8 @@ function AppContent({ settings, updateSettings, resetSettings, discardUnsaved, s
                 <BusinessPage section={currentModule.key === 'business' ? currentPage.key : 'budgets'} active={currentModule.key === 'business'} />
             </div>
             <div hidden={currentModule.key !== 'cloud'}><CloudPage /></div>
+            {allowShowcase && <div hidden={currentModule.key !== 'knowledgeHub'}><ShowcasePage app="knowledgeHub" active={currentModule.key === 'knowledgeHub'} section={currentModule.key === 'knowledgeHub' ? currentPage.key : 'chat'} /></div>}
+            {allowShowcase && <div hidden={currentModule.key !== 'flowPilot'}><ShowcasePage app="flowPilot" active={currentModule.key === 'flowPilot'} section={currentModule.key === 'flowPilot' ? currentPage.key : 'overview'} /></div>}
         </MainLayout>
     );
 }
@@ -132,9 +145,9 @@ function SignedInApp({ userId = null, settingsRepository }: AppProps) {
             <GlobalStyle />
             <LanguageProvider language={settingsState.settings.language}>
                 <HashRouter><ChatPageContextProvider><ChatNavigationProvider><NavigationGuardProvider>
-                    <WorkspaceProvider repository={workspaceRepository}><GlobalSettingsProvider repository={globalRepository}><RestCollectionsProvider repository={restRepository}><TimeTrackingProvider repository={timeRepository}><BusinessProvider repository={businessRepository}><AppContent {...settingsState} />
+                    <WorkspaceProvider repository={workspaceRepository}><GlobalSettingsProvider repository={globalRepository}><RestCollectionsProvider repository={restRepository}><TimeTrackingProvider repository={timeRepository}><BusinessProvider repository={businessRepository}><DeveloperProvider><AppContent {...settingsState} />
                         {apiEnabled && <ChatWidget />}
-                    </BusinessProvider></TimeTrackingProvider></RestCollectionsProvider></GlobalSettingsProvider></WorkspaceProvider>
+                    </DeveloperProvider></BusinessProvider></TimeTrackingProvider></RestCollectionsProvider></GlobalSettingsProvider></WorkspaceProvider>
                 </NavigationGuardProvider></ChatNavigationProvider></ChatPageContextProvider></HashRouter>
             </LanguageProvider>
         </ThemeProvider>

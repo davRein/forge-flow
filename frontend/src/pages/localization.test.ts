@@ -18,6 +18,10 @@ import DevToolsPage from './devTools/DevToolsPage';
 import Converter from './devTools/components/Converter';
 import RestClient from './devTools/components/RestClient';
 import CopyButton from './devTools/components/CopyButton';
+import DeveloperProvider from '../components/DeveloperProvider';
+import { AuthContext } from '../hooks/authContext';
+import { createAuthStore } from '../services/auth/authStore';
+import { createApiClient } from '../services/api/apiClient';
 
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 function text(node: ReactTestInstance): string { return node.children.map((child) => typeof child === 'string' ? child : text(child)).join(''); }
@@ -31,11 +35,12 @@ async function fixture(initial: ReactNode, route = '/wiki/articles', language: A
     } };
     const store = createWorkspaceStore({ persistence: 'account', async load() { return { data: initialData, revision: '1' }; }, async save() { return '2'; } });
     await store.load();
+    const auth = createAuthStore(createApiClient('/api/v1'), false);
     let element = initial;
     let currentLanguage = language;
     function Host({ language: selected }: { language: AppLanguage }) {
         return createElement(ThemeProvider, { theme: darkTheme }, createElement(LanguageContext.Provider, { value: selected },
-            createElement(WorkspaceContext.Provider, { value: store }, createElement(MemoryRouter, { initialEntries: [route] }, element))));
+            createElement(WorkspaceContext.Provider, { value: store }, createElement(MemoryRouter, { initialEntries: [route] }, createElement(AuthContext.Provider, { value: auth, children: createElement(DeveloperProvider, { children: element }) })))));
     }
     let renderer!: ReactTestRenderer;
     await act(async () => {
@@ -52,7 +57,7 @@ async function fixture(initial: ReactNode, route = '/wiki/articles', language: A
             await act(async () => { await button.props.onClick(); });
         },
         async submit() { await act(async () => controls('form')[0].props.onSubmit({ preventDefault() {} })); },
-        async close() { await act(async () => renderer.unmount()); store.dispose(); }
+        async close() { await act(async () => renderer.unmount()); store.dispose(); auth.dispose(); }
     };
 }
 
@@ -187,14 +192,14 @@ export const localizationTests = [
         } finally { await ui.close(); globalThis.fetch = original; }
     } },
     { name: 'Wiki- und Dev-Tools-Navigation wird übersetzt und behält ihre Routen', async run() {
-        const ui = await fixture(createElement(Topbar, { items: modules[1].topbarItems, moduleKey: 'wiki' }));
+        const ui = await fixture(createElement(Topbar, { items: modules.find(item => item.key === 'wiki')!.topbarItems, moduleKey: 'wiki' }));
         try {
             assert(ui.controls('a').map(text).join(',') === 'Overview,Pages,Spaces,Search', 'Dokumentationsnavigation muss Englisch sein');
             assert(ui.controls('a')[1].props.href === '/wiki/articles', 'Sprachwechsel darf Routen nicht ändern');
-            await ui.page(createElement(Topbar, { items: modules[2].topbarItems, moduleKey: 'devTools' }));
-            assert(ui.controls('a').map(text).join(',') === 'JSON Formatter,REST client,Calculator,Converters', 'Dev-Tools-Navigation muss Englisch sein');
+            await ui.page(createElement(Topbar, { items: modules.find(item => item.key === 'devTools')!.topbarItems, moduleKey: 'devTools' }));
+            assert(ui.controls('a').map(text).join(',') === 'JSON Formatter,REST client,Calculator,Converters,Snippeter,DB Scripter', 'Dev-Tools-Navigation muss Englisch sein');
             await ui.language('de');
-            assert(ui.controls('a').map(text).join(',') === 'JSON Formatter,REST-Test,Rechner,Konverter', 'Deutsche Navigation muss weiter verfügbar sein');
+            assert(ui.controls('a').map(text).join(',') === 'JSON-Formatierer,REST-Test,Rechner,Konverter,Snippeter,SQL-Editor', 'Deutsche Navigation muss weiter verfügbar sein');
         } finally { await ui.close(); }
     } }
 ];

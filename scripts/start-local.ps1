@@ -14,7 +14,7 @@ try {
     Write-Output 'Lokaler Start läuft ...'
     Write-Output 'Logs: backend/.local/logs/. Mit Strg+C werden die hier gestarteten Prozesse beendet.'
     $ready = $false
-    $deadline = [DateTime]::UtcNow.AddMinutes(3)
+    $deadline = [DateTime]::UtcNow.AddMinutes(6)
     while ($true) {
         foreach ($child in $children) {
             $child.Refresh()
@@ -23,13 +23,13 @@ try {
         if (-not $ready) {
             try {
                 $health = Invoke-RestMethod -Uri 'http://127.0.0.1:3001/api/v1/health' -TimeoutSec 1
-                $frontend = Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:5173' -TimeoutSec 1
+                $frontend = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:5173' -TimeoutSec 5
                 if ($health.storage -eq 'postgresql' -and $frontend.StatusCode -eq 200) {
                     $ready = $true
                     Write-Output 'Backend und Frontend sind bereit: http://localhost:5173'
                 }
             } catch { }
-            if (-not $ready -and [DateTime]::UtcNow -gt $deadline) { throw 'Start dauert länger als drei Minuten. Bitte die lokalen Logs prüfen.' }
+            if (-not $ready -and [DateTime]::UtcNow -gt $deadline) { throw 'Start dauert länger als sechs Minuten. Bitte die lokalen Logs prüfen.' }
         }
         Start-Sleep -Seconds 1
     }

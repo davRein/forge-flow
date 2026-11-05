@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../../../hooks/languageContext';
 import { useState } from 'react';
 import styled from 'styled-components';
 import { useRef } from 'react';
@@ -65,6 +66,8 @@ type Props = {
 };
 
 export default function EpicForm({ epic, epics, tasks, onSave, onClose }: Props) {
+    const { t: tx } = useUiTranslation();
+
     const [draft, setDraft] = useState<EpicDraft>(() => ({
         title: epic?.title ?? '',
         description: epic?.description ?? '',
@@ -83,7 +86,7 @@ export default function EpicForm({ epic, epics, tasks, onSave, onClose }: Props)
     }
 
     return (
-        <Dialog title={epic ? 'Epic bearbeiten' : 'Neues Epic'} onClose={onClose}>
+        <Dialog title={epic ? tx('Epic bearbeiten') : tx('Neues Epic')} onClose={onClose}>
             <Form onSubmit={(event) => {
                 event.preventDefault();
                 const message = onSave(draft, epic?.id ?? null);
@@ -91,19 +94,17 @@ export default function EpicForm({ epic, epics, tasks, onSave, onClose }: Props)
                 else onClose();
             }}>
                 <Field>
-                    <span>Titel <Required>*</Required></span>
-                    <Input required autoFocus value={draft.title} onChange={(event) => changeDraft({ ...draft, title: event.target.value })} placeholder="z. B. Kundenportal umsetzen" />
+                    <span>{tx('Titel ')}<Required>*</Required></span>
+                    <Input required autoFocus value={draft.title} onChange={(event) => changeDraft({ ...draft, title: event.target.value })} placeholder={tx('z. B. Kundenportal umsetzen')} />
                 </Field>
                 <Field>
-                    Beschreibung
-                    <Textarea value={draft.description} onChange={(event) => changeDraft({ ...draft, description: event.target.value })} placeholder="Ziel und Umfang des Epics" />
+                    {tx('Beschreibung')}<Textarea value={draft.description} onChange={(event) => changeDraft({ ...draft, description: event.target.value })} placeholder={tx('Ziel und Umfang des Epics')} />
                 </Field>
                 <TaskGroup>
-                    <legend>Aufgaben zuordnen ({draft.taskIds.length})</legend>
-                    <p>Jede Aufgabe gehört höchstens zu einem Epic. Eine bestehende Zuordnung wird erst beim Speichern geändert.</p>
+                    <legend>{tx('Aufgaben zuordnen (')}{draft.taskIds.length})</legend>
+                    <p>{tx('Jede Aufgabe gehört höchstens zu einem Epic. Eine bestehende Zuordnung wird erst beim Speichern geändert.')}</p>
                     <Field>
-                        Aufgaben suchen
-                        <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Task-Code oder Titel" />
+                        {tx('Aufgaben suchen')}<Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tx('Task-Code oder Titel')} />
                     </Field>
                     <TaskOptions>
                         {filteredTasks.map((task) => {
@@ -117,19 +118,19 @@ export default function EpicForm({ epic, epics, tasks, onSave, onClose }: Props)
                                     })} />
                                     <span>
                                         {task.code} · {task.title}
-                                        {assignedEpic && assignedEpic.id !== epic?.id && <small>{selected ? 'Wird verschoben aus' : 'Aktuell in'}: {assignedEpic.title}</small>}
+                                        {assignedEpic && assignedEpic.id !== epic?.id && <small>{selected ? tx('Wird verschoben aus') : tx('Aktuell in')}: {assignedEpic.title}</small>}
                                     </span>
                                 </TaskOption>
                             );
                         })}
-                        {tasks.length === 0 && <p>Noch keine Aufgaben vorhanden. Du kannst sie später im Tasks-Tab anlegen und zuordnen.</p>}
-                        {tasks.length > 0 && filteredTasks.length === 0 && <p>Keine Aufgaben für diese Suche gefunden.</p>}
+                        {tasks.length === 0 && <p>{tx('Noch keine Aufgaben vorhanden. Du kannst sie später im Tasks-Tab anlegen und zuordnen.')}</p>}
+                        {tasks.length > 0 && filteredTasks.length === 0 && <p>{tx('Keine Aufgaben für diese Suche gefunden.')}</p>}
                     </TaskOptions>
                 </TaskGroup>
-                {error && <ErrorText role="alert">{error}</ErrorText>}
+                {error && <ErrorText role="alert">{tx(error)}</ErrorText>}
                 <FormActions>
-                    <SecondaryButton type="button" onClick={onClose}>Abbrechen</SecondaryButton>
-                    <PrimaryButton type="submit" disabled={!draft.title.trim()}>Speichern</PrimaryButton>
+                    <SecondaryButton type="button" onClick={onClose}>{tx('Abbrechen')}</SecondaryButton>
+                    <PrimaryButton type="submit" disabled={!draft.title.trim()}>{tx('Speichern')}</PrimaryButton>
                 </FormActions>
             </Form>
         </Dialog>

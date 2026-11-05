@@ -37,16 +37,18 @@ export default function LoginPage() {
     const { t } = useTranslation();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [trial, setTrial] = useState(false);
     return <Page>{auth.status === 'checking' ? <p role="status">{t('Sitzung wird geprüft …')}</p> : <FormCard as="form" onSubmit={async (event) => {
-        event.preventDefault(); await auth.login(email, password); setPassword('');
+        event.preventDefault(); await auth.login(email, password, trial); setPassword('');
     }}>
         <Heading><BrandMark size={40} /><h1>{t('Bei ForgeFlow anmelden')}</h1></Heading>
-        <p>{t('Melde dich mit deinem Benutzerkonto an.')}</p>
+        <p>{t(trial ? 'Testkonto mit eigener E-Mail und Passwort anlegen. Konto, Daten und Rechte werden nach sechs Stunden automatisch gelöscht.' : 'Melde dich mit deinem Benutzerkonto an.')}</p>
         {auth.notice && <p role="status">{t(auth.notice)}</p>}
         <Field>{t('E-Mail')}<Input required type="email" autoComplete="username" autoFocus value={email} disabled={auth.busy} onChange={(event) => setEmail(event.target.value)} /></Field>
-        <Field>{t('Passwort')}<Input required type="password" autoComplete="current-password" value={password} disabled={auth.busy} onChange={(event) => setPassword(event.target.value)} /></Field>
+        <Field>{t('Passwort')}<Input required type="password" minLength={trial ? 12 : undefined} autoComplete={trial ? 'new-password' : 'current-password'} value={password} disabled={auth.busy} onChange={(event) => setPassword(event.target.value)} /></Field>
         {auth.error && <ErrorText role="alert">{t(auth.error)}</ErrorText>}
-        <PrimaryButton type="submit" disabled={auth.busy}>{t(auth.busy ? 'Anmeldung läuft …' : 'Anmelden')}</PrimaryButton>{' '}
+        <PrimaryButton type="submit" disabled={auth.busy}>{t(auth.busy ? 'Anmeldung läuft …' : trial ? 'Testkonto anlegen' : 'Anmelden')}</PrimaryButton>{' '}
+        <SecondaryButton type="button" disabled={auth.busy} style={{ width: '100%', marginTop: 12 }} onClick={() => { setTrial(!trial); setPassword(''); }}>{t(trial ? 'Zur Anmeldung' : 'Testkonto für 6 Stunden anlegen')}</SecondaryButton>
         {auth.status === 'error' && <SecondaryButton type="button" onClick={() => void auth.refresh()}>{t('Sitzung erneut prüfen')}</SecondaryButton>}
     </FormCard>}</Page>;
 }

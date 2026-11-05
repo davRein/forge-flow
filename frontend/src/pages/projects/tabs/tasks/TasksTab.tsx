@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../../hooks/languageContext';
 import styled from 'styled-components';
 
 import { Project } from '../../types/project.types';
@@ -45,14 +46,15 @@ type Props = {
 };
 
 export default function TasksTab({ taskState, epics, sprints }: Props) {
+    const { t: tx } = useUiTranslation();
+
     return (
         <Container>
             <HeaderRow>
-                <h3>Tasks</h3>
+                <h3>{tx('Tasks')}</h3>
 
                 <Button onClick={taskState.startCreateTask}>
-                    + Task
-                </Button>
+                    {tx('+ Task')}</Button>
             </HeaderRow>
 
             <TaskEditor taskState={taskState} epics={epics} />

@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../../../hooks/languageContext';
 import styled from 'styled-components';
 import { useDroppable } from '@dnd-kit/core';
 
@@ -94,6 +95,8 @@ export default function TaskColumn({
                                        onEditTask,
                                        onOpenTask
                                    }: Props) {
+    const { t: tx } = useUiTranslation();
+
 
     const { setNodeRef, isOver } =
         useDroppable({
@@ -122,8 +125,7 @@ export default function TaskColumn({
 
                 {tasks.length === 0 && (
                     <EmptyColumn>
-                        Keine Tasks
-                    </EmptyColumn>
+                        {tx('Keine Tasks')}</EmptyColumn>
                 )}
 
                 {tasks.map((task) => (

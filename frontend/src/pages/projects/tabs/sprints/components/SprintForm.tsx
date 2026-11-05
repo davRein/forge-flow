@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../../../hooks/languageContext';
 import { useState } from 'react';
 import styled from 'styled-components';
 import { useRef } from 'react';
@@ -58,6 +59,8 @@ type Props = {
 };
 
 export default function SprintForm({ sprint, sprints, tasks, onSave, onClose }: Props) {
+    const { t: tx } = useUiTranslation();
+
     const [draft, setDraft] = useState<SprintDraft>(() => {
         const end = new Date();
         end.setDate(end.getDate() + 13);
@@ -85,7 +88,7 @@ export default function SprintForm({ sprint, sprints, tasks, onSave, onClose }: 
     }
 
     return (
-        <Dialog title={sprint ? 'Sprint bearbeiten' : 'Neuer Sprint'} onClose={onClose}>
+        <Dialog title={sprint ? tx('Sprint bearbeiten') : tx('Neuer Sprint')} onClose={onClose}>
             <Form onSubmit={(event) => {
                 event.preventDefault();
                 const message = onSave(draft, sprint?.id ?? null);
@@ -93,29 +96,27 @@ export default function SprintForm({ sprint, sprints, tasks, onSave, onClose }: 
                 else onClose();
             }}>
                 <Field>
-                    <span>Titel <Required>*</Required></span>
-                    <Input required autoFocus value={draft.title} onChange={(event) => change({ ...draft, title: event.target.value })} placeholder="z. B. Sprint 1 – Kundenportal" />
+                    <span>{tx('Titel ')}<Required>*</Required></span>
+                    <Input required autoFocus value={draft.title} onChange={(event) => change({ ...draft, title: event.target.value })} placeholder={tx('z. B. Sprint 1 – Kundenportal')} />
                 </Field>
                 <Field>
-                    Sprint-Ziel
-                    <Textarea value={draft.goal} onChange={(event) => change({ ...draft, goal: event.target.value })} placeholder="Was soll am Ende des Sprints erreicht sein?" />
+                    {tx('Sprint-Ziel')}<Textarea value={draft.goal} onChange={(event) => change({ ...draft, goal: event.target.value })} placeholder={tx('Was soll am Ende des Sprints erreicht sein?')} />
                 </Field>
                 <FormGrid>
                     <Field>
-                        <span>Startdatum <Required>*</Required></span>
+                        <span>{tx('Startdatum ')}<Required>*</Required></span>
                         <Input required type="date" value={draft.startDate} onChange={(event) => change({ ...draft, startDate: event.target.value })} />
                     </Field>
                     <Field>
-                        <span>Enddatum <Required>*</Required></span>
+                        <span>{tx('Enddatum ')}<Required>*</Required></span>
                         <Input required type="date" min={draft.startDate || undefined} value={draft.endDate} onChange={(event) => change({ ...draft, endDate: event.target.value })} />
                     </Field>
                 </FormGrid>
                 <TaskGroup>
-                    <legend>Aufgaben einplanen ({draft.taskIds.length})</legend>
-                    <p>Offene Aufgaben aus dem Backlog oder geplanten Sprints können zugeordnet werden. Aufgaben anderer aktiver Sprints bleiben dort. Änderungen werden beim Speichern übernommen.</p>
+                    <legend>{tx('Aufgaben einplanen (')}{draft.taskIds.length})</legend>
+                    <p>{tx('Offene Aufgaben aus dem Backlog oder geplanten Sprints können zugeordnet werden. Aufgaben anderer aktiver Sprints bleiben dort. Änderungen werden beim Speichern übernommen.')}</p>
                     <Field>
-                        Aufgaben suchen
-                        <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Task-Code oder Titel" />
+                        {tx('Aufgaben suchen')}<Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tx('Task-Code oder Titel')} />
                     </Field>
                     <TaskOptions>
                         {filtered.map((task) => {
@@ -127,19 +128,19 @@ export default function SprintForm({ sprint, sprints, tasks, onSave, onClose }: 
                                         taskIds: event.target.checked ? [...draft.taskIds, task.id] : draft.taskIds.filter((id) => id !== task.id)
                                     })} />
                                     <span>{task.code} · {task.title}
-                                        {assigned && assigned.id !== sprint?.id && <small>{selected ? 'Wird verschoben aus' : 'Eingeplant in'}: {assigned.title}</small>}
-                                        {task.status === 'done' && <small>Bereits erledigt</small>}
+                                        {assigned && assigned.id !== sprint?.id && <small>{selected ? tx('Wird verschoben aus') : tx('Eingeplant in')}: {assigned.title}</small>}
+                                        {task.status === 'done' && <small>{tx('Bereits erledigt')}</small>}
                                     </span>
                                 </TaskOption>
                             );
                         })}
-                        {filtered.length === 0 && <p>{available.length === 0 ? 'Keine offenen Aufgaben zur Planung verfügbar.' : 'Keine Aufgaben für diese Suche gefunden.'}</p>}
+                        {filtered.length === 0 && <p>{available.length === 0 ? tx('Keine offenen Aufgaben zur Planung verfügbar.') : tx('Keine Aufgaben für diese Suche gefunden.')}</p>}
                     </TaskOptions>
                 </TaskGroup>
-                {error && <ErrorText role="alert">{error}</ErrorText>}
+                {error && <ErrorText role="alert">{tx(error)}</ErrorText>}
                 <FormActions>
-                    <SecondaryButton type="button" onClick={onClose}>Abbrechen</SecondaryButton>
-                    <PrimaryButton type="submit" disabled={!draft.title.trim()}>Speichern</PrimaryButton>
+                    <SecondaryButton type="button" onClick={onClose}>{tx('Abbrechen')}</SecondaryButton>
+                    <PrimaryButton type="submit" disabled={!draft.title.trim()}>{tx('Speichern')}</PrimaryButton>
                 </FormActions>
             </Form>
         </Dialog>

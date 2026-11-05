@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../hooks/languageContext';
 import styled from 'styled-components';
 import type { AppSettings, ThemeMode } from '../../../types/settings.types';
 import { defaultSettings } from '../../../config/appSettings';
@@ -76,6 +77,8 @@ export type GeneralSettingsProps = {
 type Props = GeneralSettingsProps & { section?: 'appearance' | 'projects' | 'language' };
 
 export default function GeneralSettings({ settings, onChange, onReset, persistence, section = 'appearance' }: Props) {
+    const { t: tx } = useUiTranslation();
+
     const t = useSettingsText();
     const isDefault = settings.themeMode === defaultSettings.themeMode
         && settings.defaultProjectView === defaultSettings.defaultProjectView
@@ -130,11 +133,11 @@ export default function GeneralSettings({ settings, onChange, onReset, persisten
                 <h2>{t('Sprache')}</h2>
                 <Field>{t('Sprache der Oberfläche')}
                     <Select value={settings.language} onChange={(event) => change({ ...settings, language: event.target.value as AppSettings['language'] })}>
-                        <option value="de" lang="de">Deutsch</option>
-                        <option value="en" lang="en">English</option>
+                        <option value="de" lang="de">{tx('Deutsch')}</option>
+                        <option value="en" lang="en">{tx('English')}</option>
                     </Select>
                 </Field>
-                <Hint>{t('Die Sprachwahl gilt für Einstellungen, Wiki und Dev Tools.')}</Hint>
+                <Hint>{t('Die Sprachwahl gilt für die gesamte Suite einschließlich Knowledge Hub und FlowPilot.')}</Hint>
             </Section>}
             <Section>
                 <h2>{t('Standardeinstellungen')}</h2>

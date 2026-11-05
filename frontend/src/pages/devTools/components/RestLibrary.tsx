@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../hooks/languageContext';
 import { useState } from 'react';
 import { useTranslation } from '../../../hooks/languageContext';
 import type { RestCollection, SavedRestRequest } from '../../../services/rest/restCollections';
@@ -14,13 +15,15 @@ function Icon({ kind }: { kind: 'folder' | 'edit' | 'delete' }) {
     </svg>;
 }
 export default function RestLibrary({ collections, selectedId, busy, status, error, persistence, onCreate, onRename, onDelete, onLoad, onDeleteRequest, onReload }: Props) {
+    const { t: tx } = useUiTranslation();
+
     const { t } = useTranslation();
     const [query, setQuery] = useState(''); const [closed, setClosed] = useState(new Set<string>());
     const search = query.trim().toLocaleLowerCase();
     const visible = collections.map(collection => ({ ...collection, requests: collection.requests.filter(request => !search || `${collection.name} ${request.name} ${request.draft.url}`.toLocaleLowerCase().includes(search)) }))
         .filter(collection => !search || collection.name.toLocaleLowerCase().includes(search) || collection.requests.length > 0);
     return <Library aria-label={t('Gespeicherte Collections')}>
-        <header><h2>Collections</h2><button type="button" disabled={busy || status !== 'ready'} aria-label={t('Collection anlegen')} title={t('Collection anlegen')} onClick={onCreate}>+</button></header>
+        <header><h2>{tx('Collections')}</h2><button type="button" disabled={busy || status !== 'ready'} aria-label={t('Collection anlegen')} title={t('Collection anlegen')} onClick={onCreate}>+</button></header>
         <Input type="search" aria-label={t('Collections durchsuchen')} value={query} onChange={event => setQuery(event.target.value)} placeholder={t('Collections durchsuchen')} />
         {status === 'idle' || status === 'loading' ? <Muted role="status">{t('Collections werden geladen …')}</Muted> : null}
         {error && <><ErrorText role="alert">{t(error)}</ErrorText><button type="button" disabled={status === 'loading' || status === 'saving'} onClick={onReload}>{t('Collections neu laden')}</button></>}

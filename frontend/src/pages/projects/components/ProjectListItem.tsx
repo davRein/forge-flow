@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../hooks/languageContext';
 import styled from 'styled-components';
 
 import StatusBadge from './StatusBadge';
@@ -45,6 +46,8 @@ export default function ProjectListItem({
                                             active,
                                             onClick
                                         }: Props) {
+    const { t: tx } = useUiTranslation();
+
 
     const status = getProjectStatus(project);
 
@@ -55,7 +58,7 @@ export default function ProjectListItem({
             </div>
 
             <StatusBadge
-                label={status.label}
+                label={tx(status.label)}
                 color={status.color}
                 pulse={status.pulse}
             />

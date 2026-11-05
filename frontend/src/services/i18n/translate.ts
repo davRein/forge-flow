@@ -6,13 +6,22 @@ import { commonEnglish } from '../../config/commonTranslations.js';
 import { chatEnglish } from '../../config/chatTranslations.js';
 import { timeEnglish } from '../../config/timeTranslations.js';
 import { businessEnglish } from '../../config/businessTranslations.js';
+import { developerEnglish } from '../../config/developerTranslations.js';
+import { consistencyEnglish, consistencyGerman } from '../../config/consistencyTranslations.js';
 
 export type TranslationValue = string | { one: string; other: string };
 export type TranslationParameters = Readonly<Record<string, string | number>>;
-const english: Readonly<Record<string, TranslationValue>> = { ...settingsEnglish, ...commonEnglish, ...wikiEnglish, ...toolsEnglish, ...chatEnglish, ...timeEnglish, ...businessEnglish };
+const english: Readonly<Record<string, TranslationValue>> = { ...settingsEnglish, ...commonEnglish, ...wikiEnglish, ...toolsEnglish, ...chatEnglish, ...timeEnglish, ...businessEnglish, ...developerEnglish, ...consistencyEnglish };
 
 // These patterns only describe application-generated diagnostics, not user content.
 const diagnostics: { pattern: RegExp; key: string; names: string[] }[] = [
+    { pattern: /^(\d+) Datei hinzugefügt\.$/, key: '{count} Datei hinzugefügt.', names: ['count'] },
+    { pattern: /^(\d+) Dateien hinzugefügt\.$/, key: '{count} Dateien hinzugefügt.', names: ['count'] },
+    ...['erstellt', 'aktualisiert', 'gelöscht', 'verschoben'].map(verb => ({ pattern: new RegExp(`^([A-Z][A-Z0-9]*-\\d+) wurde ${verb}$`), key: `{code} wurde ${verb}`, names: ['code'] })),
+    ...['erstellt', 'aktualisiert', 'gelöscht'].map(verb => ({ pattern: new RegExp(`^Epic „([\\s\\S]*)“ wurde ${verb}$`), key: `Epic „{name}“ wurde ${verb}`, names: ['name'] })),
+    ...['erstellt', 'aktualisiert', 'gelöscht', 'gestartet', 'abgeschlossen'].map(verb => ({ pattern: new RegExp(`^Sprint „([\\s\\S]*)“ wurde ${verb}$`), key: `Sprint „{name}“ wurde ${verb}`, names: ['name'] })),
+    ...['hinzugefügt', 'entfernt'].map(verb => ({ pattern: new RegExp(`^Datei „([\\s\\S]*)“ wurde ${verb}$`), key: `Datei „{name}“ wurde ${verb}`, names: ['name'] })),
+    { pattern: /^Datei „([\s\S]*)“ wurde in „([\s\S]*)“ umbenannt$/, key: 'Datei „{name}“ wurde in „{newName}“ umbenannt', names: ['name', 'newName'] },
     { pattern: /^Ungültiges JSON: ([\s\S]*)$/, key: 'Ungültiges JSON: {detail}', names: ['detail'] },
     { pattern: /^Zahl oder Klammer an Position (\d+) erwartet\.$/, key: 'Zahl oder Klammer an Position {position} erwartet.', names: ['position'] },
     { pattern: /^Unerwartetes Zeichen an Position (\d+)\.$/, key: 'Unerwartetes Zeichen an Position {position}.', names: ['position'] },
@@ -22,8 +31,9 @@ const diagnostics: { pattern: RegExp; key: string; names: string[] }[] = [
 ];
 
 export function translate(text: string, language: AppLanguage, parameters: TranslationParameters = {}): string {
-    const translated = Object.prototype.hasOwnProperty.call(english, text) ? english[text] : undefined;
-    let value: TranslationValue = language === 'en' ? translated ?? text : text;
+    const key = text.replace(/\s+/g, ' ').trim();
+    const translated = Object.prototype.hasOwnProperty.call(english, key) ? english[key] : undefined;
+    let value: TranslationValue = language === 'en' ? translated ?? text : Object.prototype.hasOwnProperty.call(consistencyGerman, key) ? consistencyGerman[key] : text;
     if (language === 'en' && value === text) {
         for (const diagnostic of diagnostics) {
             const match = text.match(diagnostic.pattern);
@@ -32,5 +42,6 @@ export function translate(text: string, language: AppLanguage, parameters: Trans
         }
     }
     if (typeof value !== 'string') value = parameters.count === 1 ? value.one : value.other;
+    if (value !== text && text.trim() !== text) value = (text.match(/^\s*/)?.[0] ?? '') + value + (text.match(/\s*$/)?.[0] ?? '');
     return value.replace(/\{(\w+)\}/g, (placeholder, name: string) => Object.prototype.hasOwnProperty.call(parameters, name) ? String(parameters[name]) : placeholder);
 }

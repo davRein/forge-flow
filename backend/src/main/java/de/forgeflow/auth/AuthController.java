@@ -28,11 +28,14 @@ public class AuthController {
     private final SecurityContextRepository contexts;
     private final HttpSessionCsrfTokenRepository csrf;
     private final String dummyHash;
+    private final String origin;
     public AuthController(Accounts accounts, BCryptPasswordEncoder encoder, SecurityContextRepository contexts,
-            HttpSessionCsrfTokenRepository csrf, AttemptLimiter attempts) {
+            HttpSessionCsrfTokenRepository csrf, AttemptLimiter attempts,
+            @org.springframework.beans.factory.annotation.Value("${forgeflow.origin}") String origin) {
         this.accounts = accounts; this.encoder = encoder; this.contexts = contexts; this.csrf = csrf;
         this.dummyHash = encoder.encode(UUID.randomUUID().toString());
         this.attempts = attempts;
+        this.origin = origin;
     }
     @GetMapping("/csrf")
     Map<String, String> csrf(HttpServletRequest request, HttpServletResponse response) {
@@ -55,4 +58,19 @@ public class AuthController {
             .orElseThrow(() -> new ApiFailure(401, "UNAUTHENTICATED", "Bitte anmelden."));
         return AccountSessions.response(user, request, response, csrf);
     }
+    // Nginx auth_request checks the live suite session without exposing account data or CSRF tokens.
+    @GetMapping("/showcase-session")
+    Map<String, Object> showcaseSession(Authentication authentication) {
+        Accounts.User user = accounts.findById(authentication.getName()).filter(Accounts.User::active)
+            .filter(value -> !value.portalOnly())
+            .orElseThrow(() -> new ApiFailure(403, "FORBIDDEN", "Diese Sitzung darf die Apps nicht verwenden."));
+        var profile = new java.util.LinkedHashMap<String, Object>(AccountSessions.profile(user));
+        profile.put("issuer", origin);
+        return profile;
+    }
+
+    // Kept for compatibility with the previous administrator-only deployment.
+    @GetMapping("/showcase-access")
+    @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    void showcaseAccess() {}
 }

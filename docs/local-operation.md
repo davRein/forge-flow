@@ -57,7 +57,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1
 
 Das Skript startet Backend und Frontend in verborgenen Hilfsprozessen, prüft ihre Erreichbarkeit
 und meldet anschließend http://localhost:5173 als bereit. Ausgabe liegt in backend/.local/logs/.
+Es startet außerdem automatisch die beiden Frontends und Python-Backends von Knowledge Hub
+und FlowPilot im lokalen Fake-/Mock-Modus. Die Nachbarprojekte müssen eingerichtet sein.
 Mit Strg+C werden nur die von diesem Aufruf gestarteten Prozessbäume beendet.
+Für die Anmeldung exakt `http://localhost:5173` verwenden. `Invalid request origin` bedeutet,
+dass die Browseradresse nicht zum konfigurierten `APP_ORIGIN` passt; das ist kein Passwortfehler.
+Vite leitet lokale Dokumentaufrufe über `127.0.0.1:5173` auf `localhost:5173` weiter.
 Bereits belegte Ports werden gemeldet; fremde Prozesse werden nicht beendet.
 Die Prüfung berücksichtigt IPv4 und IPv6. Falls `localhost:5173` HTTP 404 liefert,
 obwohl `127.0.0.1:5173` funktioniert, kann noch ein alter Vite-Prozess auf IPv6 laufen.
@@ -79,6 +84,98 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-frontend.ps1
 Diese beiden Befehle nacheinander in zwei verschiedenen Terminals ausführen.
 Das erste läuft bis zum Stoppen im Vordergrund. Das Backend nutzt das Profil postgres;
 Vite nutzt den API-Modus und einen festen Port 5173.
+
+## Vergessenes lokales Anwendungspasswort zuruecksetzen
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/reset-local-password.ps1
+```
+
+Der Helfer verwendet ausschliesslich die lokale PostgreSQL-Konfiguration und das bereits
+mit Windows-DPAPI geschuetzte Datenbankpasswort. Er zeigt aktive normale Konten an und fragt
+die E-Mail sowie zweimal verdeckt ein neues Passwort ab (mindestens 12 Zeichen, maximal
+72 UTF-8-Bytes). Das Passwort wird mit BCrypt gehasht; Passwort und Hash werden nicht ausgegeben.
+Nur Passwort-Hash und Sitzungsversion des gewaehlten Kontos werden atomar aktualisiert.
+Vorhandene Sitzungen werden dadurch ungueltig; keine Reaktivierung oder Rollenveraenderung.
+Abbruch oder fehlerhafte Eingaben vor der Aktualisierung lassen das Konto unveraendert.
+Die Erfolgsanzeige bestaetigt den abgeschlossenen Reset. Danach normal im Browser anmelden.
+Mit `-CheckConnection` kann zuerst ausschliesslich die JDBC-Verbindung und die Anzahl aktiver
+normaler Konten geprueft werden, ohne Passworteingabe oder Aenderung. Der Helfer erzeugt bei
+Bedarf eine eigene Runtime-Abhaengigkeitsliste unter `backend/target/password-reset-classpath.txt`;
+eine alte `target/classpath.txt` ohne PostgreSQL-Treiber wird nicht verwendet.
+
+## Integrierte Apps und Standalone-Betrieb
+
+Knowledge Hub und FlowPilot sind reguläre Module der linken Navigation mit ihren vorhandenen
+Schriftlogos. Die obere Suite-Navigation steuert Chat/Dokumente/Konto/Datenschutz bzw.
+Übersicht/Workflows/Ausführungen/Integrationen/Jobs. Beide Apps laufen in eigenen Frames;
+ihre Navigation wird erst nach einem validierten Handshake mit der Suite ausgeblendet.
+Der Standalone-Aufruf behält die eigene Navigation. Frames bleiben bei Modulwechseln
+gemountet; die Entwurfswarnung des FlowPilot-Designers gilt auch für Suite-Tabs.
+
+Die Suite-Sprachwahl (Deutsch/Englisch) synchronisiert auch bereits geöffnete, gerade
+ausgeblendete Zusatz-Apps über den geprüften Elternkanal. Das lädt die Frames nicht neu
+und verändert keine Dokumente, Arbeitsabläufe oder Formulareingaben. Standalone haben
+beide Apps eine eigene Sprachwahl im Kopfbereich, gespeichert pro Browser-Origin;
+eine eingebettete Sitzung überschreibt diese Standalone-Voreinstellung nicht.
+
+`start-frontend.ps1` startet und überwacht über `start-showcase.ps1` die vier Zusatzdienste;
+somit gilt der automatische Start sowohl für getrennte Terminals als auch `start-local.ps1`.
+Strg+C beendet die zu diesem Start gehörenden Kindprozesse. Bereits belegte Ports werden
+gemeldet; vorhandene Standalone-Prozesse werden nicht übernommen oder beendet.
+
+| Anwendung | Frontend | Backend | Suite-Testbetrieb |
+| --- | --- | --- | --- |
+| ForgeFlow | localhost:5173 | 127.0.0.1:3001 | Bestehendes PostgreSQL-Profil und Login |
+| Knowledge Hub | localhost:3000 | 127.0.0.1:8000 | local-demo, fake, eigener Demo-Workspace |
+| FlowPilot | localhost:5174 | 127.0.0.1:8001 | demo, Mock-AI und Mock-HTTP, keine Redis-Queue |
+
+Voraussetzungen sind die Nachbarordner `../ai-knowledge-hub` und
+`../flowpilot-codex-starter`, deren npm-Abhängigkeiten und Python-Umgebungen `backend/.venv`.
+Knowledge Hub benötigt weiterhin seine eingerichtete PostgreSQL-/pgvector-Datenbank und
+Migrationen. Konfigurationsdateien der Nachbarprojekte werden beim Start nicht verändert.
+Knowledge Hub verwendet den gesonderten Demo-Workspace
+`6c7b62be-707f-4ca3-90fa-8126ea17d894`, FlowPilot separate Dateien unter
+`backend/.local/showcase/flowpilot/`. Diese lokalen Demo-Daten sind nicht an ForgeFlow-Konten
+gebunden und gehören nicht zum ForgeFlow-Datenbankbackup. Normale private Knowledge-Hub-
+Konten und bisherige FlowPilot-Daten bleiben außerhalb dieses Demo-Bereichs.
+
+Eigene Logs pro Zusatzdienst: `knowledge-backend`, `knowledge-frontend`, `flow-backend`,
+`flow-frontend` jeweils `.log` und `-error.log` unter `backend/.local/logs/`.
+Bereitschaft wird mit echten Health-, Frontend- und Datenbank-Leseanfragen geprüft.
+Die internen Probes verwenden IPv4, damit Windows-IPv6-Fallbacks nicht zum Starttimeout führen.
+
+Für einen gezielten Start ohne Zusatzdienste vor `start-frontend.ps1` setzen:
+`$env:FORGEFLOW_SKIP_SHOWCASE = 'true'`. Zum Wiederherstellen
+`Remove-Item Env:FORGEFLOW_SKIP_SHOWCASE`. Der direkte Vite-Aufruf `npm.cmd run dev` startet
+weiterhin nur die Suite-Oberfläche; der gemeinsame Start erfolgt über die genannten Skripte.
+
+Die App-Adressen sind über `VITE_KNOWLEDGE_HUB_URL` und `VITE_FLOWPILOT_URL` in
+`frontend/.env.local` überschreibbar (lokale Vorgaben 3000/5174). Produktionsbuilds benötigen
+explizite HTTPS-Adressen. Fehlende/ungültige Ziele zeigen einen Konfigurationshinweis.
+Die Einbettungsadapter akzeptieren ausschließlich das konfigurierte Elternfenster und
+bekannte Routen; es werden weder Passwörter noch Sitzungs-Token über postMessage übertragen.
+Für eine eigene Suite-Bereitstellung müssen zusätzlich die Frontends der Nachbarprojekte
+mit `NEXT_PUBLIC_SUITE_ORIGIN` (Knowledge Hub) bzw. `VITE_SUITE_ORIGIN` (FlowPilot) auf die
+exakte Suite-Origin gebaut werden. Knowledge Hubs Standard bleibt X-Frame-Options DENY;
+der Suite-Modus erlaubt nur die konfigurierte Origin über CSP frame-ancestors.
+Der lokale Knowledge-Hub-Start verwendet einen Same-Origin-API-Proxy unter `/suite-api`.
+
+Für Standalone beide Apps mit ihren bisherigen README-Befehlen und eigenen Umgebungen starten.
+Die bestehenden Authentifizierungsverfahren bleiben erhalten; es wurde kein produktives SSO
+eingeführt. Demo-Backends werden nur auf Loopback gestartet. Keine öffentliche Bereitstellung.
+
+Reproduzierbare Browserprüfung nach dem gemeinsamen Start:
+`node scripts/test-showcase-browser.mjs` (benötigt FlowPilots installierten Playwright/Edge).
+Sie simuliert nur die ForgeFlow-Konto-/Workspace-APIs, verwendet echte lokale Zusatzdienste
+und prüft eingebettete/Standalone-Navigation, Entwurfsschutz, Modulwechsel und Mobilansicht.
+
+Zusätzliche Sprachregression: `node scripts/test-showcase-language.mjs`. Sie simuliert
+die API-Antworten aller drei Apps mit synthetischen Daten und prüft Deutsch → Englisch,
+Menüs, Diagnosen, unveränderte Eingaben, erhaltene Frames und unabhängige Standalone-Wahl.
+Andere bereits konfigurierte Testserver lassen sich über `TEST_SUITE_URL`, `TEST_HUB_URL`
+und `TEST_FLOW_URL` angeben. Die Server müssen untereinander dieselben URLs/Eltern-Origin
+konfiguriert haben. Screenshots liegen unter `node_modules/.tmp/suite-language-de-*.png`.
 
 ## Sicherungen erstellen
 

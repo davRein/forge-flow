@@ -1,4 +1,5 @@
-﻿import { Customer, Project } from '../types/project.types';
+import { useTranslation as useUiTranslation } from '../../../hooks/languageContext';
+import { Customer, Project } from '../types/project.types';
 import { DangerButton, FormActions, FormCard, PrimaryButton } from '../styles/projectStyles';
 
 type Props = {
@@ -9,15 +10,17 @@ type Props = {
 };
 
 export default function SettingsTab({ project, customer, onEdit, onDelete }: Props) {
+    const { t: tx } = useUiTranslation();
+
     return (
         <FormCard>
-            <h3>Projekteinstellungen</h3>
-            <p>Kunde: {customer?.name ?? 'Nicht zugeordnet'}</p>
-            <p>Deadline: {project.deadline}</p>
-            <p>Planung: {project.planningCompleted ? 'Abgeschlossen' : 'Noch offen'}</p>
+            <h3>{tx('Projekteinstellungen')}</h3>
+            <p>{tx('Kunde: ')}{customer?.name ?? tx('Nicht zugeordnet')}</p>
+            <p>{tx('Deadline: ')}{project.deadline}</p>
+            <p>{tx('Planung: ')}{project.planningCompleted ? tx('Abgeschlossen') : tx('Noch offen')}</p>
             <FormActions>
-                <PrimaryButton onClick={onEdit}>Projekt bearbeiten</PrimaryButton>
-                <DangerButton onClick={onDelete}>Projekt löschen</DangerButton>
+                <PrimaryButton onClick={onEdit}>{tx('Projekt bearbeiten')}</PrimaryButton>
+                <DangerButton onClick={onDelete}>{tx('Projekt löschen')}</DangerButton>
             </FormActions>
         </FormCard>
     );

@@ -1,6 +1,89 @@
 # Linux-Server: Domain und bisheriger IP-Zugriff
 
+## Vorbereitung: Suite mit Knowledge Hub und FlowPilot
+
+[Serverbefund, Installationspaket und vollständige Befehle](showcase-deployment.md).
+
+Vor Installationen zunächst die tatsächliche Serverausstattung prüfen:
+
+```powershell
+scp scripts/check-linux-showcase.sh dreinerts@185.56.150.178:
+ssh -t dreinerts@185.56.150.178 'sudo bash ~/check-linux-showcase.sh'
+```
+
+Die Prüfung verändert weder Pakete noch Dienste, Anwendungsdateien oder Datenbanken.
+Sie liest Betriebssystem/Ressourcen, Laufzeitversionen, Dienststatus, Listener,
+konfigurierte Nginx-Hostnamen, PostgreSQL-Metadaten und vorhandene apt-Paketkandidaten.
+Die Datenbankprüfung nennt vorhandene Datenbanken/Eigentümer, Rollenrechte,
+Schema-Berechtigungen, aktivierte Erweiterungen und Flyway-/Alembic-/FlowPilot-Migrationsstände.
+Für ForgeFlow, Knowledge Hub und FlowPilot werden fehlende erwartete Datenbanken markiert;
+alternative tatsächlich konfigurierte Namen müssen vor einer Anlage abgeglichen werden.
+Eine bereits verwaltete Nextcloud-Installation wird zusätzlich in ihrem eigenen
+PostgreSQL-Container geprüft. Alle Datenbankabfragen laufen mit Schreibschutz;
+Anmeldungen der eigentlichen Dienstrollen müssen nach Konfiguration separat geprüft werden.
+Anwendungsumgebungen, Schlüssel, Passwörter und Benutzerdaten werden nicht ausgegeben.
+Root-PATH und vorhandene apt-Indizes können unvollständig sein; fehlende Kandidaten
+zuerst prüfen, bevor neue Paketquellen eingerichtet werden.
+
+Aktuelle Projektanforderungen: Knowledge Hub benötigt Node >=22.13, Python >=3.12,
+PostgreSQL mit pgvector und eigene Datenbank-/Dienstkonten. FlowPilot verlangt derzeit
+Python >=3.12,<3.13; dauerhafte Hintergrundaufträge benötigen zusätzlich PostgreSQL,
+Redis und einen Worker im Infrastrukturmodus. Fake-/Mock-Anbieter bleiben zunächst aktiv.
+FlowPilot hat noch keine eigene Konto-/Mandantenverwaltung und braucht vor einer
+öffentlichen Freigabe einen wirksamen Zugriffsschutz. Knowledge Hubs öffentlicher Modus
+verlangt Authentifizierung, Secure-Cookies und geschlossene Registrierung.
+Die bisherigen lokalen Demo-Prozesse nicht unverändert ins Internet stellen.
+
+Stand 4. November 2026: SSH-Batchanmeldung als `dreinerts` wurde mit
+`Permission denied (publickey,password)` abgewiesen; kein Schlüssel im lokalen Agenten
+verfügbar. Deshalb bisher keine tatsächliche Serverinventur, Installation oder
+Veröffentlichung der Zusatz-Apps. Serverprüfung und danach konkrete Bereitstellung
+benötigen einen funktionierenden SSH-Zugang oder die Ausgabe des obigen Prüfskripts.
+Der Anwender hat auch das Ergänzen tatsächlich fehlender Anwendungsdatenbanken freigegeben.
+Vorhandene Datenbanken/Konten werden nicht ersetzt, Passwörter nicht zurückgesetzt.
+Neue Anwendungsdatenbanken erhalten eigene eingeschränkte Rollen; Migrationen erst nach
+Sicherung vorhandener Daten und Prüfung des konfigurierten Ziels ausführen. Testdatenbanken
+sind für den Betrieb nicht erforderlich und werden nicht vorsorglich angelegt.
+
 ## Domain `forge-flow.de`
+
+### Build the current deployment package
+
+Run in Windows PowerShell at the repository root, with Node/npm, Java 21 and Maven 3.9
+available. Build both parts from the same checkout; old ignored artifacts are not a new release.
+The frontend must be built in API mode. These commands do not publish anything:
+
+```powershell
+$env:VITE_DATA_MODE = 'api'
+$env:VITE_API_BASE_URL = '/api/v1'
+npm.cmd ci
+if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
+npm.cmd run lint
+if ($LASTEXITCODE -ne 0) { throw 'Lint failed.' }
+npm.cmd test
+if ($LASTEXITCODE -ne 0) { throw 'Frontend tests failed.' }
+npm.cmd run build
+if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed.' }
+mvn.cmd -f backend/pom.xml package
+if ($LASTEXITCODE -ne 0) { throw 'Backend tests/build failed.' }
+
+$taskPackageDirectory = Join-Path (Get-Location) 'node_modules/.tmp'
+New-Item -ItemType Directory -Path $taskPackageDirectory -Force | Out-Null
+Copy-Item backend/target/backend-0.1.0-SNAPSHOT.jar (Join-Path $taskPackageDirectory 'forgeflow-chat-backend.jar') -Force
+tar.exe -czf (Join-Path $taskPackageDirectory 'forgeflow-chat-frontend.tar.gz') -C frontend/dist .
+if ($LASTEXITCODE -ne 0) { throw 'Frontend archive creation failed.' }
+$taskPackageNames = @('forgeflow-chat-backend.jar', 'forgeflow-chat-frontend.tar.gz')
+$taskPackageHashes = $taskPackageNames | ForEach-Object {
+    (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $taskPackageDirectory $_)).Hash.ToLowerInvariant() + '  ' + $_
+}
+[IO.File]::WriteAllText((Join-Path $taskPackageDirectory 'forgeflow-chat.sha256'), ($taskPackageHashes -join "`n") + "`n", [Text.Encoding]::ASCII)
+```
+
+This uses the normal backend test configuration. Never point `TEST_POSTGRES_URL` at the
+application database. The optional isolated PostgreSQL check is documented in `HANDOFF.md`.
+Upload the resulting package with the commands in the root README. The server update script
+expects the existing `forgeflow` service, application paths and database; it is not a fresh
+Ubuntu provisioning script.
 
 ### Nextcloud als zusätzlicher Dienst
 
@@ -596,3 +679,29 @@ Zwei vorübergehende HTTP-502-Antworten wurden dabei durch Wiederholungen überw
 Der Agent bestätigte anschließend von außen mit Zertifikatsprüfung HTTP 200 für die
 Startseite und `status=ok`, `storage=postgresql` für die Health-API. Anmeldung und
 Fachfunktionen im Browser sind noch vom Anwender zu bestätigen.
+# Developer integrations update (V14)
+
+Before uploading the current application package, copy and run the offline-tested setup helper:
+
+```powershell
+scp scripts/configure-linux-developer.py scripts/test-linux-developer.py dreinerts@185.56.150.178:
+ssh -t dreinerts@185.56.150.178 'python3 ~/test-linux-developer.py && sudo python3 ~/configure-linux-developer.py'
+```
+
+It preserves `/etc/forgeflow/backend.env`, adds the persistent encryption key if missing,
+installs Git if needed, creates a private service-owned Git root and makes a private environment
+backup. It does not restart the backend or call providers. Then upload the current JAR/frontend
+archive/checksums and both `update-linux-chat.sh` / `test-linux-chat.sh` scripts as usual.
+Run the update with **`forge-flow.de`**, not the IP certificate hostname.
+
+V14 adds account expiry and private developer data. On failure, the update script restores
+the previous frontend. It restores a previous backend only if that JAR already implements
+trial expiry; otherwise it leaves the new JAR installed and the service **stopped** for review.
+An old JAR would treat expiring trial accounts as permanent. Inspect
+`sudo journalctl -u forgeflow -n 100 --no-pager`; fix the new version's configuration before
+starting it. A full downgrade requires a controlled restore of the pre-update database as well,
+with a matching application version. Do not restore only the old JAR.
+
+Back up the encryption key privately with database backups. Back up `/var/lib/forgeflow/git`
+separately if clones must survive loss of the host. Clones are private to application accounts,
+not downloaded to Windows. [Full setup, restrictions and manual checks](developer-tools.md).

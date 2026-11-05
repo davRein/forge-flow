@@ -12,12 +12,15 @@ import de.forgeflow.workspace.WorkspaceStorage;
 @Profile("!postgres")
 public class MemoryTimeTrackingStorage implements TimeTrackingStorage {
     private final Map<String, TimeTracking> documents = new HashMap<>();
+    private final de.forgeflow.auth.ExpiredOwners expired=new de.forgeflow.auth.ExpiredOwners();
+    @org.springframework.context.event.EventListener public synchronized void erase(de.forgeflow.auth.TrialAccounts.Expired event) { expired.mark(event.owner());documents.remove(event.owner()); }
     private final WorkspaceStorage workspace;
     private final Validator validator;
     private final JsonMapper json;
     public MemoryTimeTrackingStorage(WorkspaceStorage workspace, Validator validator, JsonMapper json) { this.workspace = workspace; this.validator = validator; this.json = json; }
     @Override public synchronized TimeTracking load(String ownerId) { return documents.getOrDefault(ownerId, TimeTracking.empty()); }
     @Override public synchronized TimeTracking save(String ownerId, TimeTracking input) {
+        expired.reject(ownerId);
         var previous = load(ownerId);
         if (!previous.revision().equals(input.revision())) throw new ApiFailure(409, "VERSION_CONFLICT", "Die Zeiteinträge wurden inzwischen geändert. Bitte neu laden.");
         var saved = input.normalized(previous, workspace.load(ownerId).data(), validator, json).withRevision(UUID.randomUUID().toString());

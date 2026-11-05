@@ -1,5 +1,10 @@
 # Backend-Vertrag und Frontend-Anbindung
 
+`GET /api/v1/auth/showcase-access` prüft eine aktive Administratorsitzung für Nginx
+`auth_request`. Erfolg 204 ohne Kontodaten/Token; sonst 401/403. Derselbe laufende
+Kontostatus und Sitzungswiderruf wie bei anderen geschützten Routen gelten.
+[Showcase-Bereitstellung und Zugriffsschutz](showcase-deployment.md).
+
 Business und Portal verwenden Flyway V13; Details und Betriebsgrenzen:
 [business-suite.md](business-suite.md). Alle nachfolgenden Pfade unter `/api/v1`:
 
@@ -301,3 +306,36 @@ Die Version-1-Einstellungshülle und die bisherigen Felder bleiben gleich.
 Der PostgreSQL-Adapter speichert den Wert in `ff_settings.language`; Flyway V4
 ergänzt die Spalte mit Vorgabe `de` für bestehende Konten. Der Sprachwechsel betrifft
 Einstellungen, Wiki, Dev Tools und gemeinsame Navigation. Details: [user-settings.md](user-settings.md).
+# Developer tools and trial-account additions (V14)
+
+`POST /auth/trial` accepts email/password using the same anonymous CSRF and origin flow as
+login. It returns a session with optional `user.expiresAt`; regular accounts omit that field.
+Trials last six hours, cannot be promoted/extended through profile changes, and cannot create
+accounts/portal users or use external DB/GitHub access. Expired requests receive 401, followed
+by transactional removal of owned rows on the next cleanup cycle. See limits in
+[Developer tools](developer-tools.md).
+
+Private developer data uses a separate revision from workspace/business/REST data. Mutating
+saved snippets, connections, tokens and clones requires the quoted developer revision in
+`If-Match` (428 missing, 409 stale). Generation/SQL operations are explicit actions and do
+not implicitly save source. `/me/developer` returns an ETag and public metadata without
+encrypted credentials. The [OpenAPI contract](openapi.json) defines all request/response DTOs.
+
+| Route relative to `/api/v1` | Purpose |
+| --- | --- |
+| `GET /me/developer` | Private snippets, connection metadata, GitHub status, clone metadata and configuration capability. |
+| `POST /me/developer/snippets`, `DELETE /me/developer/snippets/{id}` | Explicit source save/update/delete. |
+| `POST /me/developer/generate` | Code-only generation through existing AI limits; SQL requires an owned connection. No credentials/schema/result transmission. |
+| `POST /me/developer/connections`, `DELETE /me/developer/connections/{id}` | Save/delete PostgreSQL credentials encrypted with owner/connection-bound AES-GCM. |
+| `POST /me/developer/connections/{id}/test` | Explicit connectivity check to an administrator-allowed host. |
+| `POST /me/developer/connections/{id}/prepare` | Prepare immutable owner/session/connection-bound SQL confirmation, 120 seconds, no execution. |
+| `POST /me/developer/connections/execute` | Consume confirmation once; controlled transaction/read-only mode, bounded results and sanitized SQLSTATE failures. |
+| `POST /me/developer/github`, `DELETE /me/developer/github` | Connect/remove encrypted private GitHub token. |
+| `GET /me/developer/github/repositories?page=1` | Paginated repositories accessible with that token, 50 per page. |
+| `POST /me/developer/github/repositories/{id}/clone` | Explicit private shallow server clone, no hooks/submodules/code execution. |
+
+All developer routes require a verified non-portal account and normal CSRF/origin rules for
+writes. Test accounts can use snippets/generation but cannot use connection/GitHub routes.
+The assistant page-context allowlist includes the global settings, Snippeter, DB Scripter and
+Git routes; no tools granting assistant access to developer credentials, SQL results or Git
+repositories were added. Legacy settings page context remains accepted for stored chats.

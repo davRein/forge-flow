@@ -19,12 +19,12 @@ export function splitFileName(name: string) {
     return dot > 0 ? { stem: name.slice(0, dot), extension: name.slice(dot) } : { stem: name, extension: '' };
 }
 
-export function formatFileSize(bytes: number) {
+export function formatFileSize(bytes: number, locale = 'de-DE') {
     const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
     let value = bytes;
     let unit = 0;
     while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit++; }
-    return `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: unit === 0 ? 0 : 1 }).format(value)} ${units[unit]}`;
+    return `${new Intl.NumberFormat(locale, { maximumFractionDigits: unit === 0 ? 0 : 1 }).format(value)} ${units[unit]}`;
 }
 
 export function getFileCategory(file: ProjectFile): FileCategory {

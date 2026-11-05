@@ -280,3 +280,26 @@ Der lokale PostgreSQL-18.6-Betrieb und der Erhalt von Kunden/Projekten nach Back
 wurden vom Anwender bestätigt. Auch die automatisierte Suite gegen die separate Datenbank
 `forgeflow_test` wurde vom Anwender mit 23 erfolgreichen Tests, ohne Fehler und ohne übersprungene
 Tests bestätigt. Dieser PostgreSQL-Lauf wurde im Terminal des Anwenders ausgeführt.
+# Developer integrations and expiring test accounts
+
+The existing AI configuration also enables code generation for Snippeter and DB Scripter.
+Additional environment values:
+
+| Variable | Default / purpose |
+| --- | --- |
+| `INTEGRATION_SECRET_KEY` | Optional Base64-encoded **32 random bytes**, required for encrypted database passwords and GitHub tokens. Preserve across restarts/upgrades and back up privately with the database. |
+| `DEV_DB_HOSTS` | `127.0.0.1,localhost,::1`; exact allowed PostgreSQL target hosts, comma-separated. |
+| `DEV_GIT_ROOT` | `./data/git`; use `/var/lib/forgeflow/git`, service-owned mode 0700, on Ubuntu. Native `git` must be installed. |
+| `TRIAL_ACCOUNTS_ENABLED` | `true`; public CSRF/origin-protected 6-hour trial registration. `false` disables new registrations. |
+
+No encryption key is required for ordinary application startup or manually saved snippets;
+external integrations remain unavailable without it. The frontend never receives saved secrets.
+The trial deadline is persisted and cannot be extended through profile/password changes.
+Access expires immediately; a 30-second scheduled task removes expired accounts and owned data,
+including after restart. Test accounts cannot create further accounts, use external connections
+or GitHub. Sessions remain in memory. V14 adds expiry and `ff_developer_data`.
+
+For existing Ubuntu installations, run `scripts/configure-linux-developer.py` with sudo before
+deploying; it preserves an existing encryption key. Do not use a pre-V14 JAR against migrated
+trial accounts, because older code does not enforce expiry. Full details and manual checks:
+[Developer tools](../docs/developer-tools.md), [OpenAPI](../docs/openapi.json).

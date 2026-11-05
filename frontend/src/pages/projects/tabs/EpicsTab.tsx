@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../hooks/languageContext';
 import { useState } from 'react';
 import { useChatNavigationBlocker } from '../../../hooks/chatNavigationContext';
 import styled from 'styled-components';
@@ -69,6 +70,8 @@ type ProgressFilter = 'all' | 'unstarted' | 'active' | 'done';
 type Props = { epicState: ReturnType<typeof useEpics>; tasks: Task[] };
 
 export default function EpicsTab({ epicState, tasks }: Props) {
+    const { t: tx } = useUiTranslation();
+
     const [editor, setEditor] = useState<{ epic: Epic | null } | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Epic | null>(null);
     useChatNavigationBlocker(!!editor || !!deleteTarget);
@@ -87,56 +90,54 @@ export default function EpicsTab({ epicState, tasks }: Props) {
     const unassigned = tasks.filter((task) => !epicState.projectEpics.some((epic) => epic.id === task.epicId)).length;
 
     return (
-        <section aria-label="Epics">
+        <section aria-label={tx('Epics')}>
             <Toolbar>
                 <div>
-                    <h3>Epics</h3>
-                    <p>Größere Ziele planen und den Fortschritt ihrer Aufgaben verfolgen.</p>
+                    <h3>{tx('Epics')}</h3>
+                    <p>{tx('Größere Ziele planen und den Fortschritt ihrer Aufgaben verfolgen.')}</p>
                 </div>
-                <PrimaryButton onClick={() => setEditor({ epic: null })}>+ Epic anlegen</PrimaryButton>
+                <PrimaryButton onClick={() => setEditor({ epic: null })}>{tx('+ Epic anlegen')}</PrimaryButton>
             </Toolbar>
-            <p>{items.length} Epics · {tasks.length - unassigned} Aufgaben zugeordnet · {unassigned} ohne Epic</p>
+            <p>{items.length} {tx(' Epics · ')}{tasks.length - unassigned} {tx(' Aufgaben zugeordnet · ')}{unassigned} {tx(' ohne Epic')}</p>
             <Filters>
                 <Field>
-                    Epics suchen
-                    <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Titel oder Beschreibung" />
+                    {tx('Epics suchen')}<Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tx('Titel oder Beschreibung')} />
                 </Field>
                 <Field>
-                    Fortschritt
-                    <Select value={filter} onChange={(event) => setFilter(event.target.value as ProgressFilter)}>
-                        <option value="all">Alle Epics</option>
-                        <option value="unstarted">Nicht begonnen</option>
-                        <option value="active">In Bearbeitung</option>
-                        <option value="done">Abgeschlossen</option>
+                    {tx('Fortschritt')}<Select value={filter} onChange={(event) => setFilter(event.target.value as ProgressFilter)}>
+                        <option value="all">{tx('Alle Epics')}</option>
+                        <option value="unstarted">{tx('Nicht begonnen')}</option>
+                        <option value="active">{tx('In Bearbeitung')}</option>
+                        <option value="done">{tx('Abgeschlossen')}</option>
                     </Select>
                 </Field>
             </Filters>
-            <p aria-live="polite">{filtered.length} von {items.length} Epics</p>
+            <p aria-live="polite">{filtered.length} {tx(' von ')}{items.length} {tx(' Epics')}</p>
             {filtered.length === 0 && <FormCard>{items.length === 0
-                ? 'Noch keine Epics vorhanden. Lege das erste Epic an und ordne Aufgaben zu.'
-                : 'Keine Epics passen zur Suche und zum gewählten Fortschritt.'}</FormCard>}
+                ? tx('Noch keine Epics vorhanden. Lege das erste Epic an und ordne Aufgaben zu.')
+                : tx('Keine Epics passen zur Suche und zum gewählten Fortschritt.')}</FormCard>}
             <Grid>
                 {filtered.map(({ epic, tasks: epicTasks, done, status, progress }) => (
                     <Card as="article" key={epic.id}>
                         <CardHeader>
                             <h4>{epic.title}</h4>
-                            <StatusBadge label={status === 'done' ? 'Abgeschlossen' : status === 'active' ? 'In Bearbeitung' : 'Nicht begonnen'}
+                            <StatusBadge label={status === 'done' ? tx('Abgeschlossen') : status === 'active' ? tx('In Bearbeitung') : tx('Nicht begonnen')}
                                 color={status === 'done' ? '#22c55e' : status === 'active' ? '#4f8cff' : '#b7bcc8'} />
                         </CardHeader>
-                        <p>{epic.description || 'Keine Beschreibung hinterlegt.'}</p>
+                        <p>{epic.description || tx('Keine Beschreibung hinterlegt.')}</p>
                         <div>
-                            <p>{done} von {epicTasks.length} Aufgaben erledigt · {progress}%</p>
-                            <progress value={progress} max={100} aria-label={`Fortschritt ${epic.title}`} />
+                            <p>{done} {tx(' von ')}{epicTasks.length} {tx(' Aufgaben erledigt · ')}{progress}%</p>
+                            <progress value={progress} max={100} aria-label={tx('Fortschritt {value0}', { value0: epic.title })} />
                         </div>
                         {epicTasks.length > 0 ? (
                             <details>
-                                <summary>Zugeordnete Aufgaben ({epicTasks.length})</summary>
-                                <ul>{epicTasks.map((task) => <li key={task.id}>{task.code} · {task.title}<br />{taskStatuses[task.status].label}</li>)}</ul>
+                                <summary>{tx('Zugeordnete Aufgaben (')}{epicTasks.length})</summary>
+                                <ul>{epicTasks.map((task) => <li key={task.id}>{task.code} · {task.title}<br />{tx(taskStatuses[task.status].label)}</li>)}</ul>
                             </details>
-                        ) : <p>Noch keine Aufgaben zugeordnet.</p>}
+                        ) : <p>{tx('Noch keine Aufgaben zugeordnet.')}</p>}
                         <CardActions>
-                            <SecondaryButton onClick={() => setEditor({ epic })}>Bearbeiten & zuordnen</SecondaryButton>
-                            <DangerButton onClick={() => setDeleteTarget(epic)}>Löschen</DangerButton>
+                            <SecondaryButton onClick={() => setEditor({ epic })}>{tx('Bearbeiten & zuordnen')}</SecondaryButton>
+                            <DangerButton onClick={() => setDeleteTarget(epic)}>{tx('Löschen')}</DangerButton>
                         </CardActions>
                     </Card>
                 ))}
@@ -148,11 +149,11 @@ export default function EpicsTab({ epicState, tasks }: Props) {
                     return error;
                 }} onClose={() => setEditor(null)} />}
             {deleteTarget && (
-                <Dialog title="Epic löschen?" onClose={() => setDeleteTarget(null)}>
-                    <p>„{deleteTarget.title}“ wirklich löschen? Die zugeordneten Aufgaben bleiben erhalten und werden vom Epic gelöst.</p>
+                <Dialog title={tx('Epic löschen?')} onClose={() => setDeleteTarget(null)}>
+                    <p>„{deleteTarget.title}{tx('“ wirklich löschen? Die zugeordneten Aufgaben bleiben erhalten und werden vom Epic gelöst.')}</p>
                     <FormActions>
-                        <SecondaryButton autoFocus onClick={() => setDeleteTarget(null)}>Abbrechen</SecondaryButton>
-                        <DangerButton onClick={() => { epicState.deleteEpic(deleteTarget.id); setDeleteTarget(null); }}>Epic löschen</DangerButton>
+                        <SecondaryButton autoFocus onClick={() => setDeleteTarget(null)}>{tx('Abbrechen')}</SecondaryButton>
+                        <DangerButton onClick={() => { epicState.deleteEpic(deleteTarget.id); setDeleteTarget(null); }}>{tx('Epic löschen')}</DangerButton>
                     </FormActions>
                 </Dialog>
             )}

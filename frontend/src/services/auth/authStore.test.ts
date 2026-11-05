@@ -4,6 +4,17 @@ import { createAuthStore } from './authStore.js';
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 const profile = { user: { id: 'A', email: 'a@example.test', name: 'A' }, csrfToken: 'signed-in-token' };
 export const authTests = [
+    { name: 'Testkonto-Anmeldung verwendet CSRF und erhält die serverseitige Ablaufzeit', async run() {
+        const paths: string[] = []; const expiresAt = '2026-10-26T06:00:00Z';
+        const client = createApiClient('/api/v1', async (url, options) => {
+            paths.push(String(url)); if (String(url).endsWith('/csrf')) return new Response('{"csrfToken":"trial-csrf"}');
+            assert(new Headers(options?.headers).get('X-CSRF-Token') === 'trial-csrf', 'Trial registration must require CSRF');
+            return new Response(JSON.stringify({ ...profile, user: { ...profile.user, administrator: false, expiresAt } }));
+        });
+        const store = createAuthStore(client, true); await store.login('trial@example.test', 'Only-for-tests-12345', true);
+        assert(paths.join(',') === '/api/v1/auth/csrf,/api/v1/auth/trial', 'Trial must use its own public registration endpoint');
+        assert(store.getSnapshot().user?.expiresAt === expiresAt && !store.getSnapshot().user?.administrator, 'Server expiry and non-admin role must survive decoding'); store.dispose();
+    } },
     { name: 'Lokaler Modus führt keine Anmeldung oder API-Anfrage aus', async run() {
         let calls = 0;
         const client = createApiClient('/api/v1', async () => { calls++; return new Response('{}'); });

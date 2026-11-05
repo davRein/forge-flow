@@ -1,9 +1,384 @@
 # Projektübergabe: Dev Suite / ForgeFlow
 
-Stand: 25. Oktober 2026. Diese Datei fasst die bisherige Arbeit für einen neuen Codex-Chat zusammen.
+## Ergänzung: gemeinsame Themes und produktive Provider, 5. November 2026
+
+- Benutzer beauftragt gemeinsame Farbgestaltung der Zusatz-Apps, weitere Themes und
+  korrekte KI im öffentlichen Betrieb. Neue Paletten Forest/Ink/Rose ergänzen die
+  bisherigen vier; Frontendvalidierung, API-Schema und additive DB-Migration V15
+  berücksichtigen alle sieben. V11 bleibt unverändert.
+- Der origin-/quellengeprüfte Framekanal überträgt vollständige geprüfte Hex-Paletten
+  beim Initialisieren und Wechsel, auch an versteckte Frames. CSS nutzt semantische
+  Suite-Tokens mit ursprünglichen Standalone-Fallbacks. Editor-Kanten/Minimap ebenfalls
+  angepasst. Die Browserprüfung fand blasse Hub-Hilfstexte und feste grüne Grafik;
+  beide korrigiert und erneuter Durchlauf erfolgreich.
+- Deployment liest vorhandene aktive Suite-KI privat auf dem Server, optional private
+  ai.json mit Vorrang. Keine erzwungenen Produktionsfake-Provider mehr; ohne KI
+  ausdrücklicher disabled-Zustand, fehlerhafte aktive Konfiguration bricht ab.
+  Flow-Limit zunächst 5/UTC-Tag, gemeinsam API/Worker/Benutzer, unabhängig von Hub/Suite.
+  Einwilligung, Kontotrennung und lokale Fake-Demos erhalten. HTTP/E-Mail/Stub-Knoten
+  bleiben explizit simuliert. Keine Provideraufrufe in Tests oder Installer.
+- Hub-Authzustand wird über React-Key pro Transportmodus neu angelegt, überflüssiger
+  synchroner Effect-Reset entfernt. Alte Bridge-Fixtures hatten noch keinen authMode;
+  Tests aktualisiert. Neue Theme-Tests prüfen vollständige Paletten/Injection-Abweisung.
+- Verifiziert: 277 Suite-, 41 Hub-, 23 Flow-Frontendtests; Lint/Produktionsbuilds aller
+  Frontends; 62 Hub-Backendtests (1 PG-Skip), 168 Flow-Backendtests (21 opt-in Skips).
+  Neue Offline-Providerchecks für beide Apps und 21 Deploymenttests erfolgreich.
+  Java-Suite isoliert gegen PostgreSQL: 272 erfolgreich, zwei gezielte Skips, JAR
+  neu paketiert; davor H2: 270 erfolgreich/vier Skips. V15 tatsächlich angewendet.
+- Isolierter Edge-Browser: alle sieben Themes in beiden echten Produktionsfrontends,
+  erhaltene Frames/ungesendeter Hub-Entwurf, korrekte Hilfstextfarben; 14 Screenshots.
+  Repräsentative helle/dunkle Screenshots tatsächlich gesichtet. APIs synthetisch;
+  kein Beleg für reale OpenAI-Modellberechtigung oder erfolgtes Serverdeployment.
+- Anleitung/Providerwechsel und nötiger bewusster Neu-Upload alter Fake-Indizes:
+  docs/showcase-deployment.md. Schlüssel nicht im Chat anfordern; Serverzugriff
+  weiterhin nur über Anwenderterminal. Vollständiges Uploadpaket
+  `20261105T132926Z-a6bf92e2` erzeugt; im Archiv Providerdatei, Theme-Brücke,
+  Hub-Kontoanlage und V15-Klasse zusätzlich geprüft. Temporären Browser-Testserver
+  beendet. Noch kein Serverdeployment.
+
+## Ergänzung: Hub-Sitzungsprüfung HTTP 503, 5. November 2026
+
+- Anwender meldet 503 bei `/knowledge-hub-api/api/auth/session`; Antwort nennt
+  Datenbank-/Schemafehler. Container läuft. Hub-Health prüft nur Prozessbereitschaft,
+  nicht PostgreSQL; daraus darf keine erfolgreiche DB-Prüfung abgeleitet werden.
+- Ursache lokal mit echter isolierter SQLite-Persistenz reproduziert: erstmalige
+  Suite-Kontoanlage in `integrations/showcase/hub_suite.py` ließ das nicht nullable
+  Feld `users.privacy_accepted_at` weg. Bereits vorhandene Migrationen verlangen es.
+- Kontoanlage setzt jetzt explizit 0 als nicht erfolgte native Datenschutzbestätigung;
+  keine erfundene Zustimmung, externe KI-Einwilligung bleibt false. Änderung auch in
+  die lokale Hub-Datei `backend/app/core/suite.py` übernommen. Kein Schemawechsel.
+- Neuer `scripts/test-showcase-hub-auth.py` mit Hub-Venv aus Suite-Wurzel ausführen:
+  vor Korrektur identische 503-Antwort, danach erstmalige/wiederholte Anmeldung 200,
+  stabile Verknüpfung und getrennte Konten bei zwei Suite-IDs mit gleicher E-Mail.
+  Isolierte temporäre SQLite-DB, Suite-Identität simuliert; kein echter PG-/SSO-Lauf.
+- Suite-Lint/Produktionsbuild und alle 20 Offline-Deploymenttests erfolgreich.
+  Vollständiges Paket `20261105T123720Z-b25dfd1e` erzeugt, Archivkorrektur geprüft.
+  Noch keine Serveränderung; Upload/Installer vom Anwender ausführen, danach Hub
+  erneut laden und Dokument-/Chatfunktionen prüfen. Bestehende Daten/Keys erhalten.
+
+## Ergänzung: sichtbare Apps durch alte Zugangssperre blockiert, 5. November 2026
+
+- Anwender bestätigt erfolgreichen Serverlauf `20261105T114123Z-cf09cfaf` und inzwischen
+  sichtbare Module. Beide Apps laden nicht; angemeldeter Browser meldet HTTP 403.
+  Öffentlich ausgeliefertes Suite-Frontend enthält die richtigen Produktionsadressen.
+- Ursache in Deployment-Konfiguration: Nginx prüfte weiterhin den alten nur für
+  Administratoren freigegebenen `/api/v1/auth/showcase-access`. Jetzt verwendet der
+  interne Subrequest `/api/v1/auth/showcase-session`; der alte Endpunkt bleibt geschützt.
+- Beide öffentlichen App-APIs erzwingen serverseitig `X-ForgeFlow-Mode: suite` und
+  reichen das Sitzungscookie weiter. FlowPilot startet den vorhandenen Suite-Gateway
+  und Suite-Worker mit Backchannel-URL/Origin, nicht mehr die globale native API.
+  Bestehende Benutzerschemas werden vor dem Start migriert. Keine Freigabe globaler
+  Workspaces für normale Benutzer; lokale Standalone-Daten bleiben unverändert.
+- FlowPilot-Produktionskonfiguration ergänzt die fehlende `VITE_SUITE_ORIGIN`.
+  Paketierung verweigert Builds ohne Produktions-Origin; Installerhinweise verlangen
+  kein separates Hub-Konto mehr. Beide Apps nutzen die Suite-Kennung.
+- Verifiziert: drei neue Deploymentprüfungen vor Korrektur fehlgeschlagen, danach
+  alle 20 erfolgreich. 35 Backend-Integrationstests inklusive regulärem Suite-Profil,
+  Sperrung, Portal-Ausschluss und Cross-Site-Abweisung erfolgreich. Lint und Build
+  von Suite und FlowPilot erfolgreich. Korrigiertes Paket `20261105T120842Z-29291506`
+  bereitgestellt; Anwender bestätigt danach: „ja beide apps laden“. Das bestätigt
+  den angemeldeten Remote-Ladeweg, nicht sämtliche App-Funktionen oder eine
+  vollständige Mehrbenutzer-/Ablaufprüfung auf dem Server.
+- Passwörter ausschließlich im Anwenderterminal eingeben, nicht im Chat. Bei nötigem
+  Serverzugriff ausdrücklich dazu auffordern; kein automatischer Agenten-SSH-Zugang.
+
+## Ergänzung: Leserechte für unprivilegierte Images, 5. November 2026
+
+- Serverlauf mit Backup `/opt/forgeflow/showcase-update.bBgsRh` bestätigt: alle drei
+  Linux-Images erfolgreich gebaut, Constraints-/Bake-Probleme behoben. Erster Hub-
+  Migrationsaufruf scheitert bereits an `PermissionError: /app/alembic/env.py`.
+  Noch keine App-Migrationen oder neue öffentliche Anwendungsversion gestartet.
+- Ursache aus Installer/Filter/COPY nachvollzogen: `umask 077` und tar-data-Filter ohne
+  explizite Verzeichnismodi erzeugen root-eigene 0700-Quellverzeichnisse; Docker übernimmt
+  diese Rechte. Root konnte bauen/installieren, Laufzeit-UID 10001 nicht hineinlesen.
+- Python-Dockerfile normalisiert ausschließlich kopierten Anwendungscode unter `/app`
+  auf Verzeichnisse 0755/Dateien 0644; pip-Installation verwendet umask 022. Root-eigener
+  Code, read-only Laufzeit und UID 10001 bleiben erhalten; keine Host-/Secret-Rechte geändert.
+- Neuer `image_read_access.py` ist in beiden Python-Kontexten enthalten und wird im
+  Image-Build nach USER 10001 ausgeführt. Prüft tatsächliche UID, vollständige Traversierung
+  ohne Überspringen unlesbarer Ordner, benötigte Alembic-/FlowPilot-Dateien. Next prüft
+  ebenfalls nach USER node die Lesbarkeit seiner kopierten Laufzeitdateien.
+- Vier neue Offline-Regressionen (Lesbarkeit, PermissionError, fehlende Migration, UID),
+  insgesamt 17 Tests erfolgreich; Archivprüfung kontrolliert identische Smoke-Test-Dateien.
+  Neuer kompletter Release für Wiederholung vorbereitet, vorhandene Datenbanken/Keys erhalten.
+  Tatsächliche Nicht-root-Linux-Tests laufen auf dem Server beim nächsten Image-Build.
+
+## Ergänzung: korrigierte Python-Constraints, 5. November 2026
+
+- Zweiter Serverversuch mit Backup `/opt/forgeflow/showcase-update.xvTNgl`: Bake-Pfadfehler
+  behoben, Hub-Image startet den Build. pip bricht an einer ungültigen Zeile `==` in
+  `constraints.txt` ab. Noch keine neuen App-Container/Migrationen/Veröffentlichungen.
+- Ursache war Windows-PowerShell-JSON-Arrayverarbeitung: Namenliste + `==` + Versionsliste
+  wurden statt einzelner `Name==Version`-Paare geschrieben. Schlüssel und DBs sind davon
+  nicht betroffen; bei erneutem Paketieren keine Änderungen an diesen Serverwerten.
+- Erzeugung jetzt vollständig in Python (`scripts/showcase_python_constraints.py`),
+  Validierung durch Packaging-Requirement-/Versionsparser auf genaue einzelne Pins,
+  Duplikate/Versionskonflikte und beide tatsächlichen Constraint-Dateien im fertigen Archiv.
+  Alte fehlerhafte Arrays/Leerzeilenoperatoren sind durch Regressionstests abgedeckt;
+  insgesamt 13 Offline-Deploymenttests erfolgreich.
+- Zusätzlich echte pip-Prüfung: alle Runtime-Abhängigkeiten mit den korrigierten Pins
+  für Linux x86_64/Python 3.12 aufgelöst und kompatible Wheels heruntergeladen. Beide
+  verpackten Python-Projekte mit Python 3.12 als plattformunabhängige Wheels gebaut,
+  Laufzeitdateien und FlowPilot-Migrationen im Wheel vorhanden.
+  Reproduzierbar: `scripts/check-showcase-python-packages.py STAGING_DIRECTORY` aus der
+  Suite-Wurzel (vorhandene lokale Venvs, Internet für PyPI, keine Installation/DB-Zugriffe).
+  Das ist kein ausgeführter Linux-Containerbuild; dieser muss weiterhin auf dem Server
+  erfolgen. Neuer kompletter Release mit neuer ID/Prüfsummen für erneuten Upload erzeugt.
+
+## Ergänzung: erster Serverlauf und Bake-Pfadkorrektur, 5. November 2026
+
+- Anwenderlog bestätigt: pgvector 0.8.7 für PostgreSQL 18 installiert; beide neuen
+  Datenbanken und eingeschränkten Rollen erfolgreich angelegt und per TCP geprüft.
+  Hub-Erweiterung aktiviert, geheime Serverkonfiguration erhalten. Python-/Node-/Redis-
+  Basisimages erfolgreich heruntergeladen und Digests gespeichert.
+- Abbruch beim allerersten Image-Build durch Compose 5.6.0/Bake: Dockerfile lag außerhalb
+  des Build-Kontexts (`../docker/Python.Dockerfile`), zusätzliche fs.read-Freigabe verlangt.
+  Backup `/opt/forgeflow/showcase-update.wHp6MY`; Wiederherstellungsschritte Status 1.
+  Zu diesem Zeitpunkt noch keine Container gestartet, App-Migrationen angewendet oder
+  neuen Nginx-/Suite-Dateien veröffentlicht. Datenbanken/Keys/Basisimages bleiben erhalten.
+- Korrigiert: Compose nutzt `Dockerfile` innerhalb jedes Kontexts; Paketierer legt die
+  kanonischen Vorlagen unter hub-api/, hub-web/ und flow-api/ ab. Keine pauschalen Bake-
+  Berechtigungserweiterungen. Neue automatische Archivprüfung auf vorhandene lokale
+  Dockerfiles und drei Regressionstests; insgesamt zehn Offline-Deploymenttests erfolgreich.
+- Neues vollständiges Paket mit neuer Release-ID und Prüfsummen vorbereitet. Beim
+  Wiederholen vorhandene DB-/Rollen-/Key-/Image-Konfiguration weiterverwenden; nichts
+  löschen/zurücksetzen. Linux-Build und anschließende Migrationen weiter vom Anwender
+  auszuführen. Hub-Konto erst nach `Deployment ready`; fehlender current-Link nach dem
+  frühen Abbruch ist erwartbar und kein separater Kontofehler.
+
+## Ergänzung: Serverinventur ausgewertet, Release vorbereitet, 5. November 2026
+
+- Anwender hat die erweiterte Inventur auf dem Server ausgeführt: Ubuntu 26.04.1,
+  2 CPUs/3,8 GiB RAM/104 GiB frei, PostgreSQL 18.6, ForgeFlow V14 erfolgreich.
+  Nextcloud läuft getrennt mit gesunder PostgreSQL-Datenbank und Redis. Fehlend:
+  `ai_knowledge_hub`, `flowpilot`, pgvector, Node und eigene Redis-/Python-3.12-Laufzeit.
+  apt-Ausgabe zu `postgresql-plpython3-12` ist kein verfügbares Python-3.12-Runtimepaket.
+- Deployment verwendet vorhandenes Docker für die Zusatz-Apps, System-Python 3.14
+  bleibt bestehen. Nur pgvector für vorhandenes PostgreSQL 18 ggf. per apt; simulierten
+  Plan auf Änderungen bestehender Kerndienste prüfen. Eigener Redis/Worker aktiviert
+  FlowPilots vorhandene Jobs im Infrastrukturmodus, KI/HTTP weiter mock/fake.
+- Vorläufiger Administratorzugriff wurde als konservative Annahme angekündigt; Anwender
+  hat dazu noch keine abweichende Präferenz genannt. Neuer leerer Admin-Endpunkt
+  `/api/v1/auth/showcase-access` für Nginx, Frontendflag blendet Module für andere aus.
+  Hub zusätzlich eigene Produktionsanmeldung/geschlossene Registrierung, kein SSO.
+  Standalone-Layout bleibt erhalten. Details: [Deployment](showcase-deployment.md).
+- Unterpfade `/knowledge-hub` und `/flowpilot/`, APIs mit getrennten Präfixen. Hub hat
+  optionales Next-basePath/Standalone-Output, FlowPilot optionale Asset-/API-Präfixe;
+  bisheriger unabhängiger lokaler Betrieb bleibt unverändert. Beide Nachbarprojekte
+  wurden mit deren vorhandenen lokalen Abhängigkeiten geprüft, keine .env geändert.
+- `deploy/showcase/` ergänzt Container/Compose, idempotente private DB-/Rollen-/Key-
+  Einrichtung, gezielte Nginx-Ergänzung und interaktive Hub-Kontoanlage. Installer
+  `scripts/install-linux-showcase.sh` sichert vorab, baut unter Linux, migriert, prüft
+  Bereitschaft/HTTPS-Zugriff, veröffentlicht beide Suite-Artefakte und versucht bei
+  Fehlern die vorigen Programm-/Nginx-Versionen wiederherzustellen. Neue DBs/Rollen
+  und additive Migrationen bleiben erhalten; kein destruktiver Datenbank-Rollback.
+- Verifiziert: Lint und Produktionsbuild aller Frontends, 277 Suite-/39 Hub-/21 Flow-
+  Tests erfolgreich. Isolierter PostgreSQL-Lauf: 270 Backendtests erfolgreich,
+  zwei gezielte Tests übersprungen (272 gesamt); aktuelle JAR daraus neu paketiert.
+  Sieben Offline-Deploymenttests, Bash-Syntax und statische Compose-Prüfung erfolgreich.
+  Edge-Test tatsächlicher Produktionsbuilds erfolgreich: getrennte Pfade/APIs, Navigation,
+  Sprache/Entwurfserhalt, keine Showcase-Frames für Nichtadministratoren. API-Antworten
+  dabei synthetisch; tatsächlicher Container-/Nginx-/Kontenbetrieb noch nicht geprüft.
+- Vollständiges Release per `scripts/package-showcase-release.ps1` unter ignoriertem
+  `node_modules/.tmp/forgeflow-showcase.tar.gz` vorbereitet, inklusive Prüfsummen und
+  LF-Installer. Keine lokalen .env, Daten oder unsicheren Archiveinträge enthalten.
+  **Noch nicht auf dem Server installiert/veröffentlicht:** direkter SSH-Zugang fehlt
+  weiterhin, lokaler Docker-Engine-Dienst nicht aktiv. Anwender muss das Paket mit den
+  dokumentierten scp-/SSH-Befehlen ausführen; danach echte Serverabnahme fortsetzen.
+
+## Ergänzung: Serverbereitstellung angefragt, 4. November 2026
+
+- Anwender autorisiert Deployment der gesamten Suite einschließlich Knowledge Hub und
+  FlowPilot; Servervoraussetzungen ausdrücklich vor Installationen prüfen.
+- Bekannter Zielserver aus bestehender Betriebsdokumentation: `forge-flow.de`,
+  `185.56.150.178`, SSH-Konto `dreinerts`. Erneute Batchanmeldung abgewiesen
+  (`Permission denied (publickey,password)`). Kein Serverzugriff und keine Remoteänderung.
+- Lesende Inventur `scripts/check-linux-showcase.sh` vorbereitet und Bash-Syntax geprüft;
+  Ausführung per SSH/sudo steht aus. Keine Installation oder Veröffentlichung behaupten.
+- Nachtrag: Anwender autorisiert Prüfung und ggf. Ergänzen aller relevanten Datenbanken.
+  Inventur erweitert um Eigentümer/Rollenrechte/Schemata, aktiviertes pgvector und die
+  drei Migrationsstände; bestehende verwaltete Nextcloud-DB wird gesondert geprüft.
+  Abfragen technisch schreibgeschützt. Noch keine Remoteinventur oder Datenbankanlage;
+  vor Anlage tatsächliche konfigurierte Namen und vor Migrationen Sicherungen prüfen.
+- Projektabhängigkeiten vorgeprüft: Hub Node >=22.13/Python >=3.12/PostgreSQL+pgvector,
+  FlowPilot Python 3.12, für Jobs PostgreSQL/Redis/Worker. Hub authentifiziert betreiben;
+  FlowPilot benötigt vorgeschalteten Zugriffsschutz, weil eigene Konten/Mandanten fehlen.
+  Öffentliche URLs/Proxy-/Dienstkonfiguration erst anhand tatsächlicher Serverinventur
+  festlegen; vorhandene Suite-/Cloud-Dienste, Daten, Schlüssel und KI-Einstellungen erhalten.
+
+## Ergänzung: durchgängige deutsche/englische Oberfläche, 4. November 2026
+
+- Suite-Sprachwahl vereinheitlicht Menüs und Projekt-/Aufgaben-/Sprint-/Dateiformulare,
+  Status-/Prioritätsanzeigen sowie Dialoge. `consistencyTranslations.ts` ergänzt die
+  bestehenden Wörterbücher; dynamische Diagnosen behalten eingefügte Benutzerwerte.
+- Knowledge Hub und FlowPilot haben eigene typisierte, reaktive DE/EN-Wörterbücher,
+  lokalisierte Seitenmenüs, Formulare, Diagnosen, Metadaten und Datums-/Zahlenformate.
+  Standalone-Sprachwahl im Kopfbereich speichert pro Origin eine eigene Voreinstellung.
+- Der vorhandene origin-/quellengeprüfte Framekanal überträgt `language: de|en` beim
+  Initialisieren und bei Änderungen, auch an bereits geöffnete ausgeblendete Apps.
+  Kein Frame-Reload, keine Übersetzung von Benutzereingaben/gespeicherten Fachwerten,
+  keine API-Vertragsänderung; Suite-Modus überschreibt keine Standalone-Sprachpräferenz.
+- Verifiziert: Lint und Produktionsbuild aller drei Frontends; 276 Suite-, 39 Hub- und
+  19 FlowPilot-Tests erfolgreich. Sprach-/Brückentests prüfen reaktive Labels, erhaltene
+  Eingaben, sichere Platzhalter und die vertrauenswürdige Sprachübertragung.
+- Neuer reproduzierbarer Edge-Test `scripts/test-showcase-language.mjs`: eingebettet
+  EN → DE → EN, Menüs/Bedienelemente/Indexstatus, unveränderte
+  Fragen/Dateinamen/Arbeitsablaufentwürfe, Frameidentität und keine zusätzlichen
+  Zusatz-API-Aufrufe beim Sprachwechsel; unabhängige Standalone-Präferenz nach Reload.
+  Alle API-Antworten dabei synthetisch simuliert. Screenshots einschließlich deutscher
+  Größen-/Einzahlformate manuell gesichtet;
+  keine erneute Backend-/Providerprüfung erforderlich. Separate Testserver anschließend
+  beendet, vorhandene Benutzerprozesse unverändert.
+
+## Ergänzung: bereinigte Texte der Zusatz-Apps, 4. November 2026
+
+- Auf Anwenderwunsch allgemeine Entwicklungs-/Deployment-Warnbanner, Meilensteinangaben
+  und M6-Fußzeile aus Knowledge Hub sowie Meilenstein-/Entwicklungsmarker aus FlowPilot
+  entfernt. Gilt eingebettet und standalone. Fachliche Einwilligung vor externer
+  KI-Verarbeitung bleibt erhalten; Fake-/Mock-Ergebnisse bleiben gekennzeichnet.
+- Datenschutzseite nennt weiter Speicher-/Provider-/Löschverhalten und Kontowiederherstellung;
+  interne Veröffentlichungsvoraussetzungen stehen weiter in der Betriebsdokumentation.
+- Lint/Produktionsbuilds beider Zusatz-Apps erfolgreich. Visuelle Edge-Kontrolle mit
+  synthetischen API-Antworten: Banner/Meilensteine entfernt, Navigation und simulierte
+  Statusanzeigen vorhanden. Browser-Regressionsskript um passende Prüfungen erweitert.
+
+## Ergänzung: integrierte Showcase-Apps, 4. November 2026
+
+- Ersetzt die bisherigen externen Links durch reguläre Module `knowledgeHub`/`flowPilot`
+  mit Logos, Hash-Routen und gemeinsamer Topbar. Eigene Laufzeiten in persistenten Frames;
+  geprüfter postMessage-Handshake synchronisiert ausschließlich erlaubte Bereichsrouten.
+  Eltern-Origin und Framequelle werden beidseitig geprüft, keine Konto-/Passwortübertragung.
+- In beiden Nachbarprojekten optionale Einbettungsadapter und Styles ergänzt. Standalone
+  bleibt einschließlich eigener Navigation erhalten. Knowledge Hub erlaubt bei expliziter
+  Eltern-Origin genau diese über CSP; Vorgabe bleibt Frame-DENY. Lokaler Same-Origin-Proxy.
+- `start-frontend.ps1` startet die Zusatzdienste über `start-showcase.ps1` automatisch;
+  deshalb auch beim Gesamtstart über `start-local.ps1`. Ports: Suite 5173/3001,
+  Hub 3000/8000, FlowPilot 5174/8001. Feste Fake-/Mock-Prozesseinstellungen und getrennte
+  Demo-Datenbereiche; vorhandene .env-Dateien/private Konten bleiben unverändert.
+  Eigene Logs, echte Bereitschaftsprüfungen, Portschutz, Aufräumen eigener Prozessbäume.
+  `FORGEFLOW_SKIP_SHOWCASE=true` deaktiviert den automatischen Zusatzstart gezielt.
+- FlowPilots verschobene lokale Python-Umgebung repariert: vorhandenes Python 3.12.16,
+  venv-Startdateien und Editable-Quellpfad, keine Paket-/Datenlöschung.
+- Verifiziert: 275 Suite-Tests, 36 Hub-Tests, 16 FlowPilot-Tests; sechs lokale Skriptprüfgruppen.
+  Standalone-Produktionsbuilds beider Nachbarapps erfolgreich. Echter gemeinsamer Start
+  inklusive Hub-Datenbank-Leseabfrage erfolgreich. Edge-Browserprüfung eingebettet/Standalone,
+  beidseitige Routen, Entwurfsabbruch/-erhalt über Modulwechsel, mobile Ansicht erfolgreich.
+  Suite-Account-APIs im isolierten Browser synthetisch simuliert, Zusatz-APIs real im Demo-Modus;
+  keine echten Benutzerkonten, Provideraufrufe oder produktives SSO getestet/geändert.
+  Reproduzierbar: `node scripts/test-showcase-browser.mjs`; Screenshots unter node_modules/.tmp/.
+- Abschließende visuelle Prüfung: Mobile Kopfzeile kompakt gemacht, verspätete Frame-Routen
+  können einen bereits angeforderten Modulwechsel nicht mehr zurücknehmen. Regressionstest
+  und erneuter Browserlauf erfolgreich; eigene Showcase-Testdienste anschließend beendet.
+
+## Ergänzung: lokaler Login-Ursprung, 4. November 2026
+
+- Erneuter Loginfehler war `ORIGIN_REJECTED`, keine Aussage über das neue Passwort.
+  Laufendes Backend per leeren Requests geprüft: `http://localhost:5173` passiert Origin-
+  Prüfung (ohne Token anschließend `CSRF_REJECTED`); `http://127.0.0.1:5173` wird abgewiesen.
+- Vite leitet jetzt Dokument-GETs mit Host `127.0.0.1:5173` auf `http://localhost:5173`
+  um. API-Anfragen bleiben unverändert. Frontend-Startskript nennt die Login-Adresse.
+  Node-22-Typen als Entwicklungsabhängigkeit für die Middleware ergänzt.
+- Isolierter HTTP-Test bestätigt 307 mit erhaltenem Pfad/Query, 200 für localhost und
+  unveränderte Nicht-Dokumentanfragen. Lint, Build und 274 Frontendtests erfolgreich.
+  Testserver beendet; tatsächliche Anmeldung mit neuem Passwort bleibt beim Anwender.
+
+## Ergänzung: lokaler Passwort-Reset, 4. November 2026
+
+- `scripts/reset-local-password.ps1` und `scripts/ResetLocalPassword.java`: interaktiver
+  Wiederherstellungshelfer für vorhandene aktive normale PostgreSQL-Konten. Verwendet die
+  lokale DPAPI-Konfiguration, verdeckte doppelte Passworteingabe, BCrypt und atomare Änderung
+  von Hash/Sitzungsversion mit Versionsprüfung. Keine Rollenänderung oder Passwortausgabe.
+- Java erfolgreich kompiliert, PowerShell-Syntax geprüft. Kontoübersicht lokal nur gelesen;
+  tatsächlicher Reset wartet auf die verdeckte Eingabe im Terminal des Anwenders.
+- Anschließend JDBC-Startfehler behoben: altes `target/classpath.txt` enthielt keinen
+  PostgreSQL-Treiber. Helfer erzeugt jetzt getrennt `target/password-reset-classpath.txt`
+  mit Runtime-Abhängigkeiten und prüft den Treiber vor dem Start. Reproduktion ohne Treiber
+  fehlgeschlagen; korrigierter echter JDBC-Lesetest mit `-CheckConnection` erfolgreich
+  (ein aktives normales Konto). Kein Passwort durch den Agenten geändert.
+
+## Ergänzung: Showcase-Navigation, 4. November 2026
+
+- Linke Navigation ergänzt unter „Weitere Apps“ AI Knowledge Hub und FlowPilot aus den
+  benachbarten Showcase-Projekten. Übernommen sind deren vorhandene Schriftlogos (violettes
+  K, mintfarbenes fp). Öffnen in separatem Tab; keine Serverstarts oder gemeinsame Anmeldung.
+- `frontend/src/config/showcaseProjects.ts` verwaltet Ziele: Entwicklungsdefaults
+  `http://localhost:3000` und `http://localhost:5174`; überschreibbar mit
+  `VITE_KNOWLEDGE_HUB_URL` / `VITE_FLOWPILOT_URL`. Produktionsbuilds brauchen explizite
+  HTTPS-Adressen; leere/ungültige Werte deaktivieren Links. HTTP nur für Loopback.
+- Gleichzeitiger lokaler Betrieb: ForgeFlow 5173/3001, Knowledge Hub 3000/8000,
+  FlowPilot 5174/8001 mit `FLOWPILOT_API_PROXY`. Befehle: `docs/local-operation.md`.
+- Verifiziert: ESLint, TypeScript/Produktionsbuild und 274 Frontendtests erfolgreich.
+  Bekannte Bundlegrößenwarnung bleibt. Keine visuelle Browserprüfung oder Serverstarts.
+  Keine Änderungen an den benachbarten Projekten oder am Backend.
+
+Stand: 26. Oktober 2026. Diese Datei fasst die bisherige Arbeit für einen neuen Codex-Chat zusammen.
 Vor Änderungen immer den aktuellen Quellcode prüfen. Die hier genannten Testergebnisse stammen
 aus dem letzten abgeschlossenen Implementierungsdurchlauf und sind keine erneute Prüfung dieses
 Dokumentationsschritts.
+
+## Neu: globale Einstellungen, Testkonten und Entwicklerwerkzeuge (V14)
+
+- Alle bisherigen Suite-Einstellungen öffnen jetzt über ein kleines Zahnrad im Header neben
+  der globalen Suche unter `#/settings/general`. Der Project-Manager-Tab wurde entfernt;
+  Altlinks mit `#/projectManager/settings` leiten samt Kategorie weiter. Die bisherigen
+  Konten-, Optik-, Sprach-, Projektvorgaben und Branchenlisten bleiben erhalten.
+- Login bietet öffentliche Testkonto-Anlage mit eigener E-Mail/Passwort und leerem privaten
+  Workspace. Ablauf absolut nach sechs Stunden, auch über Neustarts/Profil-/Passwortänderungen
+  hinweg. Danach 401; vollständige Bereinigung der Live-Daten alle 30 Sekunden bzw. beim
+  Wiederanlauf. PostgreSQL löscht unter Kontosperre atomar sämtliche Eigentümertabellen;
+  Memory-Adapter verhindern nachträgliche Schreibzugriffe auf gelöschte Konten.
+- Testkonten sind keine Administratoren, können keine weiteren Konten/Portalnutzer erzeugen
+  und keine DB-/GitHub-Zugänge nutzen. Anmeldung/Registrierung behalten CSRF/Origin/BCrypt.
+  Grenzen: 3 Registrierungsversuche/IP/15 Minuten, 30 aktive Testkonten, 20 KI-Nachrichten/
+  Codegenerierungsversuche je Testkonto. `TRIAL_ACCOUNTS_ENABLED=false` stoppt neue Anlagen.
+  Backups behalten die bisherige Aufbewahrung; dies ist keine nachträgliche Backup-Redaktion.
+- Dev Tools → Snippeter: Sprachwahl, Code-/Prompteditor, sichere lexikalische Syntaxvorschau,
+  explizite KI-Generierung und privates Speichern/Öffnen/Bearbeiten/Löschen. Keine Ausführung
+  generierten Codes. Entwurfswarnung vor Navigation/Abmelden, abgeschnittene Antworten markiert.
+- DB Scripter unterstützt zunächst PostgreSQL mit expliziten eigenen Verbindungen; nur exakt
+  in `DEV_DB_HOSTS` freigegebene Hosts. Generierung übermittelt Beschreibung/Dialekt, keine
+  gespeicherten Zugangsdaten, Schema oder Resultate. Ausführung ausschließlich nach Dialog
+  mit unveränderlichem SQL/Ziel/Modus über einmaliges, 120 Sekunden gültiges Ticket; Standard
+  nur lesend, Rollenrechte der Ziel-DB gelten. Begrenzte Transaktion/Ergebnisse/Zeiten und
+  Rollback bei Fehlern, keine automatische Wiederholung. Das ist keine SQL-Sandbox.
+- Git ist eine eigene App direkt unter Project Manager. Private GitHub-PAT-Anbindung,
+  manuelles paginiertes Laden zugänglicher Repositories und bestätigte flache Server-Klone
+  ohne Submodule/Codeausführung. Klone liegen privat unter `DEV_GIT_ROOT`, nicht auf Windows.
+  Kein Pull/Push/Branchmanagement. GitHub-/OpenAI-Livezugriffe wurden nicht automatisch getestet.
+- Separater revisionsgeschützter `ff_developer_data`-Speicher für Snippets, SQL, verschlüsselte
+  Verbindungen/Token und Klonmetadaten. AES-GCM mit Konto-/Verbindungsbindung; Antworten ohne
+  Geheimnisse. Schlüssel `INTEGRATION_SECRET_KEY` (Base64, 32 Zufallsbytes) stabil sichern.
+  Ohne Schlüssel normale App/Snippets möglich, externe Integrationen gesperrt. Neue API-
+  Verträge und private Seitenkontexte sind dokumentiert; keine neuen Chat-Werkzeugrechte.
+- Ubuntu-Helfer `scripts/configure-linux-developer.py` + vier Offline-Tests ergänzt. Er erhält
+  vorhandene Konfiguration/Schlüssel, erzeugt fehlenden Schlüssel privat, installiert ggf. Git
+  und erstellt `/var/lib/forgeflow/git` mit Dienstbesitzer/0700; kein Neustart/Provideraufruf.
+- Update-/Regressionstestskripte verhindern einen automatischen Backend-Downgrade auf eine
+  Version ohne Testkontoablauf: in diesem Fall bleibt bei Updatefehlern der neue Dienst gestoppt.
+  Details und erforderliche Upload-/Einrichtungsbefehle: [Entwicklerwerkzeuge](developer-tools.md).
+- Serverinstallation dieses neuen Pakets steht noch aus. In dieser Umgebung ist kein Browser
+  angebunden; der Versuch einer lokalen Browserkontrolle konnte deshalb nicht stattfinden.
+  Die kurz gestartete lokale Vorschau wurde beendet. Manuelle Abnahme bleibt erforderlich.
+- Abschlussprüfung am 26.10.: **272 Frontend-Tests erfolgreich**, ESLint ohne Fehler/Warnungen,
+  API-Produktionsbuild erfolgreich (bekannte nicht blockierende Bundlegrößenwarnung).
+  Vollständiger isolierter PostgreSQL-Lauf mit Performance-Prüfungen: **269 Backend-Tests
+  erfolgreich, 1 absichtlich deaktivierter OpenAI-Livetest übersprungen** (270 gesamt).
+  Neuer SQL-Echttest bestätigt einmalige Freigabe, Schreibschutz, Rollback und Ergebnisgrenze.
+  Beide Speicheradapter prüfen Widerruf während KI-/GitHub-Aufrufen; Testbereinigung prüft
+  auch abhängige Kontakte, Tasks/Epics/Sprints, Dateibytes, Wiki-Hierarchie, REST, Zeit/Business,
+  KI-Verlauf und Eigentümertrennung. Vier Python-Einrichtungstests erfolgreich.
+  Deployment-Shelltests erfolgreich, lediglich Symlink-Erzeugung unter Windows übersprungen;
+  auf Ubuntu durch `bash ~/test-linux-chat.sh` erneut ausführen. `git diff --check` sauber.
+- Letzter isolierter Cluster: `node_modules/.tmp/postgres-test-f57c9ab5f04443bc820d804c33c66756`.
+  Sauber gestoppt (`stop.log`), keine `postmaster.pid`/Initialpasswortdatei verblieben; vorhandene
+  Anwendung/PostgreSQL-Dienste wurden nicht verwendet oder verändert. Kein Provider-Livetest.
+- Fertiges, geprüftes Uploadpaket unter `node_modules/.tmp/forgeflow-chat-*`:
+  Frontend-Asset **`index-DHxxIBvl.js`**, JAR SHA-256
+  `17de27a5d8cf1b6ea956f96c0cde5a04c4e97bdfd828da469503db71987d4558`, Frontend-Tar
+  `c78df1278f655f65c4a10d21f15bcd5d5c62b80acbfd80a164bd27e8cb2621df`.
+  Prüfsummen, gepackte V14-Klassen/Migration, Archivpfade, identische index/JS-Dateien und
+  API-Konfiguration kontrolliert. OpenAPI: 49 Pfade / 89 Schemas, lokale Referenzen und
+  eindeutige Operation-IDs geprüft. Frühere Ergebnis-/Hashangaben weiter unten sind historisch.
 
 ## Projekt und Entscheidungen des Anwenders
 
@@ -212,6 +587,21 @@ danach Kontoverwaltung ergänzen.
   Vollständige Prüfliste steht in `docs/browser-check.md`.
 
 ## Zuletzt verifiziert
+
+README-Überarbeitung, 25. Oktober 2026:
+
+- Root-README weiterhin Englisch und ausschließlich Installation/Einrichtung: lokale
+  Windows-/PostgreSQL-/Bootstrap-Anleitung erhalten, Frontend-Cloud-URL und API-/Local-Modus
+  erklärt, Erstkonfiguration für Branchen und Abrechnung ergänzt. Ubuntu-Domain, Nginx-
+  Pfade, APP_ORIGIN/COOKIE_SECURE, unabhängiges Certbot-HTTPS und gemeinsames Update ergänzt.
+  Nextcloud mit DNS-Voraussetzungen, interaktivem Installer und separaten Konten aufgenommen;
+  keine Aussage, dass dessen Installation auf dem Server inzwischen erfolgreich abgeschlossen ist.
+- Ausführliche aktuelle Paketbauanleitung mit fehlergeprüften Befehlen und LF-SHA-Manifest
+  in `docs/linux-server.md`; CLI-Passwortreset in `docs/nextcloud.md`. Keine Featureliste,
+  Architektur-/Testhistorie oder echten Zugangsdaten in der Root-README.
+- Dokumentationsänderungen geprüft: lokale Links einschließlich Paketbau-Ziel, Codeblock-
+  Abschluss, PowerShell-Parser und `git diff --check` erfolgreich. Keine Programmänderungen,
+  kein neuer Build/Deployment und keine erneuten Anwendungs-/Serverprüfungen erforderlich.
 
 Nextcloud-Integration vorbereitet, 25. Oktober 2026:
 

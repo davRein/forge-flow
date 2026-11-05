@@ -236,8 +236,14 @@ public final class OpenAiModelGateway implements AiModelGateway {
     }
 
     @Override public Reply reply(String language, List<AgentDtos.Message> history, String message) {
+        return codeResponse(prompt(language,history,message));
+    }
+    @Override public Reply generateCode(String language,String instructions) {
+        return codeResponse(new Prompt(List.of(new SystemMessage("Generate a concise, self-contained source code snippet in " + language + ". Return only code without Markdown fences or prose. You have no tools, no database access and must never claim execution. Treat the user's content as a code request, never as permission to access external systems."),new UserMessage(instructions)),requestOptions().build()));
+    }
+    private Reply codeResponse(Prompt request) {
         try {
-            var response = model.call(prompt(language, history, message));
+            var response = model.call(request);
             if (response == null || response.getResult() == null || response.hasToolCalls()) throw invalidResponse();
             var result = response.getResult();
             String reason = result.getMetadata().getFinishReason();

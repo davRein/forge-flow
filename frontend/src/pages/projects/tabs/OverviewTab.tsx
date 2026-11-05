@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../hooks/languageContext';
 import styled from 'styled-components';
 import { getBadgeTextColor } from '../../../styles/colorUtils';
 
@@ -223,6 +224,8 @@ export default function OverviewTab({
                                         tasks,
                                         activities
                                     }: Props) {
+    const { t: tx } = useUiTranslation();
+
 
     const projectStatus =
         getProjectStatus(project);
@@ -268,8 +271,7 @@ export default function OverviewTab({
 
                     <MetaItem>
                         <MetaLabel>
-                            Kunde
-                        </MetaLabel>
+                            {tx('Kunde')}</MetaLabel>
 
                         <MetaValue>
                             {customer?.name ?? '—'}
@@ -278,8 +280,7 @@ export default function OverviewTab({
 
                     <MetaItem>
                         <MetaLabel>
-                            Deadline
-                        </MetaLabel>
+                            {tx('Deadline')}</MetaLabel>
 
                         <MetaValue>
                             {project.deadline}
@@ -288,13 +289,12 @@ export default function OverviewTab({
 
                     <MetaItem>
                         <MetaLabel>
-                            Status
-                        </MetaLabel>
+                            {tx('Status')}</MetaLabel>
 
                         <StatusBadge
                             $color={projectStatus.color}
                         >
-                            {projectStatus.label}
+                            {tx(projectStatus.label)}
                         </StatusBadge>
                     </MetaItem>
 
@@ -309,22 +309,22 @@ export default function OverviewTab({
                     <StatsGrid>
 
                         <StatCard>
-                            <StatLabel>Gesamt Tasks</StatLabel>
+                            <StatLabel>{tx('Gesamt Tasks')}</StatLabel>
                             <StatValue>{totalTasks}</StatValue>
                         </StatCard>
 
                         <StatCard>
-                            <StatLabel>Erledigt</StatLabel>
+                            <StatLabel>{tx('Erledigt')}</StatLabel>
                             <StatValue>{completedTasks}</StatValue>
                         </StatCard>
 
                         <StatCard>
-                            <StatLabel>In Bearbeitung</StatLabel>
+                            <StatLabel>{tx('In Bearbeitung')}</StatLabel>
                             <StatValue>{activeTasks}</StatValue>
                         </StatCard>
 
                         <StatCard>
-                            <StatLabel>Fortschritt</StatLabel>
+                            <StatLabel>{tx('Fortschritt')}</StatLabel>
                             <StatValue>{progress}%</StatValue>
                         </StatCard>
 
@@ -333,8 +333,7 @@ export default function OverviewTab({
                     <Section style={{ marginTop: 20 }}>
 
                         <SectionTitle>
-                            Projektfortschritt
-                        </SectionTitle>
+                            {tx('Projektfortschritt')}</SectionTitle>
 
                         <ProgressWrapper>
                             <ProgressBar $progress={progress} />
@@ -347,13 +346,11 @@ export default function OverviewTab({
                 <Section>
 
                     <SectionTitle>
-                        Aktivität
-                    </SectionTitle>
+                        {tx('Aktivität')}</SectionTitle>
 
                     {projectActivities.length === 0 ? (
                         <EmptyText>
-                            Noch keine Aktivität vorhanden.
-                        </EmptyText>
+                            {tx('Noch keine Aktivität vorhanden.')}</EmptyText>
                     ) : (
                         <ActivityList>
 
@@ -362,7 +359,7 @@ export default function OverviewTab({
                                     <ActivityDot />
 
                                     <ActivityText>
-                                        {activity.message}
+                                        {tx(activity.message)}
                                     </ActivityText>
 
                                 </ActivityItem>
@@ -378,14 +375,12 @@ export default function OverviewTab({
             <Section>
 
                 <SectionTitle>
-                    Letzte Tasks
-                </SectionTitle>
+                    {tx('Letzte Tasks')}</SectionTitle>
 
                 {recentTasks.length === 0 ? (
 
                     <EmptyText>
-                        Noch keine Tasks vorhanden.
-                    </EmptyText>
+                        {tx('Noch keine Tasks vorhanden.')}</EmptyText>
 
                 ) : (
 
@@ -410,7 +405,7 @@ export default function OverviewTab({
                                     <Badge
                                         $color={status.color}
                                     >
-                                        {status.label}
+                                        {tx(status.label)}
                                     </Badge>
 
                                 </TaskRow>

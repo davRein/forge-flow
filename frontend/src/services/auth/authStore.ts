@@ -1,7 +1,7 @@
 import { ApiError } from '../api/apiClient.js';
 import type { ApiClient } from '../api/apiClient';
 
-export type AuthUser = { id: string; email: string; name: string; administrator: boolean; portalOnly?: boolean };
+export type AuthUser = { id: string; email: string; name: string; administrator: boolean; portalOnly?: boolean; expiresAt?: string };
 type AuthState = { status: 'local' | 'checking' | 'anonymous' | 'authenticated' | 'error'; user: AuthUser | null; busy: boolean; error: string | null; notice: string | null; epoch: number };
 function session(value: unknown): { user: AuthUser; csrfToken: string } {
     if (!value || typeof value !== 'object' || !('user' in value) || !('csrfToken' in value) || typeof value.csrfToken !== 'string') throw new Error('Ungültige Sitzungsantwort.');
@@ -10,7 +10,8 @@ function session(value: unknown): { user: AuthUser; csrfToken: string } {
         || typeof user.id !== 'string' || !user.id || typeof user.email !== 'string' || typeof user.name !== 'string' || !value.csrfToken) throw new Error('Ungültige Benutzerantwort.');
     if ('administrator' in user && typeof user.administrator !== 'boolean') throw new Error('Ungültige Benutzerrechte.');
     if ('portalOnly' in user && typeof user.portalOnly !== 'boolean') throw new Error('Ungültige Benutzerrechte.');
-    return { user: { id: user.id, email: user.email, name: user.name, administrator: 'administrator' in user && user.administrator === true, ...('portalOnly' in user ? { portalOnly: user.portalOnly === true } : {}) }, csrfToken: value.csrfToken };
+    if ('expiresAt' in user && (typeof user.expiresAt !== 'string' || !Number.isFinite(Date.parse(user.expiresAt)))) throw new Error('Ungültige Benutzerrechte.');
+    return { user: { id: user.id, email: user.email, name: user.name, administrator: 'administrator' in user && user.administrator === true, ...('portalOnly' in user ? { portalOnly: user.portalOnly === true } : {}), ...('expiresAt' in user ? { expiresAt: user.expiresAt as string } : {}) }, csrfToken: value.csrfToken };
 }
 
 export function createAuthStore(client: ApiClient, enabled: boolean) {
@@ -44,7 +45,7 @@ export function createAuthStore(client: ApiClient, enabled: boolean) {
                 else emit({ status: state.user ? 'authenticated' : 'error', error: error instanceof Error ? error.message : 'Die Sitzung konnte nicht geprüft werden.' });
             }
         },
-        async login(email: string, password: string) {
+        async login(email: string, password: string, trial = false) {
             if (!enabled || state.busy) return;
             const run = ++generation;
             emit({ busy: true, error: null, notice: null });
@@ -53,7 +54,7 @@ export function createAuthStore(client: ApiClient, enabled: boolean) {
                 const csrf = await client.request<{ csrfToken?: unknown }>('/auth/csrf', { auth: false });
                 if (typeof csrf.csrfToken !== 'string' || !csrf.csrfToken) throw new Error('Der Anmeldeschutz konnte nicht geladen werden.');
                 client.setSession(csrf.csrfToken);
-                const result = await client.request('/auth/login', { method: 'POST', body: { email: email.trim(), password }, auth: false });
+                const result = await client.request(trial ? '/auth/trial' : '/auth/login', { method: 'POST', body: { email: email.trim(), password }, auth: false });
                 if (run === generation) accept(result);
             } catch (error) { if (run === generation) emit({ status: 'anonymous', busy: false, error: error instanceof Error ? error.message : 'Anmeldung fehlgeschlagen.' }); }
         },

@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../../../hooks/languageContext';
 import styled from 'styled-components';
 import { getBadgeTextColor } from '../../../../../styles/colorUtils';
 import { useDraggable } from '@dnd-kit/core';
@@ -188,6 +189,8 @@ export default function TaskCard({
                                      onEdit,
                                      onOpen
                                  }: Props) {
+    const { t: tx } = useUiTranslation();
+
 
     const taskStatus =
         taskStatuses[task.status];
@@ -224,7 +227,7 @@ export default function TaskCard({
                 <Left>
 
                     <DragHandle
-                        aria-label={`Aufgabe ${task.code} verschieben`}
+                        aria-label={tx('Aufgabe {value0} verschieben', { value0: task.code })}
                         {...listeners}
                         {...attributes}
                         onClick={(event) =>
@@ -251,7 +254,7 @@ export default function TaskCard({
                 <Actions>
 
                     <EditButton
-                        aria-label={`Aufgabe ${task.code} bearbeiten`}
+                        aria-label={tx('Aufgabe {value0} bearbeiten', { value0: task.code })}
                         onClick={(event) => {
                             event.stopPropagation();
                             onEdit();
@@ -261,7 +264,7 @@ export default function TaskCard({
                     </EditButton>
 
                     <DeleteButton
-                        aria-label={`Aufgabe ${task.code} löschen`}
+                        aria-label={tx('Aufgabe {value0} löschen', { value0: task.code })}
                         onClick={(event) => {
                             event.stopPropagation();
                             onDelete();
@@ -283,11 +286,11 @@ export default function TaskCard({
             <Meta>
 
                 <Badge $color={taskStatus.color}>
-                    {taskStatus.label}
+                    {tx(taskStatus.label)}
                 </Badge>
 
                 <Badge $color={taskPriority.color}>
-                    {taskPriority.label}
+                    {tx(taskPriority.label)}
                 </Badge>
 
             </Meta>
@@ -295,11 +298,11 @@ export default function TaskCard({
             <Footer>
 
                 <DateText>
-                    Created: {task.createdAt}
+                    {tx('Created: ')}{task.createdAt}
                 </DateText>
 
                 <DateText>
-                    Updated: {task.updatedAt}
+                    {tx('Updated: ')}{task.updatedAt}
                 </DateText>
 
             </Footer>

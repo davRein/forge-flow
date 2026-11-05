@@ -13,7 +13,7 @@ export function decodeRecentActivity(input: unknown): RecentActivityEntry[] {
     });
 }
 export function recentActivityPath(entry: RecentActivityEntry) {
-    return entry.kind === 'settings' ? '/projectManager/settings' : entry.kind === 'project' ? `/projectManager/projects?project=${entry.entityId}` : `/projectManager/customers?customer=${entry.entityId}`;
+    return entry.kind === 'settings' ? '/settings/general' : entry.kind === 'project' ? `/projectManager/projects?project=${entry.entityId}` : `/projectManager/customers?customer=${entry.entityId}`;
 }
 export function recordRecentActivity(history: RecentActivityEntry[], before: Workspace, after: Workspace): RecentActivityEntry[] {
     const additions: RecentActivityEntry[] = [];

@@ -60,13 +60,13 @@ async function fixture(initial = '/projectManager/settings', initialSettings: Ap
 }
 
 export const settingsPageTests = [
-    { name: 'Four accessible appearance choices apply Aurora and Dune immediately in both languages', async run() {
+    { name: 'Seven accessible appearance choices apply themes immediately in both languages', async run() {
         for (const language of ['de', 'en'] as const) {
             const ui = await fixture('/projectManager/settings', { ...defaultSettings, language, defaultTaskPriority: 'high' });
             try {
                 const choices = () => ui.root.findAllByType('input').filter((node) => visible(node) && node.props.name === 'theme-mode');
-                assert(choices().length === 4, 'All four themes need native radio controls');
-                for (const themeMode of ['aurora', 'dune'] as const) {
+                assert(choices().length === 7, 'All seven themes need native radio controls');
+                for (const themeMode of ['aurora', 'dune', 'forest', 'ink', 'rose'] as const) {
                     await act(async () => choices().find((node) => node.props.value === themeMode)!.props.onChange());
                     assert(ui.getSettings().themeMode === themeMode, 'Theme selection must apply immediately');
                     assert(ui.getSettings().language === language && ui.getSettings().defaultTaskPriority === 'high', 'Other preferences must remain unchanged');

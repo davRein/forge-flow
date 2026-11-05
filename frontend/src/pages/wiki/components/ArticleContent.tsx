@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../hooks/languageContext';
 import styled from 'styled-components';
 import { parseInlineMarkdown, parseMarkdown } from '../utils/markdown';
 
@@ -27,6 +28,8 @@ function inline(text: string) {
         : part.type === 'link' ? <a key={index} href={part.href} target="_blank" rel="noopener noreferrer">{part.text}</a> : part.text);
 }
 export default function ArticleContent({ content, idPrefix = 'wiki-preview' }: { content: string; idPrefix?: string }) {
+    const { t: tx } = useUiTranslation();
+
     return (
         <Content>
             {parseMarkdown(content).map((block, index) => {
@@ -35,7 +38,7 @@ export default function ArticleContent({ content, idPrefix = 'wiki-preview' }: {
                     if (block.level === 2) return <h3 id={`${idPrefix}-${index}`} key={index}>{inline(block.text)}</h3>;
                     return <h4 id={`${idPrefix}-${index}`} key={index}>{inline(block.text)}</h4>;
                 }
-                if (block.type === 'code') return <pre key={index}><code aria-label={block.language ? `Code (${block.language})` : 'Code'}>{block.text}</code></pre>;
+                if (block.type === 'code') return <pre key={index}><code aria-label={block.language ? tx('Code ({value0})', { value0: block.language }) : tx('Code')}>{block.text}</code></pre>;
                 if (block.type === 'list') {
                     const items = block.items.map((text, itemIndex) => <li key={itemIndex}>{inline(text)}</li>);
                     return block.ordered ? <ol key={index} start={block.start}>{items}</ol> : <ul key={index}>{items}</ul>;

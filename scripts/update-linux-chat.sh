@@ -31,7 +31,7 @@ frontend="$source_dir/forgeflow-chat-frontend.tar.gz"
 web=/var/www/forgeflow
 installed_jar=/opt/forgeflow/backend.jar
 environment=/etc/forgeflow/backend.env
-for executable in systemctl curl tar install cp mv rm mktemp flock runuser pg_dump grep nginx sha256sum find chmod mkdir cmp sleep; do
+for executable in systemctl curl tar install cp mv rm mktemp flock runuser pg_dump grep nginx sha256sum find chmod mkdir cmp sleep python3; do
     command -v "$executable" >/dev/null || fail "Missing command: $executable"
 done
 [[ -f "$jar" && -f "$frontend" && -f "$installed_jar" && -f "$environment" && -f "$web/index.html" && ! -L "$web" ]] || fail 'Update files or existing installation missing.'
@@ -42,6 +42,14 @@ systemctl is-active --quiet forgeflow || fail 'The existing backend must be runn
 nginx -t
 curl --noproxy '*' -fsS --max-time 10 http://127.0.0.1:3001/api/v1/health |
     grep -Eq '"storage"[[:space:]]*:[[:space:]]*"postgresql"' || fail 'The PostgreSQL backend is not ready.'
+# An older backend ignores V14 trial expiry. Never restart it against migrated trial accounts.
+expiry_safe_rollback=0
+if python3 - "$installed_jar" <<'PY'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as archive:
+    sys.exit(0 if 'BOOT-INF/classes/de/forgeflow/auth/TrialAccounts.class' in archive.namelist() else 1)
+PY
+then expiry_safe_rollback=1; fi
 
 # BEGIN CHAT_ARCHIVE_CHECK
 validate_frontend() {
@@ -109,9 +117,14 @@ rollback() {
     if (( frontend_changed )); then tar --no-same-owner -xzpf "$backup/frontend.tar.gz" -C "$web" || restored=0; fi
     if (( backend_changed )); then
         systemctl stop forgeflow || restored=0
-        install -o forgeflow -g forgeflow -m 0644 "$backup/backend.jar" "$installed_jar" || restored=0
-        systemctl start forgeflow || restored=0
-        ready || restored=0
+        if (( ${expiry_safe_rollback:-1} )); then
+            install -o forgeflow -g forgeflow -m 0644 "$backup/backend.jar" "$installed_jar" || restored=0
+            systemctl start forgeflow || restored=0
+            ready || restored=0
+        else
+            restored=0
+            printf 'Backend remains stopped: the previous JAR does not enforce V14 trial expiry.\nReview the new backend logs/configuration; do not downgrade the JAR alone.\n' >&2
+        fi
     fi
     if (( restored )); then printf '\nUpdate failed. Previous application restored.\n' >&2
     else printf '\nUpdate failed; application restoration needs review.\n' >&2; fi
@@ -147,3 +160,4 @@ trap - ERR INT TERM
 printf '\nChat update ready: https://%s\nBackup: %s\n' "$host" "$backup"
 printf 'Reload with Ctrl+F5, sign in, then open the assistant at the bottom right. Existing AI settings were preserved.\n'
 printf 'No provider request was made by this update script.\n'
+printf 'Global settings: header gear. Developer tools: Snippeter / DB Scripter. Git: sidebar.\n'

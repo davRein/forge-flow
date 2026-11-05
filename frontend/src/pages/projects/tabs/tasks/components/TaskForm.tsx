@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../../../hooks/languageContext';
 import styled from 'styled-components';
 
 import { taskStatuses } from '../../../../../data/taskStatuses';
@@ -133,29 +134,31 @@ export default function TaskForm({
                                      epicId,
                                      setEpicId
                                  }: Props) {
+    const { t: tx } = useUiTranslation();
+
     return (
         <Form onSubmit={(event) => { event.preventDefault(); onSave(); }}>
             <FormTitle>
-                {isEditing ? 'Task bearbeiten' : 'Neue Task'}
+                {isEditing ? tx('Task bearbeiten') : tx('Neue Task')}
             </FormTitle>
 
             <Input
-                aria-label="Task-Titel"
+                aria-label={tx('Task-Titel')}
                 required
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                placeholder="Task-Titel"
+                placeholder={tx('Task-Titel')}
             />
 
             <Textarea
-                aria-label="Beschreibung"
+                aria-label={tx('Beschreibung')}
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                placeholder="Beschreibung"
+                placeholder={tx('Beschreibung')}
             />
 
             <Select
-                aria-label="Status"
+                aria-label={tx('Status')}
                 value={status}
                 onChange={(event) =>
                     setStatus(event.target.value as TaskStatusKey)
@@ -163,13 +166,13 @@ export default function TaskForm({
             >
                 {Object.values(taskStatuses).map((status) => (
                     <option key={status.key} value={status.key}>
-                        {status.label}
+                        {tx(status.label)}
                     </option>
                 ))}
             </Select>
 
             <Select
-                aria-label="Priorität"
+                aria-label={tx('Priorität')}
                 value={priority}
                 onChange={(event) =>
                     setPriority(event.target.value as TaskPriorityKey)
@@ -177,23 +180,22 @@ export default function TaskForm({
             >
                 {Object.values(taskPriorities).map((priority) => (
                     <option key={priority.key} value={priority.key}>
-                        {priority.label}
+                        {tx(priority.label)}
                     </option>
                 ))}
             </Select>
 
-            <Select aria-label="Epic" value={epicId ?? ''} onChange={(event) => setEpicId(event.target.value ? Number(event.target.value) : undefined)}>
-                <option value="">Kein Epic</option>
+            <Select aria-label={tx('Epic')} value={epicId ?? ''} onChange={(event) => setEpicId(event.target.value ? Number(event.target.value) : undefined)}>
+                <option value="">{tx('Kein Epic')}</option>
                 {epics.map((epic) => <option key={epic.id} value={epic.id}>{epic.title}</option>)}
             </Select>
 
             <ButtonGroup>
                 <SecondaryButton type="button" onClick={onCancel}>
-                    Abbrechen
-                </SecondaryButton>
+                    {tx('Abbrechen')}</SecondaryButton>
 
                 <Button type="submit" disabled={!title.trim()}>
-                    {isEditing ? 'Aktualisieren' : 'Erstellen'}
+                    {isEditing ? tx('Aktualisieren') : tx('Erstellen')}
                 </Button>
             </ButtonGroup>
         </Form>

@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../hooks/languageContext';
 import { useTranslation } from '../../../hooks/languageContext';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useRestCollections } from '../../../hooks/restCollectionsContext';
@@ -23,6 +24,8 @@ type Modal = { kind: 'collection'; original?: RestCollection; name: string }
     | { kind: 'replace'; selection: Selection | null };
 
 export default function RestClient({ active = true }: { active?: boolean }) {
+    const { t: tx } = useUiTranslation();
+
     const { t, locale } = useTranslation();
     const library = useRestCollections();
     const [draft, setDraft] = useState<RequestDraft>(initialRequest);
@@ -116,15 +119,15 @@ export default function RestClient({ active = true }: { active?: boolean }) {
                 </div></RequestHeader>
                 <form aria-label={t('HTTP-Anfrage')} onSubmit={event => { event.preventDefault(); void send(); }}>
                     <RequestLine><Field>{t('Methode')}<Select value={draft.method} disabled={pending} onChange={event => change({ method: event.target.value as HttpMethod })}>{httpMethods.map(method => <option key={method}>{method}</option>)}</Select></Field>
-                        <Field>{t('Adresse')}<Input required type="url" maxLength={4000} value={draft.url} disabled={pending} placeholder="https://example.com/api" spellCheck={false} autoComplete="off" onChange={event => change({ url: event.target.value })} /></Field>
+                        <Field>{t('Adresse')}<Input required type="url" maxLength={4000} value={draft.url} disabled={pending} placeholder={tx('https://example.com/api')} spellCheck={false} autoComplete="off" onChange={event => change({ url: event.target.value })} /></Field>
                         <PrimaryButton type="submit" disabled={pending || !draft.url.trim()}>{pending ? t('Anfrage läuft …') : t('Anfrage senden')}</PrimaryButton>
                     </RequestLine>
                     <RequestTabs role="tablist" aria-label={t('Anfragedetails')}>{tabs.map((key, index) => <button key={key} type="button" role="tab" ref={node => { tabButtons.current[index] = node; }} tabIndex={tab === key ? 0 : -1} id={`${tabsId}-${key}`} aria-controls={`${tabsId}-panel-${key}`} aria-selected={tab === key}
                         onKeyDown={event => { let next = index; if (event.key === 'ArrowRight') next = (index + 1) % tabs.length; else if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length; else if (event.key === 'Home') next = 0; else if (event.key === 'End') next = tabs.length - 1; else return; event.preventDefault(); setTab(tabs[next]); tabButtons.current[next]?.focus(); }}
                         onClick={() => setTab(key)}>{t(key === 'headers' ? 'Header' : key === 'body' ? 'Request-Body' : 'Optionen')}</button>)}</RequestTabs>
-                    <div role="tabpanel" id={`${tabsId}-panel-headers`} aria-labelledby={`${tabsId}-headers`} hidden={tab !== 'headers'}><Field>{t('Header (Name: Wert, je eine Zeile)')}<Textarea maxLength={20000} spellCheck={false} value={draft.headers} disabled={pending} onChange={event => change({ headers: event.target.value })} placeholder={'Accept: application/json\nAuthorization: Bearer …'} /></Field></div>
+                    <div role="tabpanel" id={`${tabsId}-panel-headers`} aria-labelledby={`${tabsId}-headers`} hidden={tab !== 'headers'}><Field>{t('Header (Name: Wert, je eine Zeile)')}<Textarea maxLength={20000} spellCheck={false} value={draft.headers} disabled={pending} onChange={event => change({ headers: event.target.value })} placeholder={tx('Accept: application/json\nAuthorization: Bearer …')} /></Field></div>
                     <div role="tabpanel" id={`${tabsId}-panel-body`} aria-labelledby={`${tabsId}-body`} hidden={tab !== 'body'}>
-                        <Field>{t('Inhaltstyp')}<Select value={draft.bodyType} disabled={pending || !bodyAllowed} onChange={event => change({ bodyType: event.target.value as RequestDraft['bodyType'] })}><option value="none">{t('Kein Body')}</option><option value="json">JSON</option><option value="text">Text</option></Select></Field>
+                        <Field>{t('Inhaltstyp')}<Select value={draft.bodyType} disabled={pending || !bodyAllowed} onChange={event => change({ bodyType: event.target.value as RequestDraft['bodyType'] })}><option value="none">{t('Kein Body')}</option><option value="json">{tx('JSON')}</option><option value="text">{tx('Text')}</option></Select></Field>
                         <Field style={{ marginTop: 10 }}>{t('Request-Body')}<Textarea maxLength={100000} spellCheck={false} value={draft.body} disabled={pending || !bodyAllowed || draft.bodyType === 'none'} onChange={event => change({ body: event.target.value })} placeholder={t('{ "name": "Beispiel" }')} /></Field>
                         {!bodyAllowed && <Muted>{t('GET und HEAD werden ohne Body gesendet. Der Entwurf bleibt erhalten.')}</Muted>}
                     </div>
@@ -136,7 +139,7 @@ export default function RestClient({ active = true }: { active?: boolean }) {
             </Card>
             {response ? <Card aria-label={t('HTTP-Antwort')}>
                 <h2>{t('Antwort:')} {response.status} {response.statusText}</h2>
-                <p role="status">{response.ok ? t('HTTP-Anfrage erfolgreich.') : t('Der Server hat einen HTTP-Fehlerstatus geliefert.')} {response.duration} ms · {response.bytes.toLocaleString(locale)} {t('Byte')}{response.truncated ? ` ${t('angezeigt')}` : ''}</p>
+                <p role="status">{response.ok ? t('HTTP-Anfrage erfolgreich.') : t('Der Server hat einen HTTP-Fehlerstatus geliefert.')} {response.duration} {tx(' ms · ')}{response.bytes.toLocaleString(locale)} {t('Byte')}{response.truncated ? tx(' {value0}', { value0: t('angezeigt') }) : ''}</p>
                 <Muted>{response.method} {response.url}</Muted>
                 {response.truncated && <ErrorText>{t('Die Anzeige wurde nach 2 MiB begrenzt. Der verbleibende Download wurde abgebrochen.')}</ErrorText>}
                 <details><summary>{t('Antwort-Header')} ({response.headers.length})</summary>{response.headers.length ? <Table><thead><tr><th>{t('Name')}</th><th>{t('Wert')}</th></tr></thead><tbody>{response.headers.map(([name, value]) => <tr key={name}><td>{name}</td><td>{value}</td></tr>)}</tbody></Table> : <Muted>{t('Keine sichtbaren Antwort-Header.')}</Muted>}</details>
@@ -150,7 +153,7 @@ export default function RestClient({ active = true }: { active?: boolean }) {
                 : <form onSubmit={event => { event.preventDefault(); void saveModal(); }}>
                     {modal.kind === 'collection' && <Field>{t('Name')}<Input autoFocus required maxLength={200} disabled={saving} value={modal.name} onChange={event => setModal({ ...modal, name: event.target.value })} /></Field>}
                     {modal.kind === 'save' && <><Field>{t('Anfragename')}<Input autoFocus required maxLength={200} disabled={saving} value={modal.name} onChange={event => setModal({ ...modal, name: event.target.value })} /></Field>
-                        <Field style={{ marginTop: 12 }}>Collection<Select disabled={saving || modal.update} value={modal.collectionId} onChange={event => setModal({ ...modal, collectionId: event.target.value })}><option value="">{t('Neue Collection')}</option>{collections.map(collection => <option key={collection.id} value={collection.id}>{collection.name}</option>)}</Select></Field>
+                        <Field style={{ marginTop: 12 }}>{tx('Collection')}<Select disabled={saving || modal.update} value={modal.collectionId} onChange={event => setModal({ ...modal, collectionId: event.target.value })}><option value="">{t('Neue Collection')}</option>{collections.map(collection => <option key={collection.id} value={collection.id}>{collection.name}</option>)}</Select></Field>
                         {!modal.collectionId && <Field style={{ marginTop: 12 }}>{t('Collectionname')}<Input required maxLength={200} value={modal.collectionName} disabled={saving} onChange={event => setModal({ ...modal, collectionName: event.target.value })} /></Field>}
                         <Muted>{t('Methode, URL, Header, Body und Zeitlimit werden gespeichert. Antworten werden nicht gespeichert.')}</Muted></>}
                     {modal.kind === 'delete' && <p>{modal.request ? t('„{name}“ wirklich löschen?', { name: modal.request.name }) : t('Collection „{name}“ mit {count} Anfragen wirklich löschen?', { name: modal.collection.name, count: modal.collection.requests.length })}</p>}

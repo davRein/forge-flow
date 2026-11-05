@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../hooks/languageContext';
 import { useEffect, useState } from 'react';
 import { apiClient, apiEnabled } from '../../services/api/runtime';
 import type { PortalAccount, PortalLink } from '../../services/business/business';
@@ -10,6 +11,8 @@ import { Field, Input, Select, FormActions, PrimaryButton, SecondaryButton, Chec
 import { Panel, TableFrame } from './businessStyles';
 
 export default function PortalManager() {
+    const { t: tx } = useUiTranslation();
+
     const { t } = useTranslation(); const { data } = useBusiness(); const workspace = useWorkspacePersistence().getSnapshot().data!; const guard = useNavigationGuard();
     const [accounts, setAccounts] = useState<PortalAccount[]>([]), [error, setError] = useState<string | null>(null), [busy, setBusy] = useState(false);
     const [create, setCreate] = useState(false), [name, setName] = useState(''), [email, setEmail] = useState(''), [password, setPassword] = useState(''), [customer, setCustomer] = useState(workspace.customers[0]?.id ?? 0);
@@ -31,7 +34,7 @@ export default function PortalManager() {
         <p className="muted">{t('Portal-Konten sehen ausschließlich ausdrücklich freigegebene Inhalte. Zugangsdaten werden nicht automatisch versendet.')}</p>
         <p className="muted">{t('Das Portal zeigt den veröffentlichten Stand. Erneutes Speichern der Freigaben veröffentlicht den aktuellen Stand.')}</p>
         {!apiEnabled && <p>{t('Portal-Konten benötigen den API-Modus.')}</p>}{error && <p role="alert">{t(error)}</p>}
-        <TableFrame><table><thead><tr>{['Name', 'E-Mail', 'Kunde', 'Status', 'Aktionen'].map(value => <th key={value}>{t(value)}</th>)}</tr></thead><tbody>{accounts.map(account => <tr key={account.user.id}><td>{account.user.name}</td><td>{account.user.email}</td><td>{workspace.customers.find(value => value.id === account.link.customerId)?.name ?? `#${account.link.customerId}`}</td><td>{t(account.link.active ? 'Aktiv' : 'Widerrufen')}</td><td><SecondaryButton onClick={() => { setDraft(structuredClone(account.link)); setBaseline(JSON.stringify(account.link)); }}>{t('Freigaben bearbeiten')}</SecondaryButton></td></tr>)}</tbody></table></TableFrame>
+        <TableFrame><table><thead><tr>{['Name', 'E-Mail', 'Kunde', 'Status', 'Aktionen'].map(value => <th key={value}>{t(value)}</th>)}</tr></thead><tbody>{accounts.map(account => <tr key={account.user.id}><td>{account.user.name}</td><td>{account.user.email}</td><td>{workspace.customers.find(value => value.id === account.link.customerId)?.name ?? tx('#{value0}', { value0: account.link.customerId })}</td><td>{t(account.link.active ? 'Aktiv' : 'Widerrufen')}</td><td><SecondaryButton onClick={() => { setDraft(structuredClone(account.link)); setBaseline(JSON.stringify(account.link)); }}>{t('Freigaben bearbeiten')}</SecondaryButton></td></tr>)}</tbody></table></TableFrame>
         {(create || draft) && <Dialog title={t(create ? 'Portal-Konto anlegen' : 'Portal-Freigaben')} onClose={() => { if (!busy) guard.request(discard); }}><form onSubmit={event => { event.preventDefault(); void save(); }}>
             <fieldset disabled={busy} style={{ border: 0, padding: 0 }}>{create ? <>
                 <Field>{t('Name')}<Input required maxLength={1000} value={name} onChange={event => setName(event.target.value)} /></Field><Field>{t('E-Mail')}<Input required type="email" maxLength={254} value={email} onChange={event => setEmail(event.target.value)} /></Field>

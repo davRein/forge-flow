@@ -1,0 +1,16 @@
+[Unit]
+Description=ForgeFlow Knowledge Hub and FlowPilot
+Requires=docker.service
+After=docker.service postgresql.service forgeflow.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/forgeflow-showcase/current
+ExecStart=/usr/bin/docker compose --project-name forgeflow-showcase --env-file /etc/forgeflow/showcase/images.env up -d --no-build
+ExecStop=/usr/bin/docker compose --project-name forgeflow-showcase --env-file /etc/forgeflow/showcase/images.env stop
+TimeoutStartSec=180
+TimeoutStopSec=90
+
+[Install]
+WantedBy=multi-user.target

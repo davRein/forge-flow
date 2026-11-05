@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../hooks/languageContext';
 import styled from 'styled-components';
 
 import { Customer, Project } from '../types/project.types';
@@ -58,6 +59,8 @@ export default function ProjectDashboard({
                                              customers,
                                              onOpenProject
                                          }: Props) {
+    const { t: tx } = useUiTranslation();
+
     const { t } = useTranslation();
     return (
         <Container>
@@ -74,14 +77,14 @@ export default function ProjectDashboard({
                             <ProjectName>{project.name}</ProjectName>
 
                             <StatusBadge
-                                label={status.label}
+                                label={tx(status.label)}
                                 color={status.color}
                                 pulse={status.pulse}
                             />
                         </CardHeader>
 
                         <Meta>{t('Kunde')}: {customer?.name}</Meta>
-                        <Meta>Deadline: {project.deadline}</Meta>
+                        <Meta>{tx('Deadline: ')}{project.deadline}</Meta>
 
                         <GoToButton
                             title={t('Projekt öffnen')}

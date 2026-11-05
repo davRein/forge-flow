@@ -11,6 +11,17 @@
     }
   ],
   "paths": {
+    "/auth/showcase-access": {
+      "get": {
+        "operationId": "showcaseAccess",
+        "description": "Leere Administratorprüfung für Nginx auth_request. Prüft die aktuelle ForgeFlow-Sitzung; keine Benutzer-, Token- oder CSRF-Daten in der Antwort.",
+        "responses": {
+          "204": { "description": "Aktive Administratorsitzung." },
+          "401": { "description": "Keine gültige Sitzung." },
+          "403": { "description": "Keine Administratorrechte oder abgewiesener Ursprung." }
+        }
+      }
+    },
     "/health": {
       "get": {
         "operationId": "health",
@@ -3415,6 +3426,701 @@
           }
         }
       }
+    },
+    "/auth/trial": {
+      "post": {
+        "operationId": "createTrialAccount",
+        "security": [
+          {
+            "csrfHeader": []
+          }
+        ],
+        "description": "Public self-registration with CSRF and origin validation; automatic login. Non-administrator account expires six hours after creation. Maximum 3 attempts per IP/15 minutes, 30 active trials globally, 20 AI generations per trial lifetime. No GitHub, external databases, account or portal-account creation. Expiry survives profile/password changes and restarts. TRIAL_ACCOUNTS_ENABLED may disable registration.",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured failure: authentication/CSRF/origin, validation, conflict, rate limit or service availability. No raw provider/DB errors or credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrialLogin"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/developer": {
+      "get": {
+        "operationId": "getDeveloperData",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Private account data. Secrets are omitted. GET includes ETag. Maximum serialized document: 10 MiB.",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeveloperView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured failure: authentication/CSRF/origin, validation, conflict, rate limit or service availability. No raw provider/DB errors or credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/developer/snippets": {
+      "post": {
+        "operationId": "saveDeveloperSnippet",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeveloperView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured failure: authentication/CSRF/origin, validation, conflict, rate limit or service availability. No raw provider/DB errors or credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeveloperSnippetInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted current developer revision. Missing: 428; stale: 409."
+          }
+        ]
+      }
+    },
+    "/me/developer/snippets/{id}": {
+      "delete": {
+        "operationId": "deleteDeveloperSnippet",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeveloperView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured failure: authentication/CSRF/origin, validation, conflict, rate limit or service availability. No raw provider/DB errors or credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted current developer revision. Missing: 428; stale: 409."
+          }
+        ]
+      }
+    },
+    "/me/developer/generate": {
+      "post": {
+        "operationId": "generateDeveloperCode",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "description": "Explicit code-only AI request; existing AI limits/configuration apply. Does not save or execute code. SQL requires an owned PostgreSQL connection; credentials and schema are never sent to AI. Review truncated/code output before use.",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeveloperGenerated"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured failure: authentication/CSRF/origin, validation, conflict, rate limit or service availability. No raw provider/DB errors or credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeveloperGenerate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/developer/connections": {
+      "post": {
+        "operationId": "saveDeveloperConnection",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "description": "Regular users only. Encrypts credentials using the server AES-GCM key with account/connection-bound AAD. Host must be in DEV_DB_HOSTS. PostgreSQL only.",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeveloperView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured failure: authentication/CSRF/origin, validation, conflict, rate limit or service availability. No raw provider/DB errors or credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeveloperConnectionInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted current developer revision. Missing: 428; stale: 409."
+          }
+        ]
+      }
+    },
+    "/me/developer/connections/{id}": {
+      "delete": {
+        "operationId": "deleteDeveloperConnection",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeveloperView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured failure: authentication/CSRF/origin, validation, conflict, rate limit or service availability. No raw provider/DB errors or credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted current developer revision. Missing: 428; stale: 409."
+          }
+        ]
+      }
+    },
+    "/me/developer/connections/{id}/test": {
+      "post": {
+        "operationId": "testDeveloperConnection",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured failure: authentication/CSRF/origin, validation, conflict, rate limit or service availability. No raw provider/DB errors or credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/me/developer/connections/{id}/prepare": {
+      "post": {
+        "operationId": "prepareSqlExecution",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "description": "Validates at most 20 top-level statements. Returns immutable owner/session/connection-bound confirmation valid for 120 seconds. Does not execute. Maximum 5 outstanding confirmations per user; transaction control/session settings are rejected.",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SqlConfirmation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured failure: authentication/CSRF/origin, validation, conflict, rate limit or service availability. No raw provider/DB errors or credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SqlPrepareInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/me/developer/connections/execute": {
+      "post": {
+        "operationId": "executeConfirmedSql",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "description": "Single-use confirmation required. One transaction; rollback on error, commit after current account/session recheck. Default UI mode read-only; database role privileges apply, this is not a SQL sandbox. Two concurrent executions globally; query timeout 15s, lock timeout 3s. At most 20 results, 50 columns, 200 rows each, 4000 characters per value, 1 million returned characters. No automatic retry after a lost response.",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SqlResult"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured failure: authentication/CSRF/origin, validation, conflict, rate limit or service availability. No raw provider/DB errors or credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SqlExecute"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/developer/github": {
+      "post": {
+        "operationId": "connectGitHub",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "description": "Regular users only. Validates token identity, encrypts token in account-private storage. Requires server key. Metadata and Contents read permissions on desired repositories; organization approval may apply.",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeveloperView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured failure: authentication/CSRF/origin, validation, conflict, rate limit or service availability. No raw provider/DB errors or credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitHubToken"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted current developer revision. Missing: 428; stale: 409."
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "disconnectGitHub",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "description": "Removes token; existing server clones remain.",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeveloperView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured failure: authentication/CSRF/origin, validation, conflict, rate limit or service availability. No raw provider/DB errors or credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted current developer revision. Missing: 428; stale: 409."
+          }
+        ]
+      }
+    },
+    "/me/developer/github/repositories": {
+      "get": {
+        "operationId": "listGitHubRepositories",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Lists accessible authenticated-user repositories, 50 per page; follows pagination metadata. No automatic cloning.",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubRepositories"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured failure: authentication/CSRF/origin, validation, conflict, rate limit or service availability. No raw provider/DB errors or credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 1
+            }
+          }
+        ]
+      }
+    },
+    "/me/developer/github/repositories/{id}/clone": {
+      "post": {
+        "operationId": "cloneGitHubRepository",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "description": "Explicit server-side shallow HTTPS clone without submodules. No code execution. Validates repository using GitHub metadata, owner-private path under DEV_GIT_ROOT, no token in command args or persisted git config. Up to 20 per user, 100 MiB reported size, 45-second process timeout, 2 global concurrent operations. Existing paths are not overwritten. Failed/lost responses may change revision: reload before retry.",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeveloperView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured failure: authentication/CSRF/origin, validation, conflict, rate limit or service availability. No raw provider/DB errors or credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted current developer revision. Missing: 428; stale: 409."
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -3483,6 +4189,11 @@
             "default": false,
             "readOnly": true,
             "description": "Portal-only principals may access auth/session/logout, own password change and /portal/* only. Never an internal workspace principal."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Present only for test accounts. Access expires after six hours; private data is purged in the following cleanup cycle (30 seconds, or on restart)."
           }
         },
         "required": [
@@ -4346,7 +5057,10 @@
                   "light",
                   "dark",
                   "aurora",
-                  "dune"
+                  "dune",
+                  "forest",
+                  "ink",
+                  "rose"
                 ]
               },
               "defaultProjectView": {
@@ -4545,7 +5259,11 @@
               "/business/templates",
               "/business/portal",
               "/business/profile",
-              "/cloud/files"
+              "/cloud/files",
+              "/settings/general",
+              "/devTools/snippeter",
+              "/devTools/dbScripter",
+              "/git/repositories"
             ]
           },
           "projectId": {
@@ -5440,6 +6158,11 @@
           "active": {
             "type": "boolean",
             "const": true
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Present only for test accounts. Access expires after six hours; private data is purged in the following cleanup cycle (30 seconds, or on restart)."
           }
         }
       },
@@ -7722,6 +8445,620 @@
           "email",
           "password",
           "customerId"
+        ]
+      },
+      "DeveloperSnippet": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "typescript",
+              "javascript",
+              "java",
+              "python",
+              "sql",
+              "html",
+              "css",
+              "json",
+              "bash",
+              "csharp",
+              "go",
+              "rust",
+              "php",
+              "plaintext"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 8000
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 200000
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "snippet",
+              "sql"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "language",
+          "prompt",
+          "code",
+          "kind",
+          "updatedAt"
+        ]
+      },
+      "DeveloperSnippetInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "typescript",
+              "javascript",
+              "java",
+              "python",
+              "sql",
+              "html",
+              "css",
+              "json",
+              "bash",
+              "csharp",
+              "go",
+              "rust",
+              "php",
+              "plaintext"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 8000
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 200000
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "snippet",
+              "sql"
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "language",
+          "prompt",
+          "code",
+          "kind"
+        ]
+      },
+      "DeveloperConnection": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "host": {
+            "type": "string",
+            "maxLength": 253
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "database": {
+            "type": "string",
+            "maxLength": 63
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "sslMode": {
+            "type": "string",
+            "enum": [
+              "disable",
+              "require",
+              "verify-full"
+            ]
+          },
+          "hasPassword": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "host",
+          "port",
+          "database",
+          "username",
+          "sslMode",
+          "hasPassword"
+        ]
+      },
+      "DeveloperConnectionInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "host": {
+            "type": "string",
+            "maxLength": 253
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "database": {
+            "type": "string",
+            "maxLength": 63
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "sslMode": {
+            "type": "string",
+            "enum": [
+              "disable",
+              "require",
+              "verify-full"
+            ]
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1024,
+            "writeOnly": true,
+            "description": "Empty/null on edit retains the existing password; credentials are never returned."
+          }
+        },
+        "required": [
+          "name",
+          "host",
+          "port",
+          "database",
+          "username",
+          "sslMode"
+        ]
+      },
+      "DeveloperClone": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "repositoryId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "cloning",
+              "ready",
+              "failed"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "repositoryId",
+          "name",
+          "status",
+          "path",
+          "at"
+        ]
+      },
+      "DeveloperView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "type": "string"
+          },
+          "snippets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeveloperSnippet"
+            },
+            "maxItems": 500
+          },
+          "connections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeveloperConnection"
+            },
+            "maxItems": 20
+          },
+          "githubConnected": {
+            "type": "boolean"
+          },
+          "githubLogin": {
+            "type": "string"
+          },
+          "clones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeveloperClone"
+            },
+            "maxItems": 20
+          },
+          "integrationsConfigured": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "revision",
+          "snippets",
+          "connections",
+          "githubConnected",
+          "githubLogin",
+          "clones",
+          "integrationsConfigured"
+        ]
+      },
+      "DeveloperGenerate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "typescript",
+              "javascript",
+              "java",
+              "python",
+              "sql",
+              "html",
+              "css",
+              "json",
+              "bash",
+              "csharp",
+              "go",
+              "rust",
+              "php",
+              "plaintext"
+            ]
+          },
+          "instructions": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "snippet",
+              "sql"
+            ]
+          },
+          "connectionId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "language",
+          "instructions",
+          "kind"
+        ]
+      },
+      "DeveloperGenerated": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 200000
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DeveloperView"
+          }
+        },
+        "required": [
+          "code",
+          "truncated",
+          "data"
+        ]
+      },
+      "SqlPrepareInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sql": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100000
+          },
+          "readOnly": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sql",
+          "readOnly"
+        ]
+      },
+      "SqlTarget": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "host": {
+            "type": "string",
+            "maxLength": 253
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "database": {
+            "type": "string",
+            "maxLength": 63
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "name",
+          "host",
+          "port",
+          "database",
+          "username"
+        ]
+      },
+      "SqlConfirmation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ticket": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sql": {
+            "type": "string"
+          },
+          "readOnly": {
+            "type": "boolean"
+          },
+          "target": {
+            "$ref": "#/components/schemas/SqlTarget"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "ticket",
+          "sql",
+          "readOnly",
+          "target",
+          "expiresAt"
+        ]
+      },
+      "SqlExecute": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ticket": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "ticket"
+        ]
+      },
+      "SqlResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "maxItems": 200
+          },
+          "affected": {
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "columns",
+          "rows",
+          "affected",
+          "truncated"
+        ]
+      },
+      "GitHubToken": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 512,
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "GitHubRepository": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "privateRepo": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "description": "GitHub-reported size in KiB."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "privateRepo",
+          "description",
+          "size",
+          "url"
+        ]
+      },
+      "GitHubRepositories": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GitHubRepository"
+            },
+            "maxItems": 50
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        "required": [
+          "items",
+          "hasMore",
+          "page"
+        ]
+      },
+      "TrialLogin": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 72,
+            "writeOnly": true,
+            "description": "Maximum 72 UTF-8 bytes; BCrypt is applied server-side."
+          }
+        },
+        "required": [
+          "email",
+          "password"
         ]
       }
     }

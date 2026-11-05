@@ -1,3 +1,4 @@
+import { useTranslation as useUiTranslation } from '../../../hooks/languageContext';
 import styled from 'styled-components';
 
 import StatusBadge from './StatusBadge';
@@ -57,11 +58,12 @@ export default function ProjectDetails({
                                            onEdit,
                                            onDelete
                                        }: Props) {
+    const { t: tx } = useUiTranslation();
+
     if (!project) {
         return (
             <Container>
-                Kein Projekt ausgewählt.
-            </Container>
+                {tx('Kein Projekt ausgewählt.')}</Container>
         );
     }
 
@@ -69,19 +71,21 @@ export default function ProjectDetails({
 }
 
 function SelectedProjectDetails({ project, customer, activeTab, onTabChange, taskState, epicState, sprintState, fileState, onEdit, onDelete }: Props & { project: Project }) {
+    const { t: tx } = useUiTranslation();
+
     const status = getProjectStatus(project);
 
     return (
         <Container>
             <h2>{project.name}</h2>
 
-            <Meta>Kunde: {customer?.name}</Meta>
-            <Meta>Deadline: {project.deadline}</Meta>
+            <Meta>{tx('Kunde: ')}{customer?.name}</Meta>
+            <Meta>{tx('Deadline: ')}{project.deadline}</Meta>
             <ProjectBudgetSummary projectId={project.id} />
 
             <div style={{ marginTop: '12px' }}>
                 <StatusBadge
-                    label={status.label}
+                    label={tx(status.label)}
                     color={status.color}
                     pulse={status.pulse}
                 />
