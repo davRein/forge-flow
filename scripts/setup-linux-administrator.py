@@ -37,7 +37,13 @@ def main():
     subprocess.run(['pg_restore', '--list', str(backup)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
     env = {**os.environ, 'FORGEFLOW_ADMIN_DB_URL': values['DB_URL'], 'FORGEFLOW_ADMIN_DB_USER': values['DB_USER'], 'FORGEFLOW_ADMIN_DB_PASSWORD': values['DB_PASSWORD'], 'FORGEFLOW_ADMIN_STATUS_FILE': '/opt/forgeflow/administrator-setup-status.json'}
     print('Verified database backup created. Enter email and password in this terminal.')
-    return subprocess.run([java, '-Dloader.main=de.forgeflow.admin.SetupAdministrator', '-cp', str(jar), 'org.springframework.boot.loader.launch.PropertiesLauncher'], env=env).returncode
+    result = subprocess.run([java, '-Dloader.main=de.forgeflow.admin.SetupAdministrator', '-cp', str(jar), 'org.springframework.boot.loader.launch.PropertiesLauncher'], env=env).returncode
+    if result:
+        return 20
+    import json
+    state = json.loads(pathlib.Path(env['FORGEFLOW_ADMIN_STATUS_FILE']).read_text()).get('status')
+    print('Administrator status: ' + str(state))
+    return 0 if state in {'created', 'existing'} else 20
 
 
 if __name__ == '__main__':
