@@ -51,3 +51,10 @@ Java uses four-space indentation, typed DTO records and interfaces, Jakarta vali
 Frontend tests use `*.test.ts` next to the tested unit; register new suites/dependencies in `frontend/scripts/test.mjs`. Spring integration tests live in `backend/src/test/`. The root `README.md` covers installation and setup only. Feature descriptions are in `docs/frontend.md`; manual browser checks are in `docs/manual-check.md` and `docs/browser-check.md`. Distinguish them from automated tests, and do not claim visual verification unless a browser was actually available.
 
 Git history was unavailable during the initial work; inspect the current checkout before assuming Git capabilities. Use focused commits with imperative subjects, for example `Fix task status updates`. Pull requests should describe behavior and verification, link issues, and include screenshots for UI changes. Do not describe the in-memory reference backend as a database integration or durable persistence.
+
+## Required commits
+
+- After implementing each new feature or completing any relevant change, create a focused Git commit on the local `master` branch.
+- Run the appropriate checks before committing and include only files belonging to that change. Preserve unrelated working-tree changes and staged files.
+- Verify the branch before committing and report the commit hash in the final response. If a commit cannot be created, report the concrete reason instead of silently omitting it.
+- This commit requirement does not by itself authorize pushing to a remote repository.
