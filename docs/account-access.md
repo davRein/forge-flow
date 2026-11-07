@@ -53,3 +53,9 @@ Automatisiert: `npm test`, `npm run lint`, `npm run build`, `scripts/test-postgr
 ## Deployment-Verifikation
 
 Die Deployment-Rollbacks prüfen vor dem Start eines älteren Backends, ob persönliche App-Einschränkungen verloren gingen. In diesem Fall bleibt das Backend gestoppt. Eine bereits kompatible JAR kann normal wiederhergestellt werden. Die lokale Administrator-Einrichtung wurde erfolgreich abgeschlossen; der Server legt ein eigenes Konto interaktiv an und übernimmt keine lokalen Zugangsdaten.
+
+## Erfolgreiches Remote-Deployment
+
+Am 7. November 2026 wurde Release `20261107T222224Z-9053a565` auf `https://forge-flow.de` installiert (Code-Stand `4163807`). Die interaktive Einrichtung hat das aktive Remote-Konto Administrator bestätigt. Das ausgelieferte JavaScript-Bundle stimmt bytegenau mit dem geprüften Produktionsbuild überein. Öffentliche Backend-/PostgreSQL-Readiness, elf anonyme Zugriffssperren, der neue Benutzername-/E-Mail-Login-Vertrag, die geschlossene öffentliche Registrierung und die Origin-Sperre für Schreibzugriffe sind erfolgreich geprüft. Die tatsächliche Loginseite wurde auf Desktop und Mobil in einem frischen Browser geprüft.
+
+Lokale Freigabe: 289 Frontendtests; Backend 300 Tests ohne Fehler, davon zwei optionale Prüfungen übersprungen; Lint und Produktionsbuild erfolgreich. Zusätzlich bestehen Browser-Fixtures für Konten/Rechte, Offline-Prüfungen der App-Gateways und die Rollbacktests. Nach dem Deployment Browser mit Strg+F5 neu laden und erneut anmelden. Konten und App-Zuweisungen werden unter Einstellungen → Nutzerverwaltung verwaltet.
