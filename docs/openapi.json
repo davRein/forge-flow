@@ -16,9 +16,15 @@
         "operationId": "showcaseAccess",
         "description": "Leere Administratorprüfung für Nginx auth_request. Prüft die aktuelle ForgeFlow-Sitzung; keine Benutzer-, Token- oder CSRF-Daten in der Antwort.",
         "responses": {
-          "204": { "description": "Aktive Administratorsitzung." },
-          "401": { "description": "Keine gültige Sitzung." },
-          "403": { "description": "Keine Administratorrechte oder abgewiesener Ursprung." }
+          "204": {
+            "description": "Aktive Administratorsitzung."
+          },
+          "401": {
+            "description": "Keine gültige Sitzung."
+          },
+          "403": {
+            "description": "Keine Administratorrechte oder abgewiesener Ursprung."
+          }
         }
       }
     },
@@ -99,7 +105,7 @@
             "csrfHeader": []
           }
         ],
-        "description": "Origin muss APP_ORIGIN entsprechen. CSRF und anonyme Sitzung zuerst über /auth/csrf beziehen. BCrypt-Prüfung serverseitig; Sitzungs-ID und CSRF werden erneuert.",
+        "description": "Sign in with username or email in the legacy email field; CSRF and exact Origin required. No public registration.",
         "requestBody": {
           "required": true,
           "content": {
@@ -526,7 +532,7 @@
     "/users": {
       "get": {
         "operationId": "listUsers",
-        "description": "Nur Administratoren: Konten ohne Passwort-Hashes oder Sitzungsinformationen auflisten.",
+        "description": "Administrator only: public profiles, assigned apps and optimistic sessionVersion; never passwords, hashes or session cookies.",
         "security": [
           {
             "sessionCookie": []
@@ -540,7 +546,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/User"
+                    "$ref": "#/components/schemas/ManagedUser"
                   }
                 }
               }
@@ -627,7 +633,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/User"
+                  "$ref": "#/components/schemas/ManagedUser"
                 }
               }
             }
@@ -2206,7 +2212,8 @@
             "schema": {
               "enum": [
                 "de",
-                "en"
+                "en",
+                "fr"
               ],
               "default": "en"
             }
@@ -2367,7 +2374,8 @@
             "schema": {
               "enum": [
                 "de",
-                "en"
+                "en",
+                "fr"
               ],
               "default": "en"
             }
@@ -3057,7 +3065,8 @@
             "schema": {
               "enum": [
                 "de",
-                "en"
+                "en",
+                "fr"
               ],
               "default": "en"
             }
@@ -3191,7 +3200,8 @@
             "schema": {
               "enum": [
                 "de",
-                "en"
+                "en",
+                "fr"
               ],
               "default": "en"
             }
@@ -3432,10 +3442,11 @@
         "operationId": "createTrialAccount",
         "security": [
           {
+            "sessionCookie": [],
             "csrfHeader": []
           }
         ],
-        "description": "Public self-registration with CSRF and origin validation; automatic login. Non-administrator account expires six hours after creation. Maximum 3 attempts per IP/15 minutes, 30 active trials globally, 20 AI generations per trial lifetime. No GitHub, external databases, account or portal-account creation. Expiry survives profile/password changes and restarts. TRIAL_ACCOUNTS_ENABLED may disable registration.",
+        "description": "Administrator-only legacy creation of an expiring test account; no public registration or login-page action. Existing expiry, quota and origin/CSRF rules apply.",
         "responses": {
           "200": {
             "description": "Success.",
@@ -4121,6 +4132,105 @@
           }
         ]
       }
+    },
+    "/users/{id}/access": {
+      "put": {
+        "operationId": "setUserAccess",
+        "description": "Administrator only: rename a normal account and assign apps. Requires current sessionVersion; increments it and revokes every existing session. Existing account data is preserved. Administrators, portal and trial accounts are protected.",
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountAccess"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedUser"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator."
+          },
+          "409": {
+            "description": "Stale account version or duplicate username."
+          },
+          "422": {
+            "description": "Invalid or reserved username or app grant."
+          }
+        }
+      }
+    },
+    "/auth/showcase-session": {
+      "get": {
+        "operationId": "showcaseSession",
+        "description": "Live non-portal Suite identity. Fixed app query supplied by app gateways additionally enforces personal app access. Response never includes credentials, CSRF or session version.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "app",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "projectManager",
+                "git",
+                "wiki",
+                "devTools",
+                "timeTracker",
+                "business",
+                "cloud",
+                "knowledgeHub",
+                "flowPilot",
+                "pulseWatch",
+                "dataScout",
+                "requestLab"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live authorized identity plus issuer and X-ForgeFlow-User-Id."
+          },
+          "401": {
+            "description": "Session missing, inactive or revoked."
+          },
+          "403": {
+            "description": "Portal account or app grant missing."
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4194,6 +4304,36 @@
             "type": "string",
             "format": "date-time",
             "description": "Present only for test accounts. Access expires after six hours; private data is purged in the following cleanup cycle (30 seconds, or on restart)."
+          },
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$",
+            "description": "Unique, case-insensitive username. Stored lowercase. Administrator is reserved."
+          },
+          "allowedApps": {
+            "type": "array",
+            "maxItems": 12,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "projectManager",
+                "git",
+                "wiki",
+                "devTools",
+                "timeTracker",
+                "business",
+                "cloud",
+                "knowledgeHub",
+                "flowPilot",
+                "pulseWatch",
+                "dataScout",
+                "requestLab"
+              ]
+            },
+            "description": "Assigned apps; an empty array grants settings only. Administrators always hold all apps."
           }
         },
         "required": [
@@ -4241,7 +4381,8 @@
           "email": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 254
+            "maxLength": 254,
+            "description": "Username or email; same legacy field name. Trimmed and matched case-insensitively."
           },
           "password": {
             "type": "string",
@@ -5079,7 +5220,8 @@
               "language": {
                 "enum": [
                   "de",
-                  "en"
+                  "en",
+                  "fr"
                 ],
                 "default": "de",
                 "description": "Interface language for settings, Wiki, Dev Tools, and shared navigation; omitted values default to German."
@@ -5169,13 +5311,44 @@
             "maxLength": 72,
             "writeOnly": true,
             "description": "Mindestens 12 Unicode-Zeichen, höchstens 72 UTF-8-Bytes; kein NUL."
+          },
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$",
+            "description": "Unique, case-insensitive username. Stored lowercase. Administrator is reserved."
+          },
+          "allowedApps": {
+            "type": "array",
+            "maxItems": 12,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "projectManager",
+                "git",
+                "wiki",
+                "devTools",
+                "timeTracker",
+                "business",
+                "cloud",
+                "knowledgeHub",
+                "flowPilot",
+                "pulseWatch",
+                "dataScout",
+                "requestLab"
+              ]
+            },
+            "description": "Assigned apps; an empty array grants settings only. Administrators always hold all apps."
           }
         },
         "required": [
           "name",
           "email",
           "password"
-        ]
+        ],
+        "description": "Admin only. UI supplies username and grants explicitly. Legacy callers may omit them for a generated username and previous default app set."
       },
       "AiCreateConversation": {
         "type": "object",
@@ -5189,6 +5362,7 @@
             "enum": [
               "de",
               "en",
+              "fr",
               null
             ],
             "default": "de"
@@ -5200,7 +5374,8 @@
         "additionalProperties": false,
         "required": [
           "requestId",
-          "message"
+          "message",
+          "context"
         ],
         "properties": {
           "requestId": {
@@ -5216,15 +5391,8 @@
             "description": "Höchstens 4000 UTF-16-Codeeinheiten; mindestens ein Nicht-Leerraumzeichen."
           },
           "context": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AiPageContext"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optionaler Seitenbezug beim Senden; keine URLs, Entwürfe oder Berechtigungen."
+            "$ref": "#/components/schemas/AiPageContext",
+            "description": "Erforderlicher Seitenbezug beim Senden; keine URLs, Entwürfe oder Berechtigungen. Ohne Kontext 403 AI_APP_FORBIDDEN. Nur projectManager erhält Fachwerkzeuge; andere Apps verwenden allgemeinen Chat mit nach App gefiltertem Verlauf."
           }
         }
       },
@@ -5263,7 +5431,17 @@
               "/settings/general",
               "/devTools/snippeter",
               "/devTools/dbScripter",
-              "/git/repositories"
+              "/git/repositories",
+              "/knowledgeHub/chat",
+              "/knowledgeHub/documents",
+              "/knowledgeHub/account",
+              "/knowledgeHub/privacy",
+              "/flowPilot/overview",
+              "/flowPilot/workflows",
+              "/flowPilot/runs",
+              "/flowPilot/integrations",
+              "/flowPilot/jobs",
+              "/pulseWatch/overview"
             ]
           },
           "projectId": {
@@ -5943,7 +6121,8 @@
             "type": "string",
             "enum": [
               "de",
-              "en"
+              "en",
+              "fr"
             ]
           },
           "createdAt": {
@@ -7157,7 +7336,9 @@
         "additionalProperties": false,
         "required": [
           "revision",
-          "industries"
+          "industries",
+          "visibleApps",
+          "aiApps"
         ],
         "properties": {
           "revision": {
@@ -7176,8 +7357,47 @@
               "maxLength": 100
             },
             "description": "Anwendungsweit, Reihenfolge bleibt erhalten. Serverseitig trim/NFC-normalisiert, ohne Kontrollzeichen und ohne Duplikate unabhängig von Großschreibung. Ändert keine bestehenden Kundenwerte."
+          },
+          "visibleApps": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 12,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/GlobalAppKey"
+            },
+            "description": "Anwendungsweite Auswahl der Module in der linken Navigation; standardmäßig alle. Einstellungen bleiben erreichbar. Keine fachliche Zugriffsberechtigung."
+          },
+          "aiApps": {
+            "type": "array",
+            "maxItems": 12,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/GlobalAppKey"
+            },
+            "default": [
+              "projectManager"
+            ],
+            "description": "Anwendungen mit KI-Button. Leer deaktiviert alle Buttons. Nur der Projektmanager erhält Datenwerkzeuge; zusätzliche Buttons erweitern keine Berechtigungen."
           }
         }
+      },
+      "GlobalAppKey": {
+        "type": "string",
+        "enum": [
+          "projectManager",
+          "git",
+          "wiki",
+          "devTools",
+          "timeTracker",
+          "business",
+          "cloud",
+          "knowledgeHub",
+          "flowPilot",
+          "pulseWatch",
+          "dataScout",
+          "requestLab"
+        ]
       },
       "CustomerContact": {
         "type": "object",
@@ -7273,7 +7493,8 @@
             "type": "string",
             "enum": [
               "de",
-              "en"
+              "en",
+              "fr"
             ]
           },
           "title": {
@@ -9060,6 +9281,128 @@
           "email",
           "password"
         ]
+      },
+      "ManagedUser": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "type": "string"
+          },
+          "administrator": {
+            "type": "boolean",
+            "description": "Berechtigung zur Kontoverwaltung."
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "portalOnly": {
+            "type": "boolean",
+            "default": false,
+            "readOnly": true,
+            "description": "Portal-only principals may access auth/session/logout, own password change and /portal/* only. Never an internal workspace principal."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Present only for test accounts. Access expires after six hours; private data is purged in the following cleanup cycle (30 seconds, or on restart)."
+          },
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$",
+            "description": "Unique, case-insensitive username. Stored lowercase. Administrator is reserved."
+          },
+          "allowedApps": {
+            "type": "array",
+            "maxItems": 12,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "projectManager",
+                "git",
+                "wiki",
+                "devTools",
+                "timeTracker",
+                "business",
+                "cloud",
+                "knowledgeHub",
+                "flowPilot",
+                "pulseWatch",
+                "dataScout",
+                "requestLab"
+              ]
+            },
+            "description": "Assigned apps; an empty array grants settings only. Administrators always hold all apps."
+          },
+          "sessionVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Administrator-only optimistic account version; not an authentication token."
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "administrator",
+          "active"
+        ]
+      },
+      "AccountAccess": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "username",
+          "allowedApps",
+          "sessionVersion"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$",
+            "description": "Unique, case-insensitive username. Stored lowercase. Administrator is reserved."
+          },
+          "allowedApps": {
+            "type": "array",
+            "maxItems": 12,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "projectManager",
+                "git",
+                "wiki",
+                "devTools",
+                "timeTracker",
+                "business",
+                "cloud",
+                "knowledgeHub",
+                "flowPilot",
+                "pulseWatch",
+                "dataScout",
+                "requestLab"
+              ]
+            },
+            "description": "Assigned apps; an empty array grants settings only. Administrators always hold all apps."
+          },
+          "sessionVersion": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
       }
     }
   }

@@ -19,18 +19,32 @@ public final class AgentService {
         context.verify(accounts); return conversations.create(context.userId(), language);
     }
     public Conversation get(AgentExecutionContext context, UUID id) {
-        context.verify(accounts); return conversations.get(context.userId(), id);
+        context.verify(accounts);
+        var result = conversations.get(context.userId(), id);
+        if (!de.forgeflow.auth.AppPermissions.allowsHistory(accounts.findById(context.userId()).orElseThrow(), result)) throw new ApiFailure(403, "APP_FORBIDDEN", "Für diesen Verlauf fehlt die App-Berechtigung.");
+        return result;
     }
-    public ConversationList list(AgentExecutionContext context) { context.verify(accounts); return conversations.list(context.userId()); }
+    public ConversationList list(AgentExecutionContext context) {
+        context.verify(accounts);
+        var user=accounts.findById(context.userId()).orElseThrow();
+        var result=conversations.list(context.userId());
+        if(user.administrator() || user.allowedApps().containsAll(de.forgeflow.auth.AppPermissions.ALL)) return result;
+        return new ConversationList(result.storage(), result.retentionSeconds(), result.items().stream().filter(item -> de.forgeflow.auth.AppPermissions.allowsHistory(user, conversations.get(context.userId(),item.id()))).toList());
+    }
     public void delete(AgentExecutionContext context, UUID id) { context.verify(accounts); conversations.delete(context.userId(), id); }
-    public java.util.List<ExecutionRecord> executions(AgentExecutionContext context, UUID id) { context.verify(accounts); return conversations.executions(context.userId(), id); }
+    public java.util.List<ExecutionRecord> executions(AgentExecutionContext context, UUID id) { context.verify(accounts); de.forgeflow.auth.AppPermissions.require(accounts.findById(context.userId()).orElseThrow(), "projectManager"); return conversations.executions(context.userId(), id); }
     public Turn send(AgentExecutionContext context, UUID id, SendMessage input) {
         context.verify(accounts);
-        var pending = conversations.begin(context.userId(), id, input);
+        var page = PageContexts.requireSupported(input.context());
+        de.forgeflow.auth.AppPermissions.require(accounts.findById(context.userId()).orElseThrow(), page.route().equals("/devTools/rest") ? "requestLab" : page.route().split("/")[1]);
+        var pending = conversations.begin(context.userId(), id, new SendMessage(input.requestId(), input.message(), page));
         if (pending.replay() != null) return pending.replay();
         try (var lease = limits.acquire(context.userId())) {
             context.verify(accounts);
-            var reply = model.reply(pending.language(), pending.history(), pending.message(), tools.session(context, () -> true, pending.context(), step -> conversations.record(pending, step)));
+            var history = PageContexts.historyForModule(pending.history(), page);
+            var reply = PageContexts.isProjectManager(page)
+                ? model.reply(pending.language(), history, pending.message(), tools.session(context, () -> true, page, step -> conversations.record(pending, step)))
+                : model.reply(pending.language(), history, PageContexts.messageForPage(page, pending.message()));
             // Logout, password changes or account deactivation can happen during the provider call.
             context.verify(accounts);
             if (reply == null || reply.text() == null || reply.text().isBlank() || reply.text().length() > 16000)

@@ -56,9 +56,9 @@ und Sprache. `?category=users|appearance|projects|language` erlaubt Direktlinks;
 ohne gültige Kategorie wird Optik angezeigt. Kontoentwürfe bleiben beim Wechsel
 zwischen den Kategorien erhalten. Auf schmalen Bildschirmen steht das Menü oben.
 
-`settings.language` unterstützt `de` und `en`. Fehlende/ungültige Werte im gespeicherten
+`settings.language` unterstützt `de`, `en` und `fr` (Français). Fehlende/ungültige Werte im gespeicherten
 Client-Format übernehmen die aktuelle Browservorgabe, sonst `en`. Der Server akzeptiert ausschließlich diese
-beiden Sprachcodes; alte Requests ohne Sprachfeld bleiben gültig und verwenden Deutsch.
+drei Sprachcodes; alte Requests ohne Sprachfeld bleiben gültig und verwenden Deutsch.
 Der Sprachwechsel übersetzt die Einstellungen einschließlich ihrer Kontoformulare,
 Wiki und Dev Tools sowie gemeinsame Navigation und Statusmeldungen. Benutzereingaben, Wiki-Inhalte, JSON-Werte
 und REST-Antworten werden nicht übersetzt. Alle Einstellungen zurücksetzen setzt auch
@@ -108,6 +108,25 @@ Weitere Details: [Backend-Vertrag](backend-api.md), [Spring-Boot-Gerüst](../bac
 
 ## Prüfung
 
+Französisch übersetzt die ForgeFlow-Oberfläche einschließlich Anmeldung, Einstellungen,
+Projektverwaltung, Wiki, Entwicklerwerkzeugen, Zeiterfassung, Business und Portal.
+Datums-/Zahlenformatierung verwendet `fr-FR`; Pluralformen folgen den französischen Regeln.
+Eigene Inhalte, Quellcode und API-Ergebnisse bleiben unverändert. Neue KI-Gespräche
+antworten auf Französisch; bestehende Gespräche behalten ihre Sprache. Rechnungs-/
+Angebots-PDFs und Zeitnachweise haben französische Beschriftungen und Währungsformatierung.
+Die automatische Regionsvorgabe bleibt unverändert; eine explizite französische Auswahl
+wird für Konto und Anmeldung gespeichert. Die separat eingebetteten Apps Knowledge Hub,
+FlowPilot und PulseWatch verwenden für Französisch ausdrücklich Englisch als Fallback,
+ohne ihre Frames oder offene Entwürfe neu zu laden.
+
+Flyway V17 erweitert die Sprachprüfungen für Einstellungen und KI-Gespräche auf `fr`,
+ohne alte Migrationen oder vorhandene Daten zu ändern. Frontend und Backend gemeinsam
+aktualisieren. Ein alter Server unterstützt den neuen Sprachcode nicht.
+
 `npm test` prüft Benutzertrennung, Versionen, Ladefehler, geordnete Schreibvorgänge, Wiederholung,
 Zurücksetzen und verspätete Antworten. Spring-Tests prüfen die geschützten Settings-Endpunkte,
 Kontozuordnung und Abmeldung. Lint und Build prüfen die TypeScript-Anbindung.
+
+## Benutzernamen und persönliche App-Rechte
+
+Siehe [Kontoverwaltung und sichere Administrator-Einrichtung](account-access.md). Anmeldung mit Benutzername oder E-Mail; Konten und App-Zuweisungen können nur Administratoren verwalten.

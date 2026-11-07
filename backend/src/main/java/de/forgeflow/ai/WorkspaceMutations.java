@@ -9,7 +9,7 @@ import de.forgeflow.api.ApiFailure;
 /** Immutable, server-built creation proposal. The decision endpoint accepts no replacement data. */
 public final class WorkspaceMutations {
     private WorkspaceMutations() {}
-    public static final Set<String> ENTITIES = Set.of("customers", "projects", "tasks", "epics", "sprints", "articles", "categories", "files", "users", "contacts");
+    public static final Set<String> ENTITIES = WorkspaceTools.MUTATION_ENTITIES;
     public record DecisionInput(@jakarta.validation.constraints.NotNull UUID decisionId,
             @jakarta.validation.constraints.NotNull @jakarta.validation.constraints.Pattern(regexp="approve|reject") String decision,
             @jakarta.validation.constraints.Size(max=72) @com.fasterxml.jackson.annotation.JsonProperty(access=com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY) String initialPassword) {

@@ -15,7 +15,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /** Account-local queries and typed creation plans. Never writes while a model tool is running. */
 public final class WorkspaceTools {
-    static final Set<String> COLLECTIONS = Set.of("customers", "projects", "tasks", "activities", "epics", "sprints", "files", "articles", "categories", "users", "profile", "settings", "industries", "contacts");
+    static final Set<String> COLLECTIONS = Set.of("customers", "projects", "tasks", "activities", "epics", "sprints", "files", "contacts", "industries");
+    static final Set<String> MUTATION_ENTITIES = Set.of("customers", "projects", "tasks", "epics", "sprints", "files", "contacts");
     record Industry(String id, String name) {}
     private static final Map<String, Set<String>> FIELDS = Map.of(
         "customers", Set.of("name", "street", "postalCode", "city", "country", "email", "website", "phone", "industry", "notes"),
@@ -24,8 +25,7 @@ public final class WorkspaceTools {
         "tasks", Set.of("project", "epic", "title", "description", "status", "priority"),
         "epics", Set.of("project", "title", "description"),
         "sprints", Set.of("project", "title", "goal", "startDate", "endDate", "tasks"),
-        "articles", Set.of("title", "content", "category", "parent"), "categories", Set.of("name", "description"),
-        "files", Set.of("project", "name", "content", "mediaType"), "users", Set.of("name", "email"));
+        "files", Set.of("project", "name", "content", "mediaType"));
     public record Row(String id, String label, Map<String, String> fields) { public Row { fields = Collections.unmodifiableMap(new LinkedHashMap<>(fields)); } }
     public record View(String entity, String mode, int textOffset, List<Row> items, String message) { public View { items = List.copyOf(items); } }
     private static final Set<String> FILTER_FIELDS = Set.of("id", "name", "title", "email", "street", "postalCode", "city", "country", "industry", "role", "phone", "website", "code", "status", "priority", "customerId", "projectId", "epicId", "categoryId", "parentId", "planningCompleted", "deadline", "createdAt", "updatedAt", "startDate", "endDate", "taskIds", "mediaType", "size", "administrator", "active", "language", "themeMode", "defaultProjectView", "defaultTaskPriority", "type", "message", "lastModified", "addedAt");
@@ -39,14 +39,14 @@ public final class WorkspaceTools {
     static String description(String name) {
         if ("propose_workspace_update".equals(name)) return WorkspaceUpdates.description();
         return "read_workspace".equals(name)
-            ? "Query saved customers, contacts (customerId filter selects a customer), projects, tasks (all statuses), activities, epics, sprints, files, articles, categories; own profile/settings; industries lists the globally configured customer industry choices (read-only, use empty project); users ONLY for administrators, never hashes/session data. File detail can read UTF-8 text (first 1 MiB); binary files provide metadata only. mode=count returns exact matching count only; list returns 10 summaries; detail returns 1 record including text. query empty means all, #ID means exact ID, otherwise substring in name/title/code/email/description/wiki content. filters is an AND list (empty for no filters) of {field,operator,value}: eq,contains,lt,gt on saved scalar fields. Examples tasks status eq todo, priority eq high; projects customerId eq 7; deadline lt 2026-12-31. References are numeric IDs, null uses value null as a string; taskIds eq tests membership. project empty means no filter, otherwise exact project name/#ID. Use empty project for wiki/profile/settings/users. offset paginates records; textOffset paginates long text in 2000-character chunks. Both start at 0. Never infer global counts from a project list."
-            : "PROPOSE creating one customer, customer contact, project, task, epic, planned sprint, wiki article/category, UTF-8 text file or normal user account (administrators only). DOES NOT SAVE: the user must confirm the immutable card. fields is a list of {name,value} strings; omit optional fields. For customer industry choices read_workspace entity industries first; existing industry text stays compatible. postalCode is text, preserve leading zeros/international formats. Required fields: contacts=customer,name (optional role/job title,email,phone); customers=name; projects=name,customer,deadline (YYYY-MM-DD); tasks=project,title; epics=project,title; sprints=project,title,startDate,endDate; articles=title,content; categories=name; files=project,name,content; users=name,email. NEVER ask for or pass passwords: the user enters the initial password only in the card's private password field, not in chat or tool arguments. customer/project/epic/category reference exact names or #ID, never guess ambiguous names. Optional customers: street,postalCode,city,country,email,website,phone,industry,notes; projects: planningCompleted true/false; tasks: epic,description,status todo/inProgress/done,priority low/medium/high; epics/categories: description; sprints: goal,tasks (comma-separated #taskIDs); articles: category (documentation space),parent (exact parent page name/#ID, inherits space if category omitted); files: mediaType text/plain,text/markdown,text/csv,application/json. Ask for missing mandatory information; do not invent dates or links. Task defaults to todo and account priority or medium. Text maximum 6000 characters. IDs, timestamps and relationships are server-owned.";
+            ? "Query saved customers, contacts (customerId filter selects a customer), projects, tasks (all statuses), activities, epics, sprints, project files and shared industry choices only. File detail can read UTF-8 text (first 1 MiB); binary files provide metadata only. mode=count returns exact matching count only; list returns 10 summaries; detail returns 1 record including text. query empty means all, #ID means exact ID, otherwise substring in name/title/code/email/description. filters is an AND list (empty for no filters) of {field,operator,value}: eq,contains,lt,gt on saved scalar fields. Examples tasks status eq todo, priority eq high; projects customerId eq 7; deadline lt 2026-12-31. References are numeric IDs, null uses value null as a string; taskIds eq tests membership. project empty means no filter, otherwise exact project name/#ID. offset paginates records; textOffset paginates long text in 2000-character chunks. Both start at 0."
+            : "PROPOSE creating or updating customers, contacts, projects, tasks, epics, planned sprints and project files only. Every write needs explicit user confirmation. Workspace tools cannot access wiki pages, app settings, profiles, other user accounts, time tracking or business data.";
     }
     String schema(String name) {
         if ("propose_workspace_update".equals(name)) return new WorkspaceUpdates(this, json, clock).schema();
         if ("read_workspace".equals(name)) return "{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"entity\",\"query\",\"project\",\"mode\",\"offset\",\"textOffset\",\"filters\"],\"properties\":{\"entity\":{\"type\":\"string\",\"enum\":" + json.writeValueAsString(COLLECTIONS.stream().sorted().toList())
             + "},\"query\":{\"type\":\"string\"},\"project\":{\"type\":\"string\"},\"mode\":{\"type\":\"string\",\"enum\":[\"count\",\"list\",\"detail\"]},\"offset\":{\"type\":\"integer\"},\"textOffset\":{\"type\":\"integer\"},\"filters\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"field\",\"operator\",\"value\"],\"properties\":{\"field\":{\"type\":\"string\"},\"operator\":{\"type\":\"string\",\"enum\":[\"eq\",\"contains\",\"lt\",\"gt\"]},\"value\":{\"type\":\"string\"}}}}}}";
-        return "{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"entity\",\"fields\"],\"properties\":{\"entity\":{\"type\":\"string\",\"enum\":" + json.writeValueAsString(WorkspaceMutations.ENTITIES.stream().sorted().toList())
+        return "{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"entity\",\"fields\"],\"properties\":{\"entity\":{\"type\":\"string\",\"enum\":" + json.writeValueAsString(MUTATION_ENTITIES.stream().sorted().toList())
             + "},\"fields\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"name\",\"value\"],\"properties\":{\"name\":{\"type\":\"string\"},\"value\":{\"type\":\"string\"}}}}}}";
     }
     static boolean supports(String name) { return Set.of("read_workspace", "propose_workspace_create", "propose_workspace_update").contains(name); }
@@ -70,9 +70,8 @@ public final class WorkspaceTools {
             for (var item : values) {
                 require(item.isObject() && item.propertyNames().equals(Set.of("field", "operator", "value")), "Ungültiger Filter.");
                 var filter = new Filter(string(item, "field", 40), string(item, "operator", 10), string(item, "value", 1000));
-                Class<?> type = switch (entity) { case "customers" -> Customer.class; case "projects" -> Project.class; case "tasks" -> Task.class; case "activities" -> Activity.class;
-                    case "epics" -> Epic.class; case "sprints" -> Sprint.class; case "files" -> FileMetadata.class; case "articles" -> Article.class; case "categories" -> Category.class;
-                    case "users", "profile" -> Accounts.User.class; case "contacts" -> CustomerContact.class; case "settings" -> SettingsValues.class; case "industries" -> Industry.class; default -> throw WorkspaceMutations.invalid("Unbekannter Bereich."); };
+                Class<?> type = switch (entity) { case "customers" -> Customer.class; case "projects" -> Project.class; case "tasks" -> Task.class; case "activities" -> Activity.class; case "industries" -> Industry.class;
+                    case "epics" -> Epic.class; case "sprints" -> Sprint.class; case "files" -> FileMetadata.class; case "contacts" -> CustomerContact.class; default -> throw WorkspaceMutations.invalid("Unbekannter Bereich."); };
                 require(FILTER_FIELDS.contains(filter.field()) && ("id".equals(filter.field()) || Arrays.stream(type.getRecordComponents()).anyMatch(component -> component.getName().equals(filter.field())))
                     && Set.of("eq", "contains", "lt", "gt").contains(filter.operator()), "Filter gehört nicht zum abgefragten Bereich."); filters.add(filter);
             }
@@ -165,7 +164,7 @@ public final class WorkspaceTools {
     }
     private static Map<String, String> creationFields(JsonNode input) {
         require(input.isObject() && input.propertyNames().equals(Set.of("entity", "fields")), "Ungültiger Anlagevorschlag.");
-        String entity = string(input, "entity", 30); require(FIELDS.containsKey(entity), "Dieser Bereich unterstützt keine Anlage.");
+        String entity = string(input, "entity", 30); require(MUTATION_ENTITIES.contains(entity) && FIELDS.containsKey(entity), "Dieser Bereich unterstützt keine Anlage.");
         var entries = input.get("fields"); require(entries.isArray() && entries.size() <= 20, "Ungültige Anlagefelder.");
         var values = new LinkedHashMap<String, String>();
         for (var entry : entries) {

@@ -17,6 +17,34 @@ import static org.mockito.Mockito.*;
 import static de.forgeflow.ai.AiTestSupport.*;
 
 class AgentStreamsTest {
+    private static SendMessage input(String message) {
+        return new SendMessage(UUID.randomUUID(), message, new AgentDtos.PageContext("/projectManager/projects", null, null));
+    }
+    @Test void otherAppStreamsDoNotReceiveProjectManagerTools() throws Exception {
+        var properties = properties();
+        var accounts = mock(Accounts.class); var gateway = mock(AiModelGateway.class);
+        when(accounts.findById("alice")).thenReturn(Optional.of(new Accounts.User("alice", "test@example.test", "Test", "hash", false, true, 0)));
+        var context = new AgentExecutionContext("alice", 0, () -> true);
+        var conversations = new MemoryConversationStore(properties, new TestClock());
+        var completed = new CountDownLatch(1);
+        var response = new AiModelGateway.Reply("General answer", 1, 1, false);
+        when(gateway.stream(anyString(), anyList(), anyString())).thenAnswer(invocation -> {
+            assertThat(invocation.getArgument(2, String.class)).contains("Documentation home", "Wiki question");
+            return Flux.just(new AiModelGateway.Chunk("", response)).doOnComplete(completed::countDown);
+        });
+        try (var streams = new AgentStreams(accounts, conversations, gateway, new AgentLimits(properties, new AttemptLimiter()), properties, tools(accounts))) {
+            var id = conversations.create("alice", "en").id();
+            streams.start(context, id, new SendMessage(UUID.randomUUID(), "Wiki question",
+                new AgentDtos.PageContext("/wiki/home", null, null)));
+            assertThat(completed.await(2, TimeUnit.SECONDS)).isTrue();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+            while (conversations.get("alice", id).messages().isEmpty() && System.nanoTime() < deadline) Thread.sleep(5);
+            assertThat(conversations.get("alice", id).messages()).extracting(AgentDtos.Message::content)
+                .containsExactly("Wiki question", "General answer");
+            verify(gateway, times(1)).stream(anyString(), anyList(), anyString());
+            verify(gateway, never()).stream(anyString(), anyList(), anyString(), any(ProjectTools.Session.class));
+        }
+    }
     @Test void cancellingARealMultiStepExecutionStopsTheSecondProviderAndDiscardsTheWholeTurn() throws Exception {
         var properties = new AiProperties(true, "test-only-key", "test-only-model", java.time.Duration.ofSeconds(10), "completion", 256, 20, 2, 2, 4, 3, 4000, java.time.Duration.ofMinutes(1));
         var accounts = mock(Accounts.class); var storage = mock(de.forgeflow.workspace.WorkspaceStorage.class);
@@ -33,7 +61,7 @@ class AgentStreamsTest {
         var conversations = new MemoryConversationStore(properties, new TestClock()); var limits = new AgentLimits(properties, new AttemptLimiter());
         try (var streams = new AgentStreams(accounts, conversations, new OpenAiModelGateway(chatModel), limits, properties,
                 new ProjectTools(accounts, storage, tools.jackson.databind.json.JsonMapper.builder().build(), new TestClock()))) {
-            var conversation = conversations.create("alice", "en"); var input = new SendMessage(UUID.randomUUID(), "Find projects and read tasks");
+            var conversation = conversations.create("alice", "en"); var input = input("Find projects and read tasks");
             streams.start(context, conversation.id(), input);
             assertThat(second.await(3, TimeUnit.SECONDS)).isTrue();
             streams.cancel(context, conversation.id(), input.requestId());
@@ -61,7 +89,7 @@ class AgentStreamsTest {
         var sink = Sinks.many().unicast().<AiModelGateway.Chunk>onBackpressureBuffer();
         when(gateway.stream(anyString(), anyList(), anyString(), any(de.forgeflow.ai.ProjectTools.Session.class))).thenReturn(sink.asFlux().doOnSubscribe(value -> subscribed.countDown()).doOnCancel(cancelled::countDown));
         try (var streams = new AgentStreams(accounts, conversations, gateway, limits, properties, tools(accounts))) {
-            var id = conversations.create("alice", "de").id(); var input = new SendMessage(UUID.randomUUID(), "Hallo");
+            var id = conversations.create("alice", "de").id(); var input = input("Hallo");
             streams.start(context, id, input);
             assertThat(subscribed.await(2, TimeUnit.SECONDS)).isTrue();
             sink.tryEmitNext(new AiModelGateway.Chunk("Partial", null));
@@ -94,7 +122,7 @@ class AgentStreamsTest {
             .map(index -> new AiModelGateway.Chunk("x", null)).doOnCancel(cancelled::countDown));
         try (var streams = new AgentStreams(accounts, conversations, gateway, new AgentLimits(properties, new AttemptLimiter()), properties, tools(accounts))) {
             var id = conversations.create("alice", "en").id();
-            streams.start(context, id, new SendMessage(UUID.randomUUID(), "Hello"));
+            streams.start(context, id, input("Hello"));
             assertThat(cancelled.await(3, TimeUnit.SECONDS)).isTrue();
             assertThat(conversations.get("alice", id).messages()).isEmpty();
         }

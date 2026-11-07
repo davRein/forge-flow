@@ -1,6 +1,7 @@
+import { decodeUserApps } from './userAccess.js';
 import type { ApiClient } from '../api/apiClient';
 
-export type ManagedAccount = { id: string; name: string; email: string; administrator: boolean; active: boolean };
+export type ManagedAccount = { id: string; name: string; email: string; administrator: boolean; active: boolean; username?: string; allowedApps?: string[]; sessionVersion?: number };
 export const ACCOUNT_LIST_CHANGED_EVENT = 'forgeflow:accounts-changed';
 
 function account(value: unknown): ManagedAccount {
@@ -8,7 +9,10 @@ function account(value: unknown): ManagedAccount {
         || !('administrator' in value) || !('active' in value) || typeof value.id !== 'string' || !value.id
         || typeof value.name !== 'string' || typeof value.email !== 'string'
         || typeof value.administrator !== 'boolean' || typeof value.active !== 'boolean') throw new Error('Ungültige Kontoantwort.');
-    return { id: value.id, name: value.name, email: value.email, administrator: value.administrator, active: value.active };
+    const data = value as Record<string, unknown>;
+    if (data.username !== undefined && (typeof data.username !== 'string' || !data.username)) throw new Error('Ungültige Kontoantwort.');
+    if (data.sessionVersion !== undefined && (!Number.isSafeInteger(data.sessionVersion) || (data.sessionVersion as number) < 0)) throw new Error('Ungültige Kontoantwort.');
+    return { username: data.username as string | undefined, allowedApps: decodeUserApps(data.allowedApps), sessionVersion: data.sessionVersion as number | undefined, id: value.id, name: value.name, email: value.email, administrator: value.administrator, active: value.active };
 }
 
 export function passwordError(password: string, confirmation: string): string | null {
@@ -26,8 +30,11 @@ export function createAccountRepository(client: ApiClient, epoch = client.epoch)
             if (!Array.isArray(result)) throw new Error('Ungültige Kontoliste.');
             return result.map(account);
         },
-        async create(input: { name: string; email: string; password: string }, signal?: AbortSignal) {
+        async create(input: { name: string; email: string; password: string; username?: string; allowedApps?: string[] }, signal?: AbortSignal) {
             return account(await client.request('/users', { method: 'POST', body: input, signal, epoch }));
+        },
+        async setAccess(id: string, value: { username: string; allowedApps: string[]; sessionVersion: number }, signal?: AbortSignal) {
+            return account(await client.request(`/users/${encodeURIComponent(id)}/access`, { method: 'PUT', body: value, signal, epoch }));
         },
         async setActive(id: string, active: boolean, signal?: AbortSignal) {
             return account(await client.request(`/users/${encodeURIComponent(id)}/active`, { method: 'PUT', body: { active }, signal, epoch }));

@@ -159,7 +159,7 @@ class AiIntegrationTest {
     @Test void ordinaryUsersCanChatWithOwnedHistoryAndIdempotentMessageSubmission() throws Exception {
         when(gateway.reply(anyString(), anyList(), anyString(), any(de.forgeflow.ai.ProjectTools.Session.class))).thenReturn(new AiModelGateway.Reply("Test answer", 12, 3, false));
         var session = login(); String id = create(session); String request = UUID.randomUUID().toString();
-        String body = json.writeValueAsString(java.util.Map.of("requestId", request, "message", "Hello"));
+        String body = json.writeValueAsString(java.util.Map.of("requestId", request, "message", "Hello", "context", java.util.Map.of("route", "/projectManager/projects")));
         for (int index = 0; index < 2; index++)
             mvc.perform(post("/api/v1/ai/conversations/" + id + "/messages").session(session).with(csrf()).header("Origin", ORIGIN)
                 .contentType("application/json").content(body))
@@ -168,44 +168,32 @@ class AiIntegrationTest {
         mvc.perform(get("/api/v1/ai/conversations/" + id).session(session)).andExpect(status().isOk()).andExpect(jsonPath("$.messages.length()").value(2));
         verify(gateway, times(1)).reply(eq("en"), anyList(), eq("Hello"), any(de.forgeflow.ai.ProjectTools.Session.class));
     }
-    @Test void userCreationRequiresCurrentAdministratorRightsAndKeepsThePrivateInitialPasswordOutOfHistory() throws Exception {
-        var session = login(); String id = create(session);
+    @Test void userCreationIsUnavailableEvenForAdministrators() throws Exception {
+        var session = login();
         String owner = json.readTree(mvc.perform(get("/api/v1/auth/session").session(session)).andReturn().getResponse().getContentAsString()).get("user").get("id").stringValue();
         var before = accounts.findById(owner).orElseThrow();
         accounts.replace(new Accounts.User(before.id(), before.email(), before.name(), before.passwordHash(), true, true, 0), 0);
         String email = UUID.randomUUID() + "@example.test";
-        var result = new de.forgeflow.ai.ProjectTools(accounts, storage, json, java.time.Clock.systemUTC()).session(new de.forgeflow.ai.AgentExecutionContext(owner, 0, () -> true))
-            .read("propose_workspace_create", json.writeValueAsString(java.util.Map.of("entity", "users", "fields", List.of(java.util.Map.of("name", "name", "value", "New normal user"), java.util.Map.of("name", "email", "value", email)))));
-        var pending = conversations.begin(owner, UUID.fromString(id), new de.forgeflow.ai.AgentDtos.SendMessage(UUID.randomUUID(), "Create a user"));
-        conversations.complete(pending, new AiModelGateway.Reply("Confirm and enter the password privately", 1, 1, false,
-            List.of(new de.forgeflow.ai.AgentDtos.ToolEvent(UUID.randomUUID(), "propose_workspace_create", "completed", result))));
-        String path = "/api/v1/ai/conversations/" + id + "/creations/" + result.mutation().id() + "/decision";
-        String password = "Synthetic-account-test-123";
-        String body = json.writeValueAsString(java.util.Map.of("decisionId", UUID.randomUUID(), "decision", "approve", "initialPassword", password));
-        accounts.replace(before, 0);
-        mvc.perform(post(path).session(session).with(csrf()).header("Origin", ORIGIN).contentType("application/json").content(body)).andExpect(status().isForbidden());
+        var tools = new de.forgeflow.ai.ProjectTools(accounts, storage, json, java.time.Clock.systemUTC())
+            .session(new de.forgeflow.ai.AgentExecutionContext(owner, 0, () -> true));
+        assertThatThrownBy(() -> tools.read("propose_workspace_create", json.writeValueAsString(java.util.Map.of("entity", "users", "fields",
+            List.of(java.util.Map.of("name", "name", "value", "New normal user"), java.util.Map.of("name", "email", "value", email))))))
+            .isInstanceOf(de.forgeflow.api.ApiFailure.class);
         assertThat(accounts.findByEmail(email)).isEmpty();
-        accounts.replace(new Accounts.User(before.id(), before.email(), before.name(), before.passwordHash(), true, true, 0), 0);
-        var response = mvc.perform(post(path).session(session).with(csrf()).header("Origin", ORIGIN).contentType("application/json").content(body))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.data.administrator").value(false)).andExpect(jsonPath("$.status").value("succeeded")).andReturn();
-        assertThat(response.getResponse().getContentAsString()).doesNotContain(password, "passwordHash", "sessionVersion");
-        assertThat(new BCryptPasswordEncoder().matches(password, accounts.findByEmail(email).orElseThrow().passwordHash())).isTrue();
-        var history = mvc.perform(get("/api/v1/ai/conversations/" + id).session(session)).andReturn().getResponse().getContentAsString();
-        assertThat(history).doesNotContain(password, accounts.findByEmail(email).orElseThrow().passwordHash());
         verifyNoInteractions(gateway);
     }
     @Test void foreignConversationIdsAreRejectedOnReadAndWriteWithoutModelAccess() throws Exception {
         String id = create(login()); var foreign = login();
         mvc.perform(get("/api/v1/ai/conversations/" + id).session(foreign)).andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("AI_CONVERSATION_NOT_FOUND"));
         mvc.perform(post("/api/v1/ai/conversations/" + id + "/messages").session(foreign).with(csrf()).header("Origin", ORIGIN)
-            .contentType("application/json").content(json.writeValueAsString(java.util.Map.of("requestId", UUID.randomUUID(), "message", "Hallo"))))
+            .contentType("application/json").content(json.writeValueAsString(java.util.Map.of("requestId", UUID.randomUUID(), "message", "Hallo", "context", java.util.Map.of("route", "/projectManager/projects")))))
             .andExpect(status().isNotFound());
         verifyNoInteractions(gateway);
     }
     @Test void malformedIdsUnsupportedLanguageAndClientRolesAreRejected() throws Exception {
         var session = login(); String id = create(session);
         mvc.perform(get("/api/v1/ai/conversations/invalid").session(session)).andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
-        for (String body : new String[] {"{\"language\":\"fr\"}", "{\"language\":\"de\",\"ownerId\":\"someone-else\"}"})
+        for (String body : new String[] {"{\"language\":\"es\"}", "{\"language\":\"de\",\"ownerId\":\"someone-else\"}"})
             mvc.perform(post("/api/v1/ai/conversations").session(session).with(csrf()).header("Origin", ORIGIN).contentType("application/json").content(body)).andExpect(status().isBadRequest());
         for (String body : new String[] {"{\"message\":\"Hallo\"}", "{\"requestId\":\"" + UUID.randomUUID() + "\",\"message\":\" \"}",
                 json.writeValueAsString(java.util.Map.of("requestId", UUID.randomUUID(), "message", "x".repeat(4001))),
@@ -214,11 +202,17 @@ class AiIntegrationTest {
                 .contentType("application/json").content(body)).andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
         verifyNoInteractions(gateway);
     }
+    @Test void frenchConversationCanBeCreatedWithoutCallingTheProvider() throws Exception {
+        mvc.perform(post("/api/v1/ai/conversations").session(login()).with(csrf()).header("Origin", ORIGIN)
+            .contentType("application/json").content("{\"language\":\"fr\"}"))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.language").value("fr"));
+        verifyNoInteractions(gateway);
+    }
     @Test void providerFailuresAreStructuredAndDoNotExposeProviderDetailsOrPersistMessages() throws Exception {
         when(gateway.reply(anyString(), anyList(), anyString(), any(de.forgeflow.ai.ProjectTools.Session.class))).thenThrow(new IllegalStateException("private-provider-detail"));
         var session = login(); String id = create(session);
         var response = mvc.perform(post("/api/v1/ai/conversations/" + id + "/messages").session(session).with(csrf()).header("Origin", ORIGIN)
-            .contentType("application/json").content(json.writeValueAsString(java.util.Map.of("requestId", UUID.randomUUID(), "message", "Hallo"))))
+            .contentType("application/json").content(json.writeValueAsString(java.util.Map.of("requestId", UUID.randomUUID(), "message", "Hallo", "context", java.util.Map.of("route", "/projectManager/projects")))))
             .andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.error.code").value("AI_UNAVAILABLE")).andReturn();
         assertThat(response.getResponse().getContentAsString()).doesNotContain("private-provider-detail", "test-only-key");
         mvc.perform(get("/api/v1/ai/conversations/" + id).session(session)).andExpect(jsonPath("$.messages").isEmpty());
@@ -227,10 +221,10 @@ class AiIntegrationTest {
         when(gateway.reply(anyString(), anyList(), anyString(), any(de.forgeflow.ai.ProjectTools.Session.class))).thenReturn(new AiModelGateway.Reply("Answer", 1, 1, false));
         var session = login(); String first = create(session); String second = create(session);
         mvc.perform(post("/api/v1/ai/conversations/" + first + "/messages").session(session).with(csrf()).header("Origin", ORIGIN)
-            .contentType("application/json").content(json.writeValueAsString(java.util.Map.of("requestId", UUID.randomUUID(), "message", "First"))))
+            .contentType("application/json").content(json.writeValueAsString(java.util.Map.of("requestId", UUID.randomUUID(), "message", "First", "context", java.util.Map.of("route", "/projectManager/projects")))))
             .andExpect(status().isOk());
         mvc.perform(post("/api/v1/ai/conversations/" + second + "/messages").session(session).with(csrf()).header("Origin", ORIGIN)
-            .contentType("application/json").content(json.writeValueAsString(java.util.Map.of("requestId", UUID.randomUUID(), "message", "Second"))))
+            .contentType("application/json").content(json.writeValueAsString(java.util.Map.of("requestId", UUID.randomUUID(), "message", "Second", "context", java.util.Map.of("route", "/projectManager/projects")))))
             .andExpect(status().isTooManyRequests()).andExpect(jsonPath("$.error.code").value("RATE_LIMITED"));
         verify(gateway, times(1)).reply(anyString(), anyList(), anyString(), any(de.forgeflow.ai.ProjectTools.Session.class));
     }
@@ -239,7 +233,7 @@ class AiIntegrationTest {
             new AiModelGateway.Chunk("Grüße ", null), new AiModelGateway.Chunk("für dich", null),
             new AiModelGateway.Chunk("", new AiModelGateway.Reply("Grüße für dich", 10, 3, false))));
         var session = login(); String id = create(session); String request = UUID.randomUUID().toString();
-        String body = json.writeValueAsString(java.util.Map.of("requestId", request, "message", "Hallo"));
+        String body = json.writeValueAsString(java.util.Map.of("requestId", request, "message", "Hallo", "context", java.util.Map.of("route", "/projectManager/projects")));
         for (int index = 0; index < 2; index++) {
             var result = mvc.perform(post("/api/v1/ai/conversations/" + id + "/messages/stream").session(session).with(csrf()).header("Origin", ORIGIN)
                 .accept("text/event-stream", "application/json").contentType("application/json").content(body))
@@ -256,12 +250,12 @@ class AiIntegrationTest {
         var session = login(); String id = create(session); String requestId = UUID.randomUUID().toString();
         String path = "/api/v1/ai/conversations/" + id;
         mvc.perform(post(path + "/messages/stream").session(session).header("Origin", ORIGIN).contentType("application/json")
-            .content(json.writeValueAsString(java.util.Map.of("requestId", requestId, "message", "Hello"))))
+            .content(json.writeValueAsString(java.util.Map.of("requestId", requestId, "message", "Hello", "context", java.util.Map.of("route", "/projectManager/projects")))))
             .andExpect(status().isForbidden());
         mvc.perform(post(path + "/requests/" + requestId + "/cancel").session(login()).with(csrf()).header("Origin", ORIGIN))
             .andExpect(status().isNotFound());
         var result = mvc.perform(post(path + "/messages/stream").session(session).with(csrf()).header("Origin", ORIGIN)
-            .contentType("application/json").content(json.writeValueAsString(java.util.Map.of("requestId", requestId, "message", "Hello"))))
+            .contentType("application/json").content(json.writeValueAsString(java.util.Map.of("requestId", requestId, "message", "Hello", "context", java.util.Map.of("route", "/projectManager/projects")))))
             .andExpect(request().asyncStarted()).andReturn();
         result.getAsyncResult(3000);
         String response = mvc.perform(asyncDispatch(result)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();

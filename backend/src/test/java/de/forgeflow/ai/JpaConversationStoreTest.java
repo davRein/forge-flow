@@ -53,6 +53,14 @@ class JpaConversationStoreTest {
     @Autowired de.forgeflow.workspace.WorkspaceStorage workspace;
     @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
     @MockitoBean AiModelGateway gateway;
+    @Test void frenchConversationsSurvivePersistenceAndReload() {
+        String owner = owner();
+        var conversation = store.create(owner, "fr");
+        store.complete(pending(owner, conversation.id()), new AiModelGateway.Reply("Bonjour", 1, 1, false));
+        var reloaded = tx(() -> new JpaConversationStore(em, json, properties).get(owner, conversation.id()));
+        assertThat(reloaded.language()).isEqualTo("fr");
+        assertThat(reloaded.messages().getLast().content()).isEqualTo("Bonjour");
+    }
     private String owner() {
         var id = UUID.randomUUID().toString();
         accounts.insert(new Accounts.User(id, id + "@example.test", "Test", "$2a$10$" + "a".repeat(53), false, true, 0)); return id;
@@ -98,6 +106,14 @@ class JpaConversationStoreTest {
         var arguments = new java.util.LinkedHashMap<String, Object>(); arguments.put("entity", java.util.Set.of("update", "notes").contains(entity) ? "customers" : entity);
         arguments.put("fields", fields.entrySet().stream().map(entry -> java.util.Map.of("name", entry.getKey(), "value", entry.getValue())).toList());
         if (java.util.Set.of("update", "notes").contains(entity)) arguments.put("target", "#1");
+        if (java.util.Set.of("users", "articles").contains(entity)) {
+            var beforeRejected = workspace.load(owner);
+            assertThatThrownBy(() -> tools.session(context).read(toolName, json.writeValueAsString(arguments)))
+                .isInstanceOf(de.forgeflow.api.ApiFailure.class);
+            assertThat(workspace.load(owner)).isEqualTo(beforeRejected);
+            assertThat(store.get(owner, conversation.id()).messages()).isEmpty();
+            return;
+        }
         var result = tools.session(context).read(toolName, json.writeValueAsString(arguments));
         store.complete(pending(owner, conversation.id()), new AiModelGateway.Reply("Confirm", 1, 1, false,
             List.of(new ToolEvent(UUID.randomUUID(), toolName, "completed", result))));

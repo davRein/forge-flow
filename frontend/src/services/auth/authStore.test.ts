@@ -4,6 +4,16 @@ import { createAuthStore } from './authStore.js';
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 const profile = { user: { id: 'A', email: 'a@example.test', name: 'A' }, csrfToken: 'signed-in-token' };
 export const authTests = [
+    { name: 'Benutzernamen werden als Login-Kennung übertragen und leere App-Rechte bleiben leer', async run() {
+        const client = createApiClient('/api/v1', async (url, init) => {
+            if (String(url).endsWith('/csrf')) return new Response('{"csrfToken":"fixture-token"}');
+            assert(JSON.parse(String(init?.body)).email === 'Administrator', 'Bestehender JSON-Vertrag muss auch Benutzernamen transportieren');
+            return new Response(JSON.stringify({ ...profile, user: { ...profile.user, username: 'administrator', allowedApps: [] } }));
+        });
+        const store = createAuthStore(client, true); await store.login('Administrator', 'Synthetic-Password-12345');
+        assert(store.getSnapshot().user?.username === 'administrator' && store.getSnapshot().user?.allowedApps?.length === 0, 'Kein Recht darf durch Standardwerte ergänzt werden');
+        store.dispose();
+    } },
     { name: 'Testkonto-Anmeldung verwendet CSRF und erhält die serverseitige Ablaufzeit', async run() {
         const paths: string[] = []; const expiresAt = '2026-10-26T06:00:00Z';
         const client = createApiClient('/api/v1', async (url, options) => {

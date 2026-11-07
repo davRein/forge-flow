@@ -32,6 +32,18 @@ class BackendIntegrationTest {
     @Autowired de.forgeflow.business.BusinessStorage business;
     @Autowired de.forgeflow.business.PortalStorage portalLinks;
     @Autowired de.forgeflow.business.PdfReports pdfReports;
+    @Test void frenchPdfLabelsPreserveCustomerContentAndAccents() throws Exception {
+        var invoice = businessDocument("invoice").with("draft", "", "Émetteur privé", "Client privé");
+        try (var document = org.apache.pdfbox.Loader.loadPDF(pdfReports.document(invoice, "fr"))) {
+            assertThat(new org.apache.pdfbox.text.PDFTextStripper().getText(document))
+                .contains("Facture", "BROUILLON", "Émetteur", "Destinataire", "Émetteur privé", "Client privé", "Hors taxes");
+        }
+        var entry = timeEntry(java.util.UUID.randomUUID(), 540, 1L, 1L).names("Client privé", "Projet privé");
+        try (var document = org.apache.pdfbox.Loader.loadPDF(pdfReports.timesheet(java.util.List.of(entry), "Client privé", "2026-10", true, "fr"))) {
+            assertThat(new org.apache.pdfbox.text.PDFTextStripper().getText(document))
+                .contains("Feuille de temps", "Temps de travail", "Facturable", "Projet privé");
+        }
+    }
     private MockHttpSession businessLogin(String email, String password) throws Exception {
         var response = mvc.perform(post("/api/v1/auth/login").with(csrf()).header("Origin", ORIGIN)
             .with(request -> { request.setRemoteAddr("127.2." + Math.floorMod(email.hashCode(), 200) + "." + Math.floorMod(password.hashCode(), 200)); return request; })
@@ -285,6 +297,7 @@ class BackendIntegrationTest {
         String token = json.readTree(csrfResult.getResponse().getContentAsString()).get("csrfToken").stringValue();
         String oldId = session.getId();
         var result = mvc.perform(post("/api/v1/auth/login").session(session).header("Origin", ORIGIN).header("X-CSRF-TOKEN", token)
+            .with(request -> { request.setRemoteAddr("test-admin-" + java.util.UUID.randomUUID()); return request; })
             .contentType("application/json").content("{\"email\":\"admin@example.test\",\"password\":\"Nur-im-Test-12345\"}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.user.id").value("initial-admin")).andReturn();
         assertThat(session.getId()).isNotEqualTo(oldId);
@@ -319,6 +332,37 @@ class BackendIntegrationTest {
         }
         assertThat(storage.loadGlobalSettings()).isEqualTo(saved);
         storage.saveGlobalSettings(new de.forgeflow.workspace.GlobalSettings(saved.revision(), original.industries()));
+    }
+
+    @Test void globalAppVisibilityAndAiSurfacesHaveSafeDefaultsAndAreAdministratorControlled() throws Exception {
+        String path = "/api/v1/settings/global";
+        var administrator = login(); var ordinary = regularUser(); var user = loginAs(ordinary.email(), TEST_PASSWORD);
+        var original = storage.loadGlobalSettings();
+        assertThat(original.visibleApps()).containsExactlyElementsOf(de.forgeflow.workspace.GlobalSettings.defaultVisibleApps());
+        assertThat(original.aiApps()).containsExactly("projectManager");
+        mvc.perform(get(path).session(user)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.visibleApps.length()").value(12))
+            .andExpect(jsonPath("$.visibleApps[0]").value("projectManager"))
+            .andExpect(jsonPath("$.aiApps[0]").value("projectManager"));
+
+        var update = new de.forgeflow.workspace.GlobalSettings(original.revision(), original.industries(),
+            java.util.List.of("projectManager", "wiki"), java.util.List.of());
+        mvc.perform(put(path).session(administrator).with(csrf()).header("Origin", ORIGIN)
+                .header("If-Match", "\"" + original.revision() + "\"").contentType("application/json").content(json.writeValueAsString(update)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.visibleApps.length()").value(2))
+            .andExpect(jsonPath("$.visibleApps[0]").value("projectManager"))
+            .andExpect(jsonPath("$.visibleApps[1]").value("wiki"))
+            .andExpect(jsonPath("$.aiApps.length()").value(0));
+        mvc.perform(get(path).session(user)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.visibleApps.length()").value(2))
+            .andExpect(jsonPath("$.visibleApps[1]").value("wiki"))
+            .andExpect(jsonPath("$.aiApps.length()").value(0));
+
+        var invalid = new de.forgeflow.workspace.GlobalSettings(original.revision(), original.industries(), java.util.List.of(), java.util.List.of("wiki"));
+        mvc.perform(put(path).session(administrator).with(csrf()).header("Origin", ORIGIN)
+                .header("If-Match", "\"" + original.revision() + "\"").contentType("application/json").content(json.writeValueAsString(invalid)))
+            .andExpect(status().isBadRequest());
     }
     @Test void customerPostalCodeRoundTripsAsTextAndLegacyManifestsRemainReadable() throws Exception {
         var account = regularUser(); var session = loginAs(account.email(), TEST_PASSWORD); var previous = storage.load(account.id());
@@ -388,8 +432,11 @@ class BackendIntegrationTest {
         mvc.perform(put("/api/v1/me/settings").session(session).with(csrf()).header("Origin", ORIGIN)
             .contentType("application/json").content(english)).andExpect(status().isNoContent());
         mvc.perform(put("/api/v1/me/settings").session(session).with(csrf()).header("Origin", ORIGIN)
-            .contentType("application/json").content(english.replace("\"en\"", "\"fr\""))).andExpect(status().isBadRequest());
-        mvc.perform(get("/api/v1/me/settings").session(session)).andExpect(jsonPath("$.settings.language").value("en"));
+            .contentType("application/json").content(english.replace("\"en\"", "\"fr\""))).andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/me/settings").session(session)).andExpect(jsonPath("$.settings.language").value("fr"));
+        mvc.perform(put("/api/v1/me/settings").session(session).with(csrf()).header("Origin", ORIGIN)
+            .contentType("application/json").content(english.replace("\"en\"", "\"es\""))).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/me/settings").session(session)).andExpect(jsonPath("$.settings.language").value("fr"));
     }
     @Test void workspaceSavesAtomicallyAndRejectsStaleRevision() throws Exception {
         MockHttpSession session = login();
@@ -520,6 +567,7 @@ class BackendIntegrationTest {
         String profile = mvc.perform(get(endpoint).session(session)).andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(account.id())).andExpect(jsonPath("$.issuer").value(ORIGIN))
             .andExpect(jsonPath("$.active").value(true)).andExpect(jsonPath("$.administrator").value(false))
+            .andExpect(header().string("X-ForgeFlow-User-Id", account.id()))
             .andReturn().getResponse().getContentAsString();
         assertThat(profile).doesNotContain("password", "sessionVersion", "csrfToken", "FORGEFLOW_SESSION", TEST_PASSWORD);
         mvc.perform(get(endpoint).session(session).header("Sec-Fetch-Site", "cross-site"))
@@ -675,5 +723,55 @@ class BackendIntegrationTest {
             .andExpect(status().isTooManyRequests());
         assertThat(accounts.findById(account.id()).orElseThrow().passwordHash()).isEqualTo(account.passwordHash());
         mvc.perform(get("/api/v1/auth/session").session(user)).andExpect(status().isOk());
+    }
+
+    private Accounts.User accessUser(java.util.List<String> apps) {
+        String id=java.util.UUID.randomUUID().toString();
+        return accounts.insert(new Accounts.User(id,id+"@example.test","Rights test",new BCryptPasswordEncoder(10).encode("Access-Tests-12345"),false,true,0,false,null,"test."+id.substring(0,8),apps));
+    }
+    @Test void usernameLoginAndAppBoundariesAreServerEnforced() throws Exception {
+        var user=accessUser(java.util.List.of("requestLab"));
+        var session=loginAs(user.username().toUpperCase(java.util.Locale.ROOT),"Access-Tests-12345");
+        mvc.perform(get("/api/v1/auth/session").session(session)).andExpect(status().isOk()).andExpect(jsonPath("$.user.username").value(user.username())).andExpect(jsonPath("$.user.allowedApps[0]").value("requestLab"));
+        mvc.perform(get("/api/v1/me/rest-collections").session(session)).andExpect(status().isOk());
+        for(String path:java.util.List.of("/api/v1/me/time-tracking","/api/v1/me/business","/api/v1/me/developer","/api/v1/me/recent-activity","/api/v1/auth/showcase-session?app=flowPilot")) mvc.perform(get(path).session(session)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/workspace").session(session)).andExpect(status().isOk()).andExpect(jsonPath("$.data.projects").isEmpty()).andExpect(jsonPath("$.data.wiki.articles").isEmpty());
+        mvc.perform(get("/api/v1/auth/showcase-session?app=requestLab").session(session)).andExpect(status().isOk());
+        mvc.perform(post("/api/v1/users").session(session).with(csrf()).header("Origin",ORIGIN).contentType("application/json").content("{}")).andExpect(status().isForbidden());
+        mvc.perform(put("/api/v1/users/"+user.id()+"/access").session(session).with(csrf()).header("Origin",ORIGIN).contentType("application/json").content("{}")).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/auth/trial").session(session).with(csrf()).header("Origin",ORIGIN).contentType("application/json").content("{}")).andExpect(status().isForbidden());
+    }
+    @Test void administratorAssignsAppsAndRevokesOldSessionsWithoutLosingPrivateData() throws Exception {
+        var user=accessUser(java.util.List.of("requestLab"));
+        businessWorkspace(user.id());
+        var stored=storage.load(user.id());var data=stored.data();String now="2026-11-07T12:00:00Z";
+        var withWiki=new WorkspaceDtos.Data(data.projects(),data.customers(),data.tasks(),data.activities(),data.epics(),data.sprints(),data.files(),new WorkspaceDtos.Wiki(java.util.List.of(new WorkspaceDtos.Article(1,"Private wiki","Before",null,now,now)),java.util.List.of()));
+        storage.save(user.id(),stored.revision(),withWiki,java.util.Map.of());
+        var previousSession=loginAs(user.email(),"Access-Tests-12345");var admin=login();
+        String renamed="renamed."+java.util.UUID.randomUUID().toString().substring(0,8);
+        var update=java.util.Map.of("username",renamed,"allowedApps",java.util.List.of("wiki"),"sessionVersion",0);
+        mvc.perform(put("/api/v1/users/"+user.id()+"/access").session(admin).with(csrf()).header("Origin",ORIGIN).contentType("application/json").content(json.writeValueAsString(update))).andExpect(status().isOk()).andExpect(jsonPath("$.allowedApps[0]").value("wiki"));
+        mvc.perform(get("/api/v1/me/rest-collections").session(previousSession)).andExpect(status().isUnauthorized());
+        mvc.perform(put("/api/v1/users/"+user.id()+"/access").session(admin).with(csrf()).header("Origin",ORIGIN).contentType("application/json").content(json.writeValueAsString(update))).andExpect(status().isConflict());
+        var session=loginAs(renamed,"Access-Tests-12345");
+        mvc.perform(get("/api/v1/me/rest-collections").session(session)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/workspace").session(session)).andExpect(status().isOk()).andExpect(jsonPath("$.data.projects").isEmpty()).andExpect(jsonPath("$.data.wiki.articles[0].title").value("Private wiki"));
+        var before=storage.load(user.id());var visible=de.forgeflow.auth.AppPermissions.visible(accounts.findById(user.id()).orElseThrow(),before.data());
+        var wiki=new WorkspaceDtos.Wiki(java.util.List.of(new WorkspaceDtos.Article(1,"Private wiki","After",null,now,now)),java.util.List.of());
+        var next=new WorkspaceDtos.Envelope(1,before.revision(),new WorkspaceDtos.Data(visible.projects(),visible.customers(),visible.tasks(),visible.activities(),visible.epics(),visible.sprints(),visible.files(),wiki));
+        mvc.perform(multipart("/api/v1/workspace").param("manifest",json.writeValueAsString(next)).with(request->{request.setMethod("PUT");return request;}).session(session).with(csrf()).header("Origin",ORIGIN).header("If-Match","\""+before.revision()+"\"")).andExpect(status().isOk());
+        assertThat(storage.load(user.id()).data().projects()).isEqualTo(before.data().projects());
+        assertThat(storage.load(user.id()).data().wiki().articles().getFirst().content()).isEqualTo("After");
+    }
+    @Test void administratorCreatesNamedAccountsAndRejectsDuplicateOrReservedNames() throws Exception {
+        var admin=login();String prefix=java.util.UUID.randomUUID().toString().substring(0,8);
+        var input=java.util.Map.of("name","Named user","email",prefix+"@example.test","password","Access-Tests-12345","username","Alice."+prefix,"allowedApps",java.util.List.of("requestLab"));
+        mvc.perform(post("/api/v1/users").session(admin).with(csrf()).header("Origin",ORIGIN).contentType("application/json").content(json.writeValueAsString(input))).andExpect(status().isCreated()).andExpect(jsonPath("$.username").value("alice."+prefix)).andExpect(jsonPath("$.allowedApps[0]").value("requestLab"));
+        var duplicate=new java.util.HashMap<String,Object>(input);duplicate.put("email","other-"+prefix+"@example.test");duplicate.put("username","ALICE."+prefix);
+        mvc.perform(post("/api/v1/users").session(admin).with(csrf()).header("Origin",ORIGIN).contentType("application/json").content(json.writeValueAsString(duplicate))).andExpect(status().isConflict());
+        duplicate.put("username","Administrator");
+        mvc.perform(post("/api/v1/users").session(admin).with(csrf()).header("Origin",ORIGIN).contentType("application/json").content(json.writeValueAsString(duplicate))).andExpect(status().isUnprocessableEntity());
+        duplicate.put("username","empty."+prefix);duplicate.put("allowedApps",java.util.List.of());
+        mvc.perform(post("/api/v1/users").session(admin).with(csrf()).header("Origin",ORIGIN).contentType("application/json").content(json.writeValueAsString(duplicate))).andExpect(status().isCreated()).andExpect(jsonPath("$.allowedApps").isEmpty());
     }
 }

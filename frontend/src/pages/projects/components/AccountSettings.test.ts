@@ -54,7 +54,8 @@ async function fixture(options: Options = {}) {
     };
     return { auth, writes, focused, form,
         async fill(title: string, values: string[]) {
-            await act(async () => form(title).findAllByType('input').forEach((input, index) => input.props.onChange({ target: { value: values[index] } })));
+            const entered = title === 'Benutzer anlegen' ? [values[0], 'test.user', ...values.slice(1)] : values;
+            await act(async () => form(title).findAllByType('input').filter(input => input.props.type !== 'checkbox').forEach((input, index) => input.props.onChange({ target: { value: entered[index] } })));
         },
         async submit(title: string) { await act(async () => { form(title).props.onSubmit({ preventDefault() {} }); }); },
         async close() { await act(async () => renderer.unmount()); auth.dispose(); workspace.dispose(); }
@@ -95,7 +96,7 @@ export const accountFormTests = [
             await ui.fill('Benutzer anlegen', ['Test', 'test@example.test', 'Testpasswort-12345', 'Testpasswort-12345']);
             await ui.submit('Benutzer anlegen');
             assert(text(alert(ui.form('Benutzer anlegen'))) === 'E-Mail bereits vergeben', 'Serverfehler muss am Formular stehen');
-            assert(ui.form('Benutzer anlegen').findAllByType('input')[2].props.value === 'Testpasswort-12345', 'Passwort muss korrigierbar bleiben');
+            assert(ui.form('Benutzer anlegen').findAllByType('input')[3].props.value === 'Testpasswort-12345', 'Passwort muss korrigierbar bleiben');
             assert(ui.writes.join(',') === '/users', 'Benutzer-Anfrage fehlt');
         } finally { await ui.close(); }
     } },
@@ -109,7 +110,7 @@ export const accountFormTests = [
             assert(button.props.disabled && text(button).includes('wird angelegt'), 'Laufender Vorgang muss erkennbar sein');
             await act(async () => finish(new Response(JSON.stringify({ id: 'test-user', name: 'Test', email: 'test@example.test', administrator: false, active: true }))));
             assert(ui.form('Benutzer anlegen').findAllByType('p').some((node) => node.props.role === 'status' && text(node).includes('angelegt')), 'Erfolg fehlt am Formular');
-            assert(ui.form('Benutzer anlegen').findAllByType('input').every((input) => input.props.value === ''), 'Erfolgreiche Anlage muss Felder leeren');
+            assert(ui.form('Benutzer anlegen').findAllByType('input').filter(input => input.props.type !== 'checkbox').every((input) => input.props.value === ''), 'Erfolgreiche Anlage muss Felder leeren');
         } finally { await ui.close(); }
     } },
     { name: 'Späte Kontoliste entfernt keinen Validierungsfehler aus dem Benutzerformular', async run() {

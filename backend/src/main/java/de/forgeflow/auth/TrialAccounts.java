@@ -23,6 +23,8 @@ public class TrialAccounts {
         this.accounts=accounts; this.limits=limits; this.passwords=passwords; this.contexts=contexts; this.csrf=csrf; this.events=events; this.enabled=enabled;
     }
     @PostMapping("/api/v1/auth/trial") public synchronized Map<String,Object> create(@Valid @RequestBody AuthController.Login input, HttpServletRequest request, HttpServletResponse response) {
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getAuthorities().stream().noneMatch(value -> value.getAuthority().equals("ROLE_ADMIN"))) throw new ApiFailure(403,"FORBIDDEN","Nur Administratoren dürfen Konten anlegen.");
         if (!enabled) throw new ApiFailure(403,"TRIAL_DISABLED","Testkonten sind derzeit deaktiviert.");
         limits.check("trial-ip:" + request.getRemoteAddr(),3);
         if (accounts.list().stream().filter(user -> user.expiresAt()!=null && user.active()).count() >= 30) throw new ApiFailure(429,"TRIAL_LIMIT","Derzeit sind alle Testzugänge belegt.");

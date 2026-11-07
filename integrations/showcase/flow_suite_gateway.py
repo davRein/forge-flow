@@ -108,7 +108,7 @@ class SuiteGateway:
             if request.method not in {"GET", "HEAD", "OPTIONS"} and request.headers.get("origin") != self.settings.suite_origin:
                 raise SuiteAuthenticationError(403)
             identity = await run_in_threadpool(
-                SuiteClient(self.settings.suite_auth_url, self.settings.suite_origin).identify,
+                SuiteClient(self.settings.suite_auth_url, self.settings.suite_origin, app="flowPilot").identify,
                 request.headers.get("cookie", ""),
             )
             app = await run_in_threadpool(self.private_app, identity)

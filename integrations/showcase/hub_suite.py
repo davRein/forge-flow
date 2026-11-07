@@ -38,7 +38,7 @@ def suite_user(request: Request, session: Session, settings: Settings) -> SuiteU
     if not settings.suite_auth_url or not settings.suite_origin:
         raise HTTPException(503, "Suite authentication is not configured.")
     try:
-        identity = SuiteClient(settings.suite_auth_url, settings.suite_origin).identify(
+        identity = SuiteClient(settings.suite_auth_url, settings.suite_origin, app="knowledgeHub").identify(
             request.headers.get("cookie", "")
         )
     except SuiteAuthenticationError as error:

@@ -46,10 +46,10 @@ public class AuthController {
         attempts.check("ip:" + request.getRemoteAddr(), 50);
         String email = input.email().strip().toLowerCase(Locale.ROOT);
         attempts.check("account:" + request.getRemoteAddr() + ":" + email, 10);
-        if (input.password().getBytes(StandardCharsets.UTF_8).length > 72 || input.password().indexOf('\0') >= 0) throw new ApiFailure(401, "INVALID_CREDENTIALS", "E-Mail oder Passwort ist falsch.");
-        Accounts.User user = accounts.findByEmail(email).orElse(null);
+        if (input.password().getBytes(StandardCharsets.UTF_8).length > 72 || input.password().indexOf('\0') >= 0) throw new ApiFailure(401, "INVALID_CREDENTIALS", "Benutzername, E-Mail oder Passwort ist falsch.");
+        Accounts.User user = accounts.findByLogin(email).orElse(null);
         boolean verified = encoder.matches(input.password(), user == null ? dummyHash : user.passwordHash());
-        if (user == null || !user.active() || !verified) throw new ApiFailure(401, "INVALID_CREDENTIALS", "E-Mail oder Passwort ist falsch.");
+        if (user == null || !user.active() || !verified) throw new ApiFailure(401, "INVALID_CREDENTIALS", "Benutzername, E-Mail oder Passwort ist falsch.");
         return AccountSessions.renew(user, request, response, contexts, csrf);
     }
     @GetMapping("/session")
@@ -60,13 +60,16 @@ public class AuthController {
     }
     // Nginx auth_request checks the live suite session without exposing account data or CSRF tokens.
     @GetMapping("/showcase-session")
-    Map<String, Object> showcaseSession(Authentication authentication) {
+    org.springframework.http.ResponseEntity<Map<String, Object>> showcaseSession(Authentication authentication, @RequestParam(required=false) String app) {
         Accounts.User user = accounts.findById(authentication.getName()).filter(Accounts.User::active)
             .filter(value -> !value.portalOnly())
             .orElseThrow(() -> new ApiFailure(403, "FORBIDDEN", "Diese Sitzung darf die Apps nicht verwenden."));
+        if (app != null && !app.isBlank()) AppPermissions.require(user, app);
         var profile = new java.util.LinkedHashMap<String, Object>(AccountSessions.profile(user));
         profile.put("issuer", origin);
-        return profile;
+        return org.springframework.http.ResponseEntity.ok()
+            .header("X-ForgeFlow-User-Id", user.id())
+            .body(profile);
     }
 
     // Kept for compatibility with the previous administrator-only deployment.

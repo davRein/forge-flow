@@ -33,6 +33,8 @@ public final class PersistenceEntities {
     @Table(name = "ff_accounts")
     public static class AccountRow {
         @Id @Column(length = 128) public String id;
+        @Column(unique = true, length = 64) public String username;
+        @Column(name = "allowed_apps", columnDefinition = "text") public String allowedApps;
         @Column(nullable = false, unique = true, length = 254) public String email;
         @Column(nullable = false, columnDefinition = "text") public String name;
         @Column(name = "password_hash", nullable = false, length = 60) public String passwordHash;
@@ -110,6 +112,8 @@ public final class PersistenceEntities {
         @Id public int id;
         @Column(nullable = false, length = 128) public String revision;
         @Column(nullable = false, columnDefinition = "text") public String industries;
+        @Column(name = "visible_apps", nullable = false, columnDefinition = "text") public String visibleApps;
+        @Column(name = "ai_apps", nullable = false, columnDefinition = "text") public String aiApps;
     }
 
     @Entity(name = "StoredSettings")

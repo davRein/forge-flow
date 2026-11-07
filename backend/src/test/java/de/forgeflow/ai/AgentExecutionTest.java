@@ -152,11 +152,12 @@ class AgentExecutionTest {
         var store = new MemoryConversationStore(properties(), clock); var conversation = store.create("alice", "en");
         var service = new AgentService(accounts, store, new OpenAiModelGateway(model), new AgentLimits(properties(), new AttemptLimiter()),
             new ProjectTools(accounts, storage, JsonMapper.builder().build(), clock));
-        failure(() -> service.send(context, conversation.id(), new AgentDtos.SendMessage(UUID.randomUUID(), "Find Alpha and open its tasks")), 503, "AI_UNAVAILABLE");
+        var page = new AgentDtos.PageContext("/projectManager/projects", null, null);
+        failure(() -> service.send(context, conversation.id(), new AgentDtos.SendMessage(UUID.randomUUID(), "Find Alpha and open its tasks", page)), 503, "AI_UNAVAILABLE");
         assertThat(store.get("alice", conversation.id()).messages()).isEmpty(); assertThat(calls).hasValue(3);
         // A new explicit message can recover; no background retry or unfinished action is resumed.
         script(step -> Flux.just(text("Recovered after explicit retry.", "stop")));
-        assertThat(service.send(context, conversation.id(), new AgentDtos.SendMessage(UUID.randomUUID(), "Try again")).assistant().content()).contains("Recovered");
+        assertThat(service.send(context, conversation.id(), new AgentDtos.SendMessage(UUID.randomUUID(), "Try again", page)).assistant().content()).contains("Recovered");
         assertThat(calls).hasValue(4);
     }
 }

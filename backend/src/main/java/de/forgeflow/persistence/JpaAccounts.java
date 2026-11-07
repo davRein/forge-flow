@@ -18,6 +18,7 @@ import de.forgeflow.persistence.PersistenceEntities.AccountRow;
 @Profile("postgres")
 public class JpaAccounts implements Accounts {
     private final EntityManager entityManager;
+    private static final tools.jackson.databind.json.JsonMapper JSON = tools.jackson.databind.json.JsonMapper.builder().build();
     public JpaAccounts(EntityManager entityManager) { this.entityManager = entityManager; }
 
     @Override
@@ -30,11 +31,16 @@ public class JpaAccounts implements Accounts {
             .map(this::user);
     }
 
+    @Override @Transactional(readOnly = true) public Optional<User> findByUsername(String username) {
+        return entityManager.createQuery("select account from StoredAccount account where account.username = :username", AccountRow.class).setParameter("username", username).getResultList().stream().findFirst().map(this::user);
+    }
     private User user(AccountRow row) {
-        return new User(row.id, row.email, row.name, row.passwordHash, row.administrator, row.active, row.sessionVersion, row.portalOnly, row.expiresAt);
+        return new User(row.id, row.email, row.name, row.passwordHash, row.administrator, row.active, row.sessionVersion, row.portalOnly, row.expiresAt, row.username == null ? de.forgeflow.auth.AppPermissions.legacyUsername(row.id) : row.username, row.allowedApps == null ? de.forgeflow.auth.AppPermissions.ALL : java.util.Arrays.asList(JSON.readValue(row.allowedApps, String[].class)));
     }
     private void values(AccountRow row, User user) {
         row.email = AccountRules.email(user.email());
+        row.username = user.username();
+        row.allowedApps = JSON.writeValueAsString(user.allowedApps());
         row.name = user.name();
         row.passwordHash = user.passwordHash();
         row.administrator = user.administrator();
@@ -67,6 +73,7 @@ public class JpaAccounts implements Accounts {
     @Override
     @Transactional
     public User insert(User user) {
+        if (findByUsername(user.username()).isPresent()) throw new ApiFailure(409, "USERNAME_IN_USE", "Dieser Benutzername wird bereits verwendet.");
         var row = new AccountRow();
         row.id = user.id();
         values(row, user);
@@ -80,6 +87,7 @@ public class JpaAccounts implements Accounts {
     public User replace(User user, long expectedSessionVersion) {
         var row = entityManager.find(AccountRow.class, user.id(), LockModeType.PESSIMISTIC_WRITE);
         AccountRules.current(row == null ? null : user(row), expectedSessionVersion);
+        if (findByUsername(user.username()).filter(existing -> !existing.id().equals(user.id())).isPresent()) throw new ApiFailure(409, "USERNAME_IN_USE", "Dieser Benutzername wird bereits verwendet.");
         var expiry = row.expiresAt;
         values(row, user);
         row.expiresAt = expiry;

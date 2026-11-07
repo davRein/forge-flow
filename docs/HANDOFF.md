@@ -1,5 +1,232 @@
 # Projektübergabe: Dev Suite / ForgeFlow
 
+## RequestLab aus Dev Tools extrahiert, 7. November 2026
+
+- Eigene integrierte Suite-App RequestLab unter `#/requestLab/client`, eigener Eintrag,
+  Symbol, App-/KI-Auswahl und privater Seitenkontext. Kein zusätzlicher Server/Port.
+- REST-Komponenten, Library, Styles und HTTP-Logik samt Tests nach pages/requestLab
+  verschoben. Dev Tools mountet keinen REST-Client mehr. Gemeinsame UI-/JSON-Helfer
+  wiederverwendet, bestehende Konten-/Collections-API und Speicherung unverändert.
+- Alte Route `/devTools/rest` leitet ohne neue Client-Instanz auf RequestLab weiter.
+  App-Wechsel erhält Entwurf/Antwort; keine automatische Anfrage. Bestehende CSRF-,
+  Revisions-, Größen-/Header-/Cookie-Grenzen bleiben erhalten. Keine KI-Ausführung.
+- V19 folgt der bestehenden Dev-Tools-Sichtbarkeit, erhält alle anderen Auswahlen
+  und KI-Rechte. Zwölf auswählbare Apps. Installer sichert die kombinierte V18/V19-
+  Menümigration für alte Binärdateien; keine Rücknahme anderer Anwendungsdaten.
+- Verifiziert: 285 Frontendtests, Lint und Build; 292 Backendtests gegen isolierten
+  PostgreSQL-Cluster, davon 290 erfolgreich/zwei opt-in Skips. V19 beide Auswahlfälle
+  und privater Seitenkontext geprüft. Echter Edge-Browsertest mit Fixture-HTTP:
+  Senden/Speichern, erhaltene Entwürfe/Antworten, Legacy-Link, keine Wiederholung,
+  Desktop und 390px erfolgreich; beide Screenshots tatsächlich gesichtet.
+- Lokale Demo läuft auf localhost:5173. RequestLab in diesem Auftrag nicht remote
+  veröffentlicht. Vorheriger vollständiger Release 20261107T153355Z-ff262514 laut
+  Deployment-Status inzwischen complete (7. November, 17:12 UTC).
+
+
+## Vollstaendiges Remote-Release vorbereitet, 7. November 2026
+
+- Nutzer bestaetigt "ja alles": DataScout inklusive sicherer Remote-Integration
+  implementiert; Live-Suite-Sitzungspruefung, eigene Datenbank, private Kontoschemas,
+  gescopter Worker, Offline-Zwang, exakte Origin. Produktionsmodul nun verfuegbar.
+- V18 ergaenzt DataScout in der globalen Navigation, erhaelt alte Auswahl/KI-Rechte;
+  kompatible Ruecknahme der unveraenderten Menueergaenzung im Installer.
+- Verifiziert: DataScout 181 Backendtests, Ruff/mypy, 70 Frontendtests/Lint/Build;
+  Runtime-Wheel mit echter HTTP-Auth, PostgreSQL und zwei Konten/Worker geprueft.
+  Parallele Anfragen, Inbox-Isolation und Sitzungswiderruf zusaetzlich erfolgreich.
+  Suite 284 Frontendtests/Lint/Build, 289 Backendtests insgesamt (287 bestanden,
+  zwei opt-in Skips), PostgreSQL und V18-Erhaltungstest erfolgreich. 27 Deployment-
+  Tests, acht PowerShell-Gruppen, Linux-Bash- und echte Nginx-Syntaxpruefung bestanden.
+  Produktionsbrowser-Journey mit isolierten APIs/keinen Remote-Aufrufen bestanden.
+- Release `20261107T153355Z-ff262514`; SHA256 `a74a5af00006c243eab4a9dc42a4da09bac0ccf11a164a0eea7cd6362bf879d7`. Archivdateien/Installer in
+  `node_modules/.tmp/remote-release-20261107T153355Z-ff262514/`, alle Archivdateipruefsummen
+  validiert. Enthalten: Suite, Hub, FlowPilot, PulseWatch und DataScout. Keine .env,
+  Konten, lokalen Datenbanken oder privaten Entwicklungskonfigurationen paketiert.
+- Interaktiver Deployment-Helfer `remote-release-20261107T153355Z-ff262514/deploy.ps1` erwartet
+  SSH/sudo ausschliesslich im Anwenderterminal; Status unter demselben Pfad/status.json.
+  Erst Status complete plus HTTPS-Pruefung bestaetigt die Veroeffentlichung.
+
+
+## Vorbereitung Remote-Update, 7. November 2026 (noch nicht veröffentlicht)
+
+- Benutzer beauftragt Remote-Deployment. Scope-Frage offen: DataScout ebenfalls mit
+  sicherer Suite-Anmeldung/Kontentrennung anbinden oder nur bestehende Remote-Suite
+  aktualisieren? Aktueller Produktionsbuild hält DataScout weiter gesperrt.
+- Vollständiger isolierter PostgreSQL-Testcluster erfolgreich: 288 Tests insgesamt,
+  286 bestanden, zwei opt-in Skips; aktuelle produktive Suite-JAR paketiert.
+  25 Offline-Deploymenttests erfolgreich. Suite-, FlowPilot- und PulseWatch-
+  Produktionsbuilds mit expliziten Remote-URLs/Base-/API-Pfaden erfolgreich.
+- Geprüftes Paket der bestehenden Remote-Suite vorbereitet:
+  `20261107T150339Z-e824ded5`, `node_modules/.tmp/forgeflow-showcase.tar.gz` mit
+  SHA256 und LF-Installer. Staging `showcase-package-20261107T150339Z-e824ded5`.
+  Buildkontexte und exakte Python-Constraints geprüft. Noch kein Upload/Installer.
+- SSH BatchMode zum bekannten Ziel dreinerts@185.56.150.178 scheitert weiterhin an
+  interaktiver Passwortanmeldung. Keine Zugangsdaten gelesen oder verändert.
+  Nach geklärtem Release-Umfang neues interaktives Deployment-Terminal mit aktuellen
+  Release-/Hash-/Bundlewerten vorbereiten. Die alte deploy-remote-interactive.ps1
+  unter node_modules/.tmp enthält noch das Release vom 6. November, nicht verwenden.
+
+## Ergänzung: lokale Zusatz-Apps wieder erreichbar, 7. November 2026
+
+- Gemeinsam gestartete Dienste liefen nicht: PulseWatch brach wegen sechs Java-
+  Formatverstößen ab, wodurch der Launcher auch Hub/FlowPilot bereinigte. Spotless
+  angewendet, keine fachliche Java-Änderung. Maven erfolgreich: 168 Tests insgesamt,
+  135 bestanden, 33 opt-in PostgreSQL-Tests übersprungen.
+- PulseWatch in der Suite auf 5177 umgestellt (5175 war durch ein anderes Projekt
+  belegt); eigenständige PulseWatch-Konfiguration bleibt 5175. Backend erlaubt
+  prozesslokal die beiden exakten 5177-Origins. Keine fremden Prozesse beendet.
+- Lokale Bereitschaftsprüfungen umgehen den Windows-Systemproxy und akzeptieren nur
+  HTTP-Loopback-Ziele ohne Credentials. Startskript-Tests prüfen diese Grenze.
+- `npm.cmd run start:demo` startet jetzt die flüchtige Suite mit allen vier lokalen
+  Zusatz-Apps. Prozesslokale URLs verhindern Umleitung auf Produktionsadressen aus
+  bestehenden .env-Dateien. Dateien und Produktionsbetrieb bleiben erhalten.
+  `-- -UseExistingDataScout` erlaubt das geprüfte Wiederverwenden eines bereits
+  bereiten Offline-DataScout, ohne dessen Container beim Stoppen zu übernehmen.
+- Verifiziert: Lint, 284 Suite-Frontendtests und Build erfolgreich; bestehende
+  Bundlegrößenwarnung. Gemeinsamer echter Start aller Apps und Health-/Proxy-Prüfung
+  erfolgreich. Headless Edge: vier sichtbare lokale Frames, vollständiger Handshake,
+  tatsächliche Fixture-Backends, App-Wechsel erhält Frames, keine Seitenfehler oder
+  externen/Suite-API-Aufrufe. Wiederholbar: `node scripts/test-local-showcase.mjs`
+  bei laufendem `start:demo` und installiertem FlowPilot-Playwright/Edge.
+- Aktuelle Sitzung: Suite localhost:5173, Hub 3000/8000, FlowPilot 5174/8001,
+  PulseWatch 5177/8082 und bestehendes DataScout 5176/8002. Suite ohne echten Login;
+  keine Produktivkonten, öffentlichen Probes, KI-Aufrufe oder Nachrichten geprüft.
+
+
+## Ergänzung: lokale DataScout-Integration, 7. November 2026
+
+- DataScout als viertes eingebettetes lokales Showcase-Modul mit Dashboard, Erfassung
+  und Jobs; Ports 5176/8002 statt der belegten Suite-Ports 5173/8000. Gemeinsame
+  Startskripte starten seine Container mit einem separaten Port-/Offline-Override.
+- Bestehende uncommittete Änderungen erhalten. App-Katalog, Sidebar-Marke, lokale
+  URL-Validierung, globale App-Allowlist und Seitenkontext-Allowlist ergänzt.
+  Elf auswählbare Apps, vorhandene Backend-Standardauswahl/gespeicherte Auswahl erhalten;
+  Administrator aktiviert DataScout im API-Modus selbst. Kein DB-Schemawechsel.
+- DataScout-Bridge prüft Parent/Origin, Bereiche und CSS-Hexwerte, übernimmt Themes,
+  behält Komponenten beim Bereichswechsel; englische UI explizit angekündigt.
+  Gemeinsamer lokaler Fixture-Speicher bleibt ohne SSO/Kontotrennung gekennzeichnet.
+- Produktionsbuilds halten DataScout geschlossen; keine öffentliche Route, kein
+  Deployment, keine realen API-/KI-/Nachrichtenaufrufe. Die Server-Release-Anbindung
+  ist gesonderter Umfang und braucht serverseitige Anmeldung/Datenisolation.
+- Verifiziert: Suite-Lint/Build und alle 284 Frontendtests erfolgreich. Acht gezielte
+  Java-Tests (DataScoutIntegrationTest/PageContextsTest) erfolgreich; keine vollständige
+  Spring-/PostgreSQL-Suite für diese Allowlist-Ergänzung. DataScout: Ruff/mypy, 169
+  Backend- und 69 Frontendtests plus Build erfolgreich.
+- Sieben PowerShell-Prüfgruppen einschließlich Syntax und gemockter Docker-Bereinigung
+  erfolgreich. Besitzer-Marker erlauben den übergeordneten Startskripten, genau die
+  selbst gestarteten DataScout-Appcontainer nach taskkill von Kindprozessen zu stoppen;
+  PostgreSQL und Volumes bleiben erhalten. Ganzer Vier-App-Launcher nicht ausgeführt.
+- Echte DataScout-Compose-Start-/Bereitschaftsprüfung und Headless-Edge-Journey mit
+  realen lokalen Frontends erfolgreich: Handshake, Theme, drei Bereiche, erhaltener
+  Fixture-Entwurf beim Tab-/Modulwechsel, Standalone und Mobilbreite 390px; keine
+  Seitenfehler. Suite-APIs nur synthetisch/Frontend-Session, keine echten Konten oder
+  Drittanfragen. Desktop-/Mobilbilder im Nachbarprojekt data-scout/docs/screenshots
+  tatsächlich gesichtet. Wiederholbar aus DataScout: node scripts/test-suite.mjs.
+- Aktuelle lokale Vorschau ist eine flüchtige Suite-Frontend-Demo auf localhost:5173,
+  DataScout läuft auf localhost:5176/API 8002. Das ist kein verifizierter echter Login
+  oder Start aller anderen Zusatz-Apps; normale API-Suite weiter über start:local.
+
+
+## Ergänzung: vollständige Setup-README und App-Handbücher, 6. November 2026
+
+- Benutzer beauftragt komplette README-Überarbeitung und separate PDFs für alle Apps mit
+  Screenshots und Funktionserklärungen. Root-README jetzt deutsch mit klaren Demo-/API-/
+  Gesamtsuite-/Deployment-Wegen, allen Zusatz-App-Abhängigkeiten, Bootstrap, Ports,
+  Backups, optionalen Integrationen und Fehlerdiagnose. Kein leeres Neuinstallationsziel
+  tatsächlich provisioniert; Befehle und Voraussetzungen anhand der Skripte abgeglichen.
+- `docs/handbuecher/README.md` verlinkt zwölf deutsche PDFs unter `output/pdf/`, zusammen
+  83 Seiten und 34 unterschiedliche echte UI-Aufnahmen mit synthetischen API-Daten.
+  Zehn Suite-Apps, Einstellungen und Kundenportal sind jeweils separat. Cloud dokumentiert
+  nur den tatsächlichen Suite-Einstieg, keine private Nextcloud-Oberfläche.
+- Editierbare Inhalte: `docs/handbuecher/inhalte.json`; Bilder und Aufnahmemanifest unter
+  `docs/handbuecher/screenshots/`. Reproduzierbare Aufnahme über
+  `scripts/capture-manual-screenshots.mjs`, PDF-Erzeugung über `scripts/build-user-manuals.py`.
+  ZIP: `output/pdf/ForgeFlow-Alle-Handbuecher.zip`. Screenshots zeigen weder Produktivkonten
+  noch echte KI-/SQL-/Monitoring-Aufrufe. Alle APIs abgefangen, keine fehlenden Fixtures
+  oder Browserfehler im finalen Manifest.
+- Alle PDF-Seiten erneut geöffnet, gerendert und visuell über Kontaktbögen/Detailseiten
+  geprüft. Text-/Randprüfung, lokale Links, PowerShell-Syntax und ZIP-Integrität erfolgreich;
+  Frontend-Lint und Build erfolgreich. Prüfgrenzen: `docs/handbuecher/PRUEFUNG.md`.
+  Keine neue App-Funktion, kein erneutes Deployment. Nur lokale Builds der Zusatz-Apps
+  für die Screenshots; die eigens gestarteten Next-Server wurden wieder beendet.
+
+## Ergänzung: vollständiges Remote-Deployment, 6. November 2026
+
+- Benutzer beauftragt alle aktuellen Änderungen remote. Gesamtpaket
+  `20261106T190524Z-96f6b831` tatsächlich auf forge-flow.de installiert, einschließlich
+  Suite, Knowledge Hub, FlowPilot und PulseWatch sowie globaler App-/KI-Auswahl und Französisch.
+  SSH-BatchMode weiterhin abgewiesen; Benutzer gibt SSH-/sudo-Passwörter im eigens geöffneten
+  interaktiven PowerShell-Terminal ein. Keine Passwörter im Chat oder in Dateien gespeichert.
+- Vorher: isolierte echte PostgreSQL-Prüfung mit 286 Tests, 284 erfolgreich und zwei opt-in
+  Skips; produktive JAR paketiert. 25 Offline-Deploymenttests erfolgreich. Suite mit expliziten
+  Produktiv-URLs gebaut; vollständiges Archiv einschließlich V16-SQL und V17-Klasse geprüft.
+  Paket-SHA256: `28c231927c97c54e476ccb531ad6ff645fc7431ef9ef1a392f0ac5317eb208cb`.
+- Remote-Installer erfolgreich beendet, einschließlich seiner Sicherungen, Migrationen,
+  Dienst-/App-Bereitschafts- und Zugriffsschutzprüfungen. Danach unabhängig extern geprüft:
+  `/api/v1/health` meldet `ok`/`postgresql`; ausgeliefertes `index-jRtTvLPn.js` hat exakt
+  denselben SHA256 wie das lokale Release:
+  `66e18fad3dc9ded3a9fda81a1c5891f9d5eb1a938cf1fa5b1805df41b1d1df5a`.
+  Anonyme HTTPS-Aufrufe von Suite-Showcase-Session, Hub, FlowPilot und PulseWatch jeweils 401.
+- Nach Update Strg+F5 und neu anmelden. Keine visuelle angemeldete Browserabnahme und kein
+  kostenpflichtiger Live-KI-Aufruf. Terminal für die sichtbare Installerausgabe offen gelassen.
+  Lokaler Status: node_modules/.tmp/remote-deployment-status.json (`complete`).
+
+## Ergänzung: Französisch, 6. November 2026
+
+- Einstellungen → Sprache ergänzt Français (`fr`); Beschreibung und Portal-Sprachauswahl
+  angepasst. 1.407 französische Katalogschlüssel für alle bestehenden ForgeFlow-Texte,
+  einschließlich Anmeldung, Projektmanager, Wiki, Dev Tools, Business und Zeitverwaltung.
+  Platzhalter, dynamische Diagnosen und französische Pluralregeln getestet. Eigene Inhalte
+  bleiben unverändert. Locale `fr-FR`; gespeicherte Konto-/Browserauswahl unterstützt `fr`,
+  automatische bisherige Regionsvorgabe unverändert.
+- KI-DTOs, Frontend-Chattypen/-Decoder, französische Antwortanweisung sowie PDF-Beschriftungen
+  und Währungsformatierung ergänzt. Neue Gespräche übernehmen Französisch; alte behalten ihre
+  Sprache. V17 erweitert Sprach-Checks in ff_settings und ff_ai_conversations, ohne alte
+  Migrationen zu ändern. Frontend und Backend gemeinsam aktualisieren.
+- Separate Knowledge-Hub-/FlowPilot-/PulseWatch-Kataloge bleiben DE/EN. Die Suite sendet bei
+  Französisch explizit EN an diese Frames, statt einen ignorierten Sprachwechsel zu senden;
+  kein Frame-Neuladen. Fallback wird im französischen Sprachbereich ausdrücklich erklärt.
+- Verifiziert: Lint und Produktionsbuild erfolgreich, 283 Frontendtests erfolgreich.
+  Backend Memory/H2: 286 Tests insgesamt, 282 erfolgreich, 4 opt-in Skips, keine Fehler.
+  Neue Prüfungen für Katalogvollständigkeit/Platzhalter, Sprachwahl und Kontospeicherung,
+  Chat-API/-Persistenz, Modellanweisung, PDF-Text und eingebetteten Fallback. Keine visuellen
+  Browser-/PDF-Layoutprüfungen, keine echte PostgreSQL-Prüfung und kein Deployment in diesem
+  Durchlauf. API-Vertrag und Sprachdokumentation aktualisiert.
+
+## Ergänzung: globale App-Auswahl und KI-Zugriff, 6. November 2026
+
+- Einstellungen → Anwendungen steuert die Seitennavigation global, Einstellungen → KI
+  unabhängig davon die KI-Buttons. Nur Administratoren speichern. Standard: alle Apps
+  sichtbar, KI nur im Projektmanager. Einstellungen bleiben erreichbar; mindestens eine
+  App ausgewählt, KI-Auswahl darf leer sein. Eigene globale Revision/If-Match erhalten.
+- Server gibt nur Projektmanager-Anfragen Fachwerkzeuge; weitere Apps erhalten allgemeinen
+  Chat ohne Werkzeuge. Modellverlauf nach App getrennt. Werkzeug-Allowlisten schließen Wiki,
+  Konten, Profile und App-Einstellungen aus, auch bei bestätigten alten Schreibvorschlägen.
+- Flyway V16 ergänzt visible_apps/ai_apps. V15 ist bereits für Suite-Themes vergeben;
+  die zunächst kollidierende neue SQL-Migration wurde vor Abschluss auf V16 korrigiert.
+  API-Vertrag und Bedienungsdokumentation ergänzt. Frontend/Backend gemeinsam aktualisieren.
+- Verifiziert: Lint und Produktionsbuild erfolgreich; 278 Frontendtests erfolgreich.
+  Backend: 280 Tests insgesamt, 276 erfolgreich, 4 opt-in Tests übersprungen, keine Fehler
+  (Memory/H2, einschließlich Migration und JPA). Ältere HTTP-Testanfragen verwenden jetzt
+  expliziten Projektmanager-Kontext, Benutzer-/Wiki-Anlagetests prüfen die neue Ablehnung.
+  Admin-Loginfixture nutzt getrennte Clientadressen, damit zusätzliche Tests nicht das
+  produktive Anmeldelimit gegenseitig aufbrauchen. Kein Live-Modellaufruf, kein Deployment,
+  keine erneute echte PostgreSQL- oder visuelle Browserprüfung in diesem Durchlauf.
+
+## Ergänzung: einheitliche Navigationskästchen, 5. November 2026
+
+- Auf Benutzerwunsch erhalten alle weiteren Module in der Seitennavigation ihre
+  vorhandenen SVG-Symbole in farbigen Kästchen: 26 × 26 px und 7 px Eckenradius,
+  passend zu Knowledge Hub und FlowPilot. Eigene dezente Modulfarben, unveränderte
+  App-Marken und Navigation. `ModuleIcon` hat dafür die optionale `boxed`-Darstellung;
+  das Einstellungsicon im Header bleibt kompakt.
+- Lint, Build und alle 277 Frontendtests erfolgreich. Isolierter Edge-Browser mit
+  synthetischen API-Antworten: neun sichtbare Kästchen am Desktop in Dune/Ink und
+  mobil bei 560 px, kein horizontaler Überlauf oder Laufzeitfehler. Desktop- und
+  Mobilscreenshots tatsächlich gesichtet, unter node_modules/.tmp/sidenav-*.
+- Vollständiges Uploadpaket aktualisiert: `20261105T144115Z-70a02815`, Suite-Bundle
+  `index-DC0zYSWF.js`. Noch kein Serverdeployment. Beinhaltet auch vorherige Theme-/
+  Provider-/Hub-Korrekturen. Keine Backendänderung in diesem Durchlauf.
+
 ## Ergänzung: gemeinsame Themes und produktive Provider, 5. November 2026
 
 - Benutzer beauftragt gemeinsame Farbgestaltung der Zusatz-Apps, weitere Themes und
@@ -2170,3 +2397,7 @@ Die vollständige manuelle Prüfliste in `docs/manual-check.md` bleibt offen.
    Auftrag. Keine unbegrenzte Aufzählung oder bisher nicht implementierte Funktion versprechen.
 
 Diese Übergabe beauftragt keine zusätzlichen Features, Migrationen oder Veröffentlichung.
+
+## 2026-11-07: Persönliche App-Rechte und Benutzername-Login
+
+Benutzerverwaltung erweitert: explizite App-Zuweisungen, case-insensitiver Benutzername-/E-Mail-Login, nur Administratoren legen Konten an, keine öffentliche Trial-Anlage. V20 erhält vorhandene Identitäten und Daten; Rechteänderungen widerrufen Sitzungen und prüfen die erwartete Version. Settings bleiben immer zugänglich. Sichere interaktive Administrator-Anlage und Betriebsgrenzen: [account-access.md](account-access.md). Die vorhandene globale App-Sichtbarkeit bleibt eine zusätzliche Navigationsauswahl. Native App-/Nextcloud-Konten bleiben unabhängig.

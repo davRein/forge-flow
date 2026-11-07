@@ -29,7 +29,10 @@ public class WorkspaceController {
     private String owner(Authentication auth) { return accounts.findById(auth.getName()).filter(Accounts.User::active).orElseThrow(() -> new ApiFailure(401, "UNAUTHENTICATED", "Bitte anmelden.")).id(); }
     @GetMapping("/health") Map<String, String> health() { return Map.of("status", "ok", "storage", storage.kind()); }
     @GetMapping("/workspace") ResponseEntity<Envelope> workspace(Authentication auth) {
-        Envelope record = storage.load(owner(auth)); return ResponseEntity.ok().eTag(record.revision()).body(record);
+        Envelope record = storage.load(owner(auth));
+        var user = accounts.findById(auth.getName()).orElseThrow();
+        var filtered = new Envelope(record.version(),record.revision(),de.forgeflow.auth.AppPermissions.visible(user,record.data()));
+        return ResponseEntity.ok().eTag(record.revision()).body(filtered);
     }
     @PutMapping(value="/workspace", consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     ResponseEntity<Map<String, String>> save(Authentication auth, @RequestHeader(value="If-Match", required=false) String ifMatch,
@@ -66,7 +69,10 @@ public class WorkspaceController {
             if (files.stream().noneMatch(file -> file.id() == id)) throw new ApiFailure(422, "INVALID_WORKSPACE", "Datei-Metadaten fehlen.");
             incoming.put(id, new WorkspaceStorage.Attachment(entry.getValue().getFirst().getBytes()));
         }
-        String revision = storage.save(owner(auth), record.revision(), record.data(), incoming);
+        var user = accounts.findById(auth.getName()).orElseThrow();
+        var previous = storage.load(owner(auth));
+        var merged = de.forgeflow.auth.AppPermissions.merge(user,record.data(),previous.data());
+        String revision = storage.save(owner(auth), record.revision(), merged, incoming);
         return ResponseEntity.ok().eTag(revision).body(Map.of("revision", revision));
     }
     @GetMapping("/projects/{projectId}/files/{fileId}/content")

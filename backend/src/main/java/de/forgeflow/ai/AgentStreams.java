@@ -33,7 +33,9 @@ public final class AgentStreams implements AutoCloseable {
 
     public SseEmitter start(AgentExecutionContext context, UUID id, SendMessage input) {
         context.verify(accounts);
-        var pending = conversations.begin(context.userId(), id, input);
+        var page = PageContexts.requireSupported(input.context());
+        de.forgeflow.auth.AppPermissions.require(accounts.findById(context.userId()).orElseThrow(), page.route().equals("/devTools/rest") ? "requestLab" : page.route().split("/")[1]);
+        var pending = conversations.begin(context.userId(), id, new SendMessage(input.requestId(), input.message(), page));
         if (pending.replay() != null) {
             var emitter = new SseEmitter(2000L);
             try { emitter.send(SseEmitter.event().name("done").data(pending.replay())); emitter.complete(); }
@@ -81,7 +83,10 @@ public final class AgentStreams implements AutoCloseable {
             tasks.add(timers.schedulePeriodically(this::heartbeat, 1, 1, TimeUnit.SECONDS));
             subscription.update(reactor.core.publisher.Flux.defer(() -> {
                 context.verify(accounts);
-                return model.stream(pending.language(), pending.history(), pending.message(), tools.session(context, () -> !ended, pending.context(), step -> conversations.record(pending, step)));
+                var history = PageContexts.historyForModule(pending.history(), pending.context());
+                return PageContexts.isProjectManager(pending.context())
+                    ? model.stream(pending.language(), history, pending.message(), tools.session(context, () -> !ended, pending.context(), step -> conversations.record(pending, step)))
+                    : model.stream(pending.language(), history, PageContexts.messageForPage(pending.context(), pending.message()));
             })
                 .subscribeOn(workers).subscribe(this::chunk, this::fail, this::complete));
         }

@@ -62,7 +62,7 @@ export const loginLanguageTests = [
             assert(text(ui.root).includes('Checking your session'), 'Session check must use remembered language');
             await act(async () => ui.auth.refresh());
             const content = text(ui.root);
-            assert(content.includes('Sign in to ForgeFlow') && content.includes('Password') && content.includes('Email'), 'Login labels must be English');
+            assert(content.includes('Sign in to ForgeFlow') && content.includes('Password') && content.includes('Username or email'), 'Login labels must be English');
             assert(ui.documentState.documentElement.lang === 'en', 'Document language must match login');
             await act(async () => ui.auth.login('test@example.test', 'test-only-password'));
             assert(text(ui.root).includes('Email or password is incorrect.'), 'Sign-in errors must be translated');

@@ -80,6 +80,10 @@ class ProjectToolsTest {
             String schema = callback.getToolDefinition().inputSchema();
             assertThat(schema).contains("\"additionalProperties\":false").doesNotContain("ownerId", "userId", "url", "password");
         }
+        String workspaceRead = session.callbacks().stream().filter(callback -> "read_workspace".equals(callback.getToolDefinition().name())).findFirst().orElseThrow().getToolDefinition().inputSchema();
+        String workspaceCreate = session.callbacks().stream().filter(callback -> "propose_workspace_create".equals(callback.getToolDefinition().name())).findFirst().orElseThrow().getToolDefinition().inputSchema();
+        String workspaceUpdate = session.callbacks().stream().filter(callback -> "propose_workspace_update".equals(callback.getToolDefinition().name())).findFirst().orElseThrow().getToolDefinition().inputSchema();
+        assertThat(workspaceRead + workspaceCreate + workspaceUpdate).doesNotContain("\"articles\"", "\"categories\"", "\"users\"", "\"profile\"", "\"settings\"");
         seed(List.of(), List.of());
         session.read("list_projects", "{\"query\":\"\",\"offset\":0}");
         failure(() -> session.read("list_projects", "{\"query\":\"\",\"offset\":0}"), 409, "AI_EXECUTION_LOOP");

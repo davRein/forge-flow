@@ -64,6 +64,7 @@ frontend_changed=1
 systemctl() { printf '%s\n' "$*" >> "$backup/service-calls"; }
 install() { cp "${@: -2:1}" "${@: -1}"; }
 ready() { return 0; }
+account_rollback_safe() { return "${ACCOUNT_ROLLBACK_STATUS:-0}"; }
 trap 'rollback $?' ERR
 # Failure inside a subshell must restore exactly once in the parent.
 (false)
@@ -85,6 +86,15 @@ if expiry_safe_rollback=0 bash "$test_dir/rollback-case.sh" "$test_dir" > "$test
 if grep -q '^start forgeflow$' "$test_dir/backup/service-calls"; then exit 1; fi
 grep -q 'does not enforce V14 trial expiry' "$test_dir/unsafe-result"
 printf 'PASS: Unsafe backend downgrade leaves service stopped and keeps the new JAR\n'
+
+# An old JAR must not reactivate after per-user app restrictions were stored.
+printf 'new backend' > "$test_dir/backend.jar"
+: > "$test_dir/backup/service-calls"
+if ACCOUNT_ROLLBACK_STATUS=1 bash "$test_dir/rollback-case.sh" "$test_dir" > "$test_dir/access-result" 2>&1; then exit 1; fi
+[[ "$(cat "$test_dir/backend.jar")" == 'new backend' ]]
+if grep -q '^start forgeflow$' "$test_dir/backup/service-calls"; then exit 1; fi
+grep -q 'current app permissions' "$test_dir/access-result"
+printf 'PASS: Account restrictions prevent unsafe backend rollback\n'
 
 mkdir -p "$test_dir/backup/frontend/assets" "$test_dir/web/assets"
 printf 'previous asset' > "$test_dir/web/assets/old.js"

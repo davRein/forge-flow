@@ -107,6 +107,7 @@ ready() {
     done
     return 1
 }
+account_rollback_safe() { python3 "$source_dir/check-account-rollback.py" "$backup/backend.jar"; }
 # BEGIN CHAT_ROLLBACK
 rollback() {
     local result="$1"
@@ -117,13 +118,13 @@ rollback() {
     if (( frontend_changed )); then tar --no-same-owner -xzpf "$backup/frontend.tar.gz" -C "$web" || restored=0; fi
     if (( backend_changed )); then
         systemctl stop forgeflow || restored=0
-        if (( ${expiry_safe_rollback:-1} )); then
+        if (( ${expiry_safe_rollback:-1} )) && account_rollback_safe; then
             install -o forgeflow -g forgeflow -m 0644 "$backup/backend.jar" "$installed_jar" || restored=0
             systemctl start forgeflow || restored=0
             ready || restored=0
         else
             restored=0
-            printf 'Backend remains stopped: the previous JAR does not enforce V14 trial expiry.\nReview the new backend logs/configuration; do not downgrade the JAR alone.\n' >&2
+            printf 'Backend remains stopped: the previous JAR does not enforce V14 trial expiry or current app permissions.\nReview the new backend logs/configuration; do not downgrade the JAR alone.\n' >&2
         fi
     fi
     if (( restored )); then printf '\nUpdate failed. Previous application restored.\n' >&2

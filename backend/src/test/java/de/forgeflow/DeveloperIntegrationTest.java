@@ -86,11 +86,13 @@ class DeveloperIntegrationTest {
         mvc.perform(delete("/api/v1/me/developer/github").session(session).with(csrf()).header("Origin",ORIGIN).header("If-Match","\""+revision(user)+"\"")).andExpect(status().isOk()).andExpect(jsonPath("$.githubConnected").value(false)).andExpect(jsonPath("$.clones[0].status").value("ready"));assertThat(developers.load(user.id()).githubToken()).isEmpty();
         mvc.perform(get("/api/v1/me/developer").session(login(owner()))).andExpect(jsonPath("$.clones").isEmpty()).andExpect(jsonPath("$.githubConnected").value(false));
     }
-    @Test void publicTrialRequiresCsrfOriginExpiresAfterSixHoursAndCannotCreateExternalAccess()throws Exception{
+    @Test void administratorCreatedTrialRequiresCsrfOriginExpiresAfterSixHoursAndCannotCreateExternalAccess()throws Exception{
         String email=UUID.randomUUID()+"@example.test",body=json.writeValueAsString(Map.of("email",email,"password",PASSWORD));
         mvc.perform(post("/api/v1/auth/trial").header("Origin",ORIGIN).contentType("application/json").content(body)).andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/auth/trial").with(csrf()).header("Origin","https://foreign.example").contentType("application/json").content(body)).andExpect(status().isForbidden());
-        var start=Instant.now();var result=mvc.perform(post("/api/v1/auth/trial").with(csrf()).header("Origin",ORIGIN).contentType("application/json").content(body)).andExpect(status().isOk()).andExpect(jsonPath("$.user.administrator").value(false)).andReturn();
+        mvc.perform(post("/api/v1/auth/trial").with(csrf()).header("Origin",ORIGIN).contentType("application/json").content(body)).andExpect(status().isUnauthorized());
+        var adminId=UUID.randomUUID().toString();var admin=accounts.insert(new Accounts.User(adminId,adminId+"@example.test","Administrator fixture",HASH,true,true,0));
+        var start=Instant.now();var result=mvc.perform(post("/api/v1/auth/trial").session(login(admin)).with(csrf()).header("Origin",ORIGIN).contentType("application/json").content(body)).andExpect(status().isOk()).andExpect(jsonPath("$.user.administrator").value(false)).andReturn();
         var user=accounts.findByEmail(email).orElseThrow();assertThat(user.expiresAt()).isBetween(start.plus(Duration.ofHours(6)),Instant.now().plus(Duration.ofHours(6)));assertThat(user.portalOnly()).isFalse();var session=(MockHttpSession)result.getRequest().getSession(false);
         mvc.perform(get("/api/v1/workspace").session(session)).andExpect(status().isOk()).andExpect(jsonPath("$.data.customers").isEmpty());
         for(String path:List.of("/api/v1/users","/api/v1/me/business/portal-accounts","/api/v1/me/developer/github/repositories"))mvc.perform(get(path).session(session)).andExpect(status().isForbidden());

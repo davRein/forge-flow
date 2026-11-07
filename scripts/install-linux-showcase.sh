@@ -44,10 +44,13 @@ if [[ -L "$root/current" ]]; then
     [[ "$previous" == "$root/releases/"* && -f "$previous/compose.yaml" ]] || fail 'Unexpected previous release link.'
 elif [[ -e "$root/current" ]]; then fail 'Unmanaged current release path; no replacement performed.'
 else
-    for port in 3300 8000 8001 6381; do
+    for port in 3300 3302 8000 8001 6381 8082 8084; do
         [[ -z "$(ss -H -lnt "sport = :$port")" ]] || fail "Local port $port is already in use; no process was stopped."
     done
     [[ -z "$(docker ps -aq --filter label=com.docker.compose.project=forgeflow-showcase)" ]] || fail 'Unmanaged showcase containers exist.'
+fi
+if [[ -z "$previous" ]] || ! grep -q '  datascout-api:' "$previous/compose.yaml"; then
+    [[ -z "$(ss -H -lnt 'sport = :8002')" ]] || fail 'DataScout port 8002 is already occupied; no process stopped.'
 fi
 install -d -m 0700 "$root/releases" /etc/forgeflow/showcase
 backup="$(mktemp -d /opt/forgeflow/showcase-update.XXXXXX)"
@@ -55,12 +58,14 @@ printf 'Private backup: %s\n' "$backup"
 cp -p /opt/forgeflow/backend.jar "$backup/backend.jar"
 tar -czf "$backup/frontend.tar.gz" -C /var/www/forgeflow .
 runuser -u postgres -- pg_dumpall --globals-only > "$backup/roles.sql"
-for database in forgeflow ai_knowledge_hub flowpilot; do
+for database in forgeflow ai_knowledge_hub flowpilot forgeflow_pulsewatch forgeflow_datascout; do
     if [[ "$(runuser -u postgres -- psql -X -w -At -d postgres -c "SELECT count(*) FROM pg_database WHERE datname='$database';")" == 1 ]]; then
         runuser -u postgres -- pg_dump --format=custom --dbname="$database" > "$backup/$database.dump"
         [[ -s "$backup/$database.dump" ]] || fail "Empty backup: $database"
     fi
 done
+# Preserve only V18's menu addition for compatibility if old binaries are restored.
+runuser -u postgres -- psql -X -w -At -v ON_ERROR_STOP=1 -d forgeflow -c "WITH staged AS (SELECT id, visible_apps, revision, CASE WHEN visible_apps::jsonb ? 'dataScout' THEN visible_apps::jsonb ELSE visible_apps::jsonb || jsonb_build_array('dataScout') END AS apps FROM ff_global_settings), expected AS (SELECT id, visible_apps, revision, CASE WHEN apps ? 'devTools' AND NOT (apps ? 'requestLab') THEN (SELECT jsonb_agg(element ORDER BY ordinal) FROM (SELECT value AS element, ordinality*2 AS ordinal FROM jsonb_array_elements(apps) WITH ORDINALITY UNION ALL SELECT to_jsonb('requestLab'::text), ordinality*2+1 FROM jsonb_array_elements(apps) WITH ORDINALITY WHERE value=to_jsonb('devTools'::text)) expanded) ELSE apps END AS new_apps FROM staged) SELECT format('UPDATE ff_global_settings SET visible_apps=%L, revision=%L WHERE id=%s AND visible_apps::jsonb=%L::jsonb;', visible_apps, revision, id, new_apps::text) FROM expected WHERE new_apps<>visible_apps::jsonb;" > "$backup/apps-menu-rollback.sql"
 cp -a /etc/forgeflow/showcase "$backup/configuration"
 if [[ -f /etc/systemd/system/forgeflow-showcase.service ]]; then cp -p /etc/systemd/system/forgeflow-showcase.service "$backup/service"; fi
 previous_public=''
@@ -113,9 +118,15 @@ rollback() {
     elif [[ -L /var/www/forgeflow-showcase/current ]]; then unlink /var/www/forgeflow-showcase/current; fi
     if (( main_changed )); then
         systemctl stop forgeflow || restored=0
-        install -o forgeflow -g forgeflow -m 0644 "$backup/backend.jar" /opt/forgeflow/backend.jar || restored=0
-        tar --no-same-owner -xzpf "$backup/frontend.tar.gz" -C /var/www/forgeflow || restored=0
-        systemctl start forgeflow || restored=0
+        if [[ -f "$backup/apps-menu-rollback.sql" ]]; then runuser -u postgres -- psql -X -w -v ON_ERROR_STOP=1 -d forgeflow -f "$backup/apps-menu-rollback.sql" >/dev/null || restored=0; fi
+        if python3 "$release/scripts/check-account-rollback.py" "$backup/backend.jar"; then
+            install -o forgeflow -g forgeflow -m 0644 "$backup/backend.jar" /opt/forgeflow/backend.jar || restored=0
+            tar --no-same-owner -xzpf "$backup/frontend.tar.gz" -C /var/www/forgeflow || restored=0
+            systemctl start forgeflow || restored=0
+        else
+            restored=0
+            printf 'Backend remains stopped to preserve assigned app permissions. Review the current release; do not downgrade the JAR alone.\n' >&2
+        fi
     fi
     if [[ -f "$backup/service" ]]; then cp -p "$backup/service" /etc/systemd/system/forgeflow-showcase.service
     else systemctl disable forgeflow-showcase.service >/dev/null 2>&1; rm -f /etc/systemd/system/forgeflow-showcase.service; fi
@@ -140,26 +151,45 @@ fi
 python3 "$release/docker/provision.py"
 
 # Resolve official base images to immutable digests once; preserve them on later deployments.
-python_image=''; node_image=''; redis_image=''
+python_image=''; node_image=''; redis_image=''; maven_image=''; java_image=''; nginx_image=''
 if [[ -f /etc/forgeflow/showcase/images.env ]]; then
     python_image="$(sed -n 's/^PYTHON_IMAGE=//p' /etc/forgeflow/showcase/images.env)"
     node_image="$(sed -n 's/^NODE_IMAGE=//p' /etc/forgeflow/showcase/images.env)"
     redis_image="$(sed -n 's/^REDIS_IMAGE=//p' /etc/forgeflow/showcase/images.env)"
-else
-    for image in python:3.12-slim-bookworm node:22-bookworm-slim redis:8-alpine; do docker pull "$image"; done
-    python_image="$(docker image inspect python:3.12-slim-bookworm --format '{{index .RepoDigests 0}}')"
-    node_image="$(docker image inspect node:22-bookworm-slim --format '{{index .RepoDigests 0}}')"
-    redis_image="$(docker image inspect redis:8-alpine --format '{{index .RepoDigests 0}}')"
+    maven_image="$(sed -n 's/^MAVEN_IMAGE=//p' /etc/forgeflow/showcase/images.env)"
+    java_image="$(sed -n 's/^JAVA_IMAGE=//p' /etc/forgeflow/showcase/images.env)"
+    nginx_image="$(sed -n 's/^NGINX_IMAGE=//p' /etc/forgeflow/showcase/images.env)"
 fi
-for digest in "$python_image" "$node_image" "$redis_image"; do
+for image in python:3.12-slim-bookworm node:22-bookworm-slim redis:8-alpine maven:3.9.11-eclipse-temurin-21 eclipse-temurin:21-jre-jammy nginx:1.29.2-alpine; do
+    case "$image" in
+        python:*) current="$python_image";;
+        node:*) current="$node_image";;
+        redis:*) current="$redis_image";;
+        maven:*) current="$maven_image";;
+        eclipse-temurin:*) current="$java_image";;
+        nginx:*) current="$nginx_image";;
+    esac
+    if [[ -z "$current" ]]; then docker pull "$image"; digest="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}')"
+    else digest="$current"; fi
+    case "$image" in
+        python:*) python_image="$digest";;
+        node:*) node_image="$digest";;
+        redis:*) redis_image="$digest";;
+        maven:*) maven_image="$digest";;
+        eclipse-temurin:*) java_image="$digest";;
+        nginx:*) nginx_image="$digest";;
+    esac
+done
+for digest in "$python_image" "$node_image" "$redis_image" "$maven_image" "$java_image" "$nginx_image"; do
     [[ "$digest" =~ ^[a-z0-9/._-]+@sha256:[a-f0-9]{64}$ ]] || fail 'Invalid pinned base image.'
 done
-printf 'RELEASE_ID=%s\nPYTHON_IMAGE=%s\nNODE_IMAGE=%s\nREDIS_IMAGE=%s\n' "$release_id" "$python_image" "$node_image" "$redis_image" > /etc/forgeflow/showcase/images.env
+printf 'RELEASE_ID=%s\nPYTHON_IMAGE=%s\nNODE_IMAGE=%s\nREDIS_IMAGE=%s\nMAVEN_IMAGE=%s\nJAVA_IMAGE=%s\nNGINX_IMAGE=%s\n' "$release_id" "$python_image" "$node_image" "$redis_image" "$maven_image" "$java_image" "$nginx_image" > /etc/forgeflow/showcase/images.env
 compose config --quiet
-for service in hub-api flow-api hub-web; do COMPOSE_PARALLEL_LIMIT=1 compose build "$service"; done
+for service in hub-api flow-api hub-web pulsewatch-api pulsewatch-web datascout-api; do COMPOSE_PARALLEL_LIMIT=1 compose build "$service"; done
 compose run --rm --no-deps hub-api python -m alembic upgrade head
 compose run --rm --no-deps flow-api python -m flowpilot.migrate
 compose run --rm --no-deps flow-api python -m flowpilot.suite_gateway
+compose run --rm --no-deps datascout-api python -m app.suite_gateway
 ln -sfn -- "$release" "$root/current"
 started=1
 compose up -d --no-build
@@ -167,7 +197,11 @@ ready=0
 for attempt in {1..60}; do
     if curl --noproxy '*' -fsS --max-time 3 -H 'Host: forge-flow.de' http://127.0.0.1:8000/health > "$backup/hub-health.json" &&
        curl --noproxy '*' -fsS --max-time 3 http://127.0.0.1:8001/api/v1/ready > "$backup/flow-ready.json" &&
-       curl --noproxy '*' -fsSL --max-redirs 5 --max-time 3 http://127.0.0.1:3300/knowledge-hub > /dev/null; then ready=1; break; fi
+       curl --noproxy '*' -fsSL --max-redirs 5 --max-time 3 http://127.0.0.1:3300/knowledge-hub > /dev/null &&
+       curl --noproxy '*' -fsS --max-time 3 http://127.0.0.1:8082/api/v1/health | grep -q '"database":"UP"' &&
+       curl --noproxy '*' -fsS --max-time 3 http://127.0.0.1:3302/ > /dev/null &&\
+       curl --noproxy '*' -fsS --max-time 3 http://127.0.0.1:8002/api/v1/ready > /dev/null &&
+       [[ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$(compose ps -q datascout-worker)")" == healthy ]]; then ready=1; break; fi
     sleep 2
 done
 (( ready )) || fail 'New application readiness failed; check private container logs.'
@@ -181,6 +215,8 @@ PY
 public="/var/www/forgeflow-showcase/releases/$release_id"
 install -d -m 0755 /var/www/forgeflow-showcase /var/www/forgeflow-showcase/releases "$public"
 cp -a "$release/flow-web/." "$public/"
+install -d -m 0755 "$public/datascout"
+cp -a "$release/datascout/frontend/dist/." "$public/datascout/"
 find "$public" -type d -exec chmod 0755 {} +
 find "$public" -type f -exec chmod 0644 {} +
 ln -sfn -- "$public" /var/www/forgeflow-showcase/current
@@ -189,19 +225,23 @@ python3 "$release/docker/nginx_site.py" "$release/docker" "$backup"
 systemctl reload nginx
 main_changed=1
 bash "$release/scripts/update-linux-chat.sh" forge-flow.de
-for path in /knowledge-hub/ /knowledge-hub-api/health /flowpilot/ /flowpilot-api/api/v1/ready /api/v1/auth/showcase-session; do
+for path in /knowledge-hub/ /knowledge-hub-api/health /flowpilot/ /flowpilot-api/api/v1/ready /pulsewatch/ /pulsewatch-api/api/v1/auth/session /datascout/ /datascout-api/api/v1/jobs /api/v1/auth/showcase-session; do
     status="$(curl --noproxy '*' -sS --max-time 15 --output /dev/null --write-out '%{http_code}' --connect-to forge-flow.de:443:127.0.0.1:443 "https://forge-flow.de$path")"
     [[ "$status" == 401 ]] || fail "Anonymous access did not fail closed: $path HTTP $status"
 done
 status="$(curl --noproxy '*' -sS --max-time 15 --output /dev/null --write-out '%{http_code}' --connect-to forge-flow.de:443:127.0.0.1:443 \
     -X POST -H 'Origin: https://untrusted.example' -H 'Content-Type: application/json' --data '{}' https://forge-flow.de/flowpilot-api/api/v1/workflows)"
 [[ "$status" == 403 ]] || fail 'Cross-origin FlowPilot write did not fail closed.'
+status="$(curl --noproxy '*' -sS --max-time 15 --output /dev/null --write-out '%{http_code}' --connect-to forge-flow.de:443:127.0.0.1:443 -X POST -H 'Origin: https://untrusted.example' https://forge-flow.de/datascout-api/api/v1/sources/demo-catalog/collect)"
+[[ "$status" == 403 ]] || fail 'Cross-origin DataScout write did not fail closed.'
+status="$(curl --noproxy '*' -sS --max-time 5 --output /dev/null --write-out '%{http_code}' -H 'X-ForgeFlow-User-Id: forged' http://127.0.0.1:8002/api/v1/jobs)"
+[[ "$status" == 401 ]] || fail 'DataScout accepted an unverified client identity.'
 install -m 0644 "$release/docker/forgeflow-showcase.service" /etc/systemd/system/forgeflow-showcase.service
 systemctl daemon-reload
 systemctl enable --now forgeflow-showcase.service
 trap - ERR EXIT INT TERM
 printf '\nDeployment ready: https://forge-flow.de\nBackup: %s\n' "$backup"
-printf 'Both apps use the live Dev-Suite session and separate user workspaces. Hub registration remains closed.\n'
-printf 'Databases: forgeflow (preserved), ai_knowledge_hub + vector, flowpilot; private Redis: 127.0.0.1:6381.\n'
+printf 'Showcase apps use the live Dev-Suite session and separate user workspaces. Hub registration remains closed.\n'
+printf 'Databases: forgeflow (preserved), ai_knowledge_hub + vector, flowpilot, forgeflow_pulsewatch; private Redis: 127.0.0.1:6381.\n'
 printf 'Existing Nextcloud containers/database were not changed. AI uses private server configuration; no production fake fallback. HTTP integrations remain mock.\n'
-printf 'Reload with Ctrl+F5 and sign in again. No separate Hub account is needed.\n'
+printf 'Reload with Ctrl+F5 and sign in again. No separate Hub or PulseWatch account is needed.\n'

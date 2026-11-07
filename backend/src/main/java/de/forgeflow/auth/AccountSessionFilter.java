@@ -16,7 +16,7 @@ public final class AccountSessionFilter extends OncePerRequestFilter {
     private final de.forgeflow.developer.TrialUsage trials;
     public AccountSessionFilter(Accounts accounts,de.forgeflow.developer.TrialUsage trials) { this.accounts = accounts; this.trials=trials; }
     @Override protected boolean shouldNotFilter(HttpServletRequest request) {
-        return java.util.Set.of("/api/v1/auth/login", "/api/v1/auth/trial", "/api/v1/auth/csrf", "/api/v1/health").contains(request.getRequestURI());
+        return java.util.Set.of("/api/v1/auth/login", "/api/v1/auth/csrf", "/api/v1/health").contains(request.getRequestURI());
     }
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
@@ -33,7 +33,10 @@ public final class AccountSessionFilter extends OncePerRequestFilter {
                     ApiErrors.write(response, 401, "UNAUTHENTICATED", "Die Sitzung ist nicht mehr gültig. Bitte erneut anmelden.");
                     return;
                 }
-                String path = request.getRequestURI();
+                String path = org.springframework.web.util.UriUtils.decode(request.getRequestURI(), java.nio.charset.StandardCharsets.UTF_8);
+                String required = AppPermissions.requiredApp(path);
+                if (required != null && !AppPermissions.allows(user, required)) { ApiErrors.write(response, 403, "APP_FORBIDDEN", "Für diese App fehlt die Berechtigung."); return; }
+                if (path.equals("/api/v1/me/developer") && !AppPermissions.allows(user,"devTools") && !AppPermissions.allows(user,"git")) { ApiErrors.write(response,403,"APP_FORBIDDEN","Für diese App fehlt die Berechtigung."); return; }
                 if(user.expiresAt()!=null && request.getMethod().equals("POST") && path.matches("/api/v1/ai/conversations/[^/]+/messages(?:/stream)?")) {
                     try { trials.consume(user.id()); } catch(de.forgeflow.api.ApiFailure failure) { ApiErrors.write(response,failure.status,failure.code,failure.getMessage()); return; }
                 }

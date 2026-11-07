@@ -65,6 +65,8 @@ public class AccountBootstrap implements ApplicationRunner {
         var account = new AccountRow();
         account.id = id;
         account.email = email;
+        account.username = de.forgeflow.auth.AppPermissions.legacyUsername(id);
+        account.allowedApps = tools.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(de.forgeflow.auth.AppPermissions.ALL);
         account.name = name;
         account.passwordHash = hash;
         assignAdministrator(account, setup);

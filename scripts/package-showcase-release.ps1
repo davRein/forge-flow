@@ -1,9 +1,11 @@
-param()
+﻿param()
 $ErrorActionPreference = 'Stop'
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $taskShowcase = Split-Path -Parent $taskRoot
 $taskHub = Join-Path $taskShowcase 'ai-knowledge-hub'
 $taskFlow = Join-Path $taskShowcase 'flowpilot-codex-starter'
+$taskPulseWatch = Join-Path $taskShowcase 'pulse-watch'
+$taskDataScout = Join-Path $taskShowcase 'data-scout'
 $taskReleaseId = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ') + '-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
 $taskStage = Join-Path $taskRoot ('node_modules/.tmp/showcase-package-' + $taskReleaseId)
 $taskOutput = Join-Path $taskRoot 'node_modules/.tmp/forgeflow-showcase.tar.gz'
@@ -17,7 +19,7 @@ function Copy-TaskTree([string]$Source, [string]$Destination) {
     if ($taskSourceItem.PSIsContainer) {
         New-Item -ItemType Directory -Force -Path $Destination | Out-Null
         foreach ($taskEntry in Get-ChildItem -LiteralPath $Source -Force) {
-            if ($taskEntry.Name -in @('node_modules', '.venv', '.git', '__pycache__', '.pytest_cache', '.mypy_cache', '.ruff_cache', '.next', 'dist', '.data', '.local')) { continue }
+            if ($taskEntry.Name -in @('node_modules', '.venv', '.git', '__pycache__', '.pytest_cache', '.mypy_cache', '.ruff_cache', '.next', 'dist', 'target', '.tools', 'coverage', '.cache', '.data', '.local')) { continue }
             if ($taskEntry.Name -like '.env*' -or $taskEntry.Name -like '*.pyc') { continue }
             Copy-TaskTree $taskEntry.FullName (Join-Path $Destination $taskEntry.Name)
         }
@@ -39,8 +41,9 @@ function Assert-TaskBuild([string]$Artifact, [string[]]$Sources) {
 Assert-TaskBuild (Join-Path $taskRoot 'backend/target/backend-0.1.0-SNAPSHOT.jar') @((Join-Path $taskRoot 'backend/src'), (Join-Path $taskRoot 'backend/pom.xml'))
 Assert-TaskBuild (Join-Path $taskRoot 'frontend/dist/index.html') @((Join-Path $taskRoot 'frontend/src'), (Join-Path $taskRoot 'frontend/public'), (Join-Path $taskRoot 'frontend/package.json'))
 Assert-TaskBuild (Join-Path $taskFlow 'frontend/dist/index.html') @((Join-Path $taskFlow 'frontend/src'), (Join-Path $taskFlow 'frontend/package.json'), (Join-Path $taskFlow 'frontend/vite.config.ts'))
+Assert-TaskBuild (Join-Path $taskPulseWatch 'frontend/dist/index.html') @((Join-Path $taskPulseWatch 'frontend/src'), (Join-Path $taskPulseWatch 'frontend/package.json'), (Join-Path $taskPulseWatch 'frontend/vite.config.ts'))
 $taskSuiteJs = Get-ChildItem (Join-Path $taskRoot 'frontend/dist/assets') -Filter '*.js' | Get-Content -Raw -Encoding UTF8
-if (($taskSuiteJs -join '') -notmatch 'https://forge-flow\.de/knowledge-hub' -or ($taskSuiteJs -join '') -notmatch 'https://forge-flow\.de/flowpilot') { throw 'Suite build lacks the production showcase URLs.' }
+if (($taskSuiteJs -join '') -notmatch 'https://forge-flow\.de/knowledge-hub' -or ($taskSuiteJs -join '') -notmatch 'https://forge-flow\.de/flowpilot' -or ($taskSuiteJs -join '') -notmatch 'https://forge-flow\.de/pulsewatch') { throw 'Suite build lacks the production showcase URLs.' }
 $taskFlowHtml = Get-Content (Join-Path $taskFlow 'frontend/dist/index.html') -Raw -Encoding UTF8
 if ($taskFlowHtml -notmatch '/flowpilot/assets/') { throw 'FlowPilot build lacks its production asset prefix.' }
 $taskFlowJs = Get-ChildItem (Join-Path $taskFlow 'frontend/dist/assets') -Filter '*.js' | Get-Content -Raw -Encoding UTF8
@@ -49,8 +52,14 @@ if (($taskFlowJs -join '') -notmatch 'https://forge-flow\.de') { throw 'FlowPilo
 
 Copy-TaskTree (Join-Path $taskRoot 'frontend/dist') (Join-Path $taskStage 'suite-web')
 Copy-TaskTree (Join-Path $taskFlow 'frontend/dist') (Join-Path $taskStage 'flow-web')
+Copy-TaskTree $taskPulseWatch (Join-Path $taskStage 'pulsewatch')
+Assert-TaskBuild (Join-Path $taskDataScout 'frontend/dist/index.html') @((Join-Path $taskDataScout 'frontend/src'), (Join-Path $taskDataScout 'frontend/vite.config.ts'))
+Copy-TaskTree (Join-Path $taskDataScout 'backend') (Join-Path $taskStage 'datascout/backend')
+Copy-TaskTree (Join-Path $taskDataScout 'frontend/dist') (Join-Path $taskStage 'datascout/frontend/dist')
+$taskDataScoutJs = Get-ChildItem (Join-Path $taskStage 'datascout/frontend/dist/assets') -Filter '*.js' | Get-Content -Raw -Encoding UTF8
+if (($taskDataScoutJs -join '') -notmatch '/datascout-api' -or ($taskSuiteJs -join '') -notmatch 'https://forge-flow\.de/datascout/') { throw 'DataScout production namespaces missing.' }
 Copy-TaskTree (Join-Path $taskRoot 'backend/target/backend-0.1.0-SNAPSHOT.jar') (Join-Path $taskStage 'scripts/forgeflow-chat-backend.jar')
-foreach ($taskName in @('update-linux-chat.sh', 'test-linux-chat.sh', 'install-linux-showcase.sh', 'check-linux-showcase.sh')) {
+foreach ($taskName in @('update-linux-chat.sh', 'test-linux-chat.sh', 'install-linux-showcase.sh', 'check-linux-showcase.sh', 'setup-linux-administrator.py', 'check-account-rollback.py')) {
     Copy-TaskTree (Join-Path $PSScriptRoot $taskName) (Join-Path $taskStage ('scripts/' + $taskName))
 }
 foreach ($taskName in @('Python.Dockerfile', 'Next.Dockerfile', 'image_read_access.py', 'provision.py', 'ai_config.py', 'nginx_site.py', 'nginx-map.conf', 'nginx-locations.conf', 'forgeflow-showcase.service', 'create-hub-user.sh')) {

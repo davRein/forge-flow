@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
 
 public final class AgentDtos {
     private AgentDtos() {}
-    public record CreateConversation(@Pattern(regexp="de|en") String language) {
+    public record CreateConversation(@Pattern(regexp="de|en|fr") String language) {
         public CreateConversation { if (language == null) language = "de"; }
     }
     public record PageContext(@NotBlank @Size(max=64) String route, @jakarta.validation.constraints.Positive Long projectId,

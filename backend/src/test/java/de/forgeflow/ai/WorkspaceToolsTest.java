@@ -24,25 +24,15 @@ class WorkspaceToolsTest {
     private final AgentExecutionContext context = new AgentExecutionContext("alice", 0, () -> true);
     WorkspaceToolsTest() { when(accounts.findById("alice")).thenReturn(Optional.of(new Accounts.User("alice", "alice@example.test", "Test", "test-only", true, true, 0))); }
     private record Proposal(UUID conversation, WorkspaceMutations.Action action) {}
-    @Test void documentationChildPagesInheritSpaceAndMovesRequireExplicitValidConfirmation() {
-        create("categories", Map.of("name", "Docs")); create("categories", Map.of("name", "Other"));
-        create("articles", Map.of("title", "Root", "content", "# Root", "category", "#1"));
-        var child = proposal("articles", Map.of("title", "Child", "content", "Child text", "parent", "#1"));
-        assertThat(child.action().data().get("parentId").longValue()).isEqualTo(1L);
-        assertThat(child.action().data().get("categoryId").longValue()).isEqualTo(1L);
-        assertThat(storage.load("alice").data().wiki().articles()).hasSize(1);
-        assertThat(conversations.state("alice", child.conversation()).version()).isEqualTo(5);
-        decide(child, "approve"); decide(child, "approve");
-        assertThat(storage.load("alice").data().wiki().articles()).hasSize(2);
-        var result = tools.session(context).read("read_workspace", json.writeValueAsString(Map.of("entity", "articles", "query", "", "project", "", "mode", "count", "offset", 0, "textOffset", 0,
-            "filters", List.of(Map.of("field", "parentId", "operator", "eq", "value", "1")))));
-        assertThat(result.total()).isEqualTo(1);
-        assertThatThrownBy(() -> update("articles", "#1", Map.of("parent", "#2"))).isInstanceOf(de.forgeflow.api.ApiFailure.class);
-        assertThatThrownBy(() -> proposal("articles", Map.of("title", "Wrong", "content", "Text", "category", "#2", "parent", "#1"))).isInstanceOf(de.forgeflow.api.ApiFailure.class);
-        var move = update("articles", "#2", Map.of("parent", ""));
-        assertThat(storage.load("alice").data().wiki().articles().get(1).parentId()).isEqualTo(1L);
-        decide(move, "approve"); assertThat(storage.load("alice").data().wiki().articles().get(1).parentId()).isNull();
-        assertThat(storage.load("bob").data().wiki().articles()).isEmpty();
+    @Test void documentationPagesAndSpacesAreOutsideTheProjectManagerAssistantScope() {
+        var audit = new ArrayList<AgentDtos.ExecutionStep>();
+        String query = json.writeValueAsString(Map.of("entity", "articles", "query", "", "project", "", "mode", "count", "offset", 0, "textOffset", 0));
+        failure(() -> tools.session(context, () -> true, null, audit::add).read("read_workspace", query), 422, "AI_CREATE_INVALID");
+        failure(() -> proposal("articles", Map.of("title", "Unapproved", "content", "Not available")), 422, "AI_CREATE_INVALID");
+        failure(() -> proposal("categories", Map.of("name", "Not available")), 422, "AI_CREATE_INVALID");
+        failure(() -> update("articles", "#1", Map.of("title", "Not available")), 422, "AI_CREATE_INVALID");
+        assertThat(audit).isEmpty();
+        assertThat(storage.load("alice").data().wiki()).isEqualTo(new Wiki(List.of(), List.of()));
     }
     @Test void contactsAndCustomerNotesUseExplicitOwnedCreationAndFieldUpdatesWithBoundedReadResults() {
         create("customers", Map.of("name", "One", "notes", "  Existing note 😀\n")); create("customers", Map.of("name", "Two"));
@@ -132,7 +122,6 @@ class WorkspaceToolsTest {
         create("epics", Map.of("project", "#1", "title", "Epic"));
         create("tasks", Map.of("project", "#1", "title", "Task", "description", "Keep this description", "epic", "#1"));
         create("sprints", Map.of("project", "#1", "title", "Sprint", "startDate", "2026-10-24", "endDate", "2026-11-01"));
-        create("categories", Map.of("name", "Category")); create("articles", Map.of("title", "Article", "content", "Original text", "category", "#1"));
         var proposal = update("customers", "Original", Map.of("city", "Köln"));
         assertThat(proposal.action().type()).isEqualTo("workspace.update");
         assertThat(proposal.action().before().get("city").asText()).isEqualTo("Bonn");
@@ -143,14 +132,12 @@ class WorkspaceToolsTest {
         decide(update("tasks", "#1", Map.of("status", "done", "priority", "high", "epic", "")), "approve");
         decide(update("epics", "#1", Map.of("title", "Changed epic")), "approve");
         decide(update("sprints", "#1", Map.of("tasks", "#1", "goal", "New goal")), "approve");
-        decide(update("articles", "#1", Map.of("content", "  Grüße 😀\n", "category", "")), "approve");
-        decide(update("categories", "#1", Map.of("name", "Changed category")), "approve");
         var data = storage.load("alice").data();
         assertThat(data.projects().getFirst().deadline()).isEqualTo("2027-01-31"); assertThat(data.projects().getFirst().planningCompleted()).isTrue();
         assertThat(data.tasks().getFirst().status()).isEqualTo("done"); assertThat(data.tasks().getFirst().epicId()).isNull();
         assertThat(data.tasks().getFirst().description()).isEqualTo("Keep this description"); assertThat(data.tasks().getFirst().code()).isEqualTo("TASK-1");
-        assertThat(data.sprints().getFirst().taskIds()).containsExactly(1L); assertThat(data.wiki().articles().getFirst().content()).isEqualTo("  Grüße 😀\n");
-        assertThat(data.wiki().articles().getFirst().categoryId()).isNull(); assertThat(data.customers()).hasSize(1); assertThat(data.tasks()).hasSize(1);
+        assertThat(data.sprints().getFirst().taskIds()).containsExactly(1L); assertThat(data.wiki()).isEqualTo(new Wiki(List.of(), List.of()));
+        assertThat(data.customers()).hasSize(1); assertThat(data.tasks()).hasSize(1);
         assertThat(data.activities()).extracting(Activity::type).contains("task_updated", "epic_updated", "sprint_updated");
     }
     @Test void updateRejectionConflictExpiryRevocationAndOwnershipCannotOverwriteOrDuplicateRecords() {
@@ -180,12 +167,8 @@ class WorkspaceToolsTest {
         create("projects", Map.of("name", "Project", "customer", "#1", "deadline", "2026-12-31"));
         failure(() -> update("projects", "#1", Map.of("deadline", "invalid")), 422, "INVALID_WORKSPACE");
         create("tasks", Map.of("project", "#1", "title", "Task")); failure(() -> update("tasks", "#1", Map.of("status", "unknown")), 422, "AI_CREATE_INVALID");
-        var before = storage.load("alice"); var old = before.data(); var now = clock.instant().toString();
-        storage.save("alice", before.revision(), new Data(old.projects(), old.customers(), old.tasks(), old.activities(), old.epics(), old.sprints(), old.files(),
-            new Wiki(List.of(new Article(1, "Long", "x".repeat(10000), null, now, now)), List.of())), Map.of());
-        decide(update("articles", "#1", Map.of("title", "Renamed")), "approve");
-        assertThat(storage.load("alice").data().wiki().articles().getFirst().content()).hasSize(10000);
-        failure(() -> update("articles", "#1", Map.of("content", "Short")), 422, "AI_CREATE_INVALID");
+        failure(() -> update("articles", "#1", Map.of("title", "Renamed")), 422, "AI_CREATE_INVALID");
+        failure(() -> update("categories", "#1", Map.of("name", "Renamed")), 422, "AI_CREATE_INVALID");
     }
     @Test void fileRenamePreservesExactBytesAndUpdateHistoryRoundTripsWithoutExecutingAgain() {
         create("customers", Map.of("name", "Files")); create("projects", Map.of("name", "Files", "customer", "#1", "deadline", "2026-12-31"));
@@ -213,7 +196,7 @@ class WorkspaceToolsTest {
     private ProjectTools.Result read(String entity, String query, String mode, int offset, int textOffset) {
         return tools.session(context).read("read_workspace", json.writeValueAsString(Map.of("entity", entity, "query", query, "project", "", "mode", mode, "offset", offset, "textOffset", textOffset)));
     }
-    @Test void allSevenCreationTypesAreTypedLinkedAndVisibleOnlyAfterExplicitConfirmation() {
+    @Test void projectManagerCreationTypesAreTypedLinkedAndVisibleOnlyAfterExplicitConfirmation() {
         var customer = proposal("customers", Map.of("name", "Kunde Ü", "email", "contact@example.test"));
         assertThat(storage.load("alice").data().customers()).isEmpty(); decide(customer, "approve");
         create("projects", Map.of("name", "Alpha", "customer", "#1", "deadline", "2026-12-31"));
@@ -221,21 +204,19 @@ class WorkspaceToolsTest {
         storage.saveSettings("alice", new Settings(1, new SettingsValues("dark", "dashboard", "high")));
         create("tasks", Map.of("project", "Alpha", "epic", "#1", "title", "Task Ü", "status", "done"));
         create("sprints", Map.of("project", "#1", "title", "Sprint Ü", "startDate", "2026-10-24", "endDate", "2026-11-02", "tasks", "#1"));
-        create("categories", Map.of("name", "Dokumentation")); create("articles", Map.of("title", "Grüße", "content", "Untrusted <script>data</script>", "category", "#1"));
+        create("contacts", Map.of("customer", "#1", "name", "Kontakt", "email", "kontakt@example.test"));
+        create("files", Map.of("project", "#1", "name", "readme.txt", "content", "Project data"));
         var data = storage.load("alice").data();
         assertThat(data.tasks().getFirst().priority()).isEqualTo("high"); assertThat(data.tasks().getFirst().epicId()).isEqualTo(1);
         assertThat(data.sprints().getFirst().taskIds()).containsExactly(1L); assertThat(data.activities()).hasSize(3);
-        for (String entity : List.of("customers", "projects", "tasks", "activities", "epics", "sprints", "files", "articles", "categories")) assertThat(read(entity, "", "count", 0, 0).total()).isEqualTo("activities".equals(entity) ? 3 : "files".equals(entity) ? 0 : 1);
+        for (String entity : List.of("customers", "contacts", "projects", "tasks", "activities", "epics", "sprints", "files")) assertThat(read(entity, "", "count", 0, 0).total()).isEqualTo("activities".equals(entity) ? 3 : 1);
         assertThat(read("tasks", "", "list", 0, 0).workspace().items().getFirst().fields()).containsEntry("status", "done");
-        assertThat(read("articles", "#1", "detail", 0, 0).workspace().items().getFirst().fields()).containsEntry("content", "Untrusted <script>data</script>");
     }
     @Test void customerCountDoesNotDependOnProjectsAndDetailedQueriesArePaginatedAndAccountLocal() {
         for (int index = 0; index < 13; index++) create("customers", Map.of("name", "Customer " + index));
         assertThat(read("customers", "", "count", 0, 0).total()).isEqualTo(13); assertThat(read("projects", "", "count", 0, 0).total()).isZero();
         var page = read("customers", "", "list", 10, 0); assertThat(page.workspace().items()).hasSize(3); assertThat(page.more()).isFalse();
-        create("articles", Map.of("title", "Long", "content", "a".repeat(1999) + "😀" + "b".repeat(2100)));
-        var first = read("articles", "#1", "detail", 0, 0); assertThat(first.textTruncated()).isTrue(); assertThat(first.workspace().items().getFirst().fields().get("content")).hasSize(1999);
-        assertThat(read("articles", "#1", "detail", 0, 2000).workspace().items().getFirst().fields().get("content")).startsWith("😀");
+        failure(() -> read("articles", "", "count", 0, 0), 422, "AI_CREATE_INVALID");
         assertThat(storage.load("bob").data().customers()).isEmpty();
     }
     @Test void invalidOwnershipFieldsReferencesAndMalformedCreationValuesCannotWriteOrBeAudited() {
@@ -257,8 +238,7 @@ class WorkspaceToolsTest {
             "filters", List.of(Map.of("field", "priority", "operator", "eq", "value", "high"), Map.of("field", "status", "operator", "eq", "value", "todo"))));
         var session = tools.session(context); var result = session.read("read_workspace", input); assertThat(result.total()).isEqualTo(1); assertThat(result.workspace().items()).isEmpty();
         failure(() -> session.read("read_workspace", input.replace("high", "HIGH")), 409, "AI_EXECUTION_LOOP");
-        create("articles", Map.of("title", "Ordinary title", "content", "Find the unique-body-marker inside the article"));
-        assertThat(read("articles", "unique-body-marker", "count", 0, 0).total()).isEqualTo(1);
+        failure(() -> read("articles", "unique-body-marker", "count", 0, 0), 422, "AI_CREATE_INVALID");
         failure(() -> tools.session(context).read("read_workspace", input.replace("priority", "passwordHash")), 422, "AI_CREATE_INVALID");
         failure(() -> tools.session(context).read("read_workspace", input.replace("\"tasks\"", "\"customers\"")), 422, "AI_CREATE_INVALID");
     }
@@ -301,24 +281,12 @@ class WorkspaceToolsTest {
         var proposal = proposal("customers", Map.of("name", "Extended format"));
         assertThat(conversations.state("alice", proposal.conversation()).version()).isEqualTo(4);
     }
-    @Test void onlyAdministratorsCanQueryOrCreateUsersAndThePrivatePasswordNeverEntersTheProposalOrTranscript() {
-        var inserted = new java.util.concurrent.atomic.AtomicReference<Accounts.User>();
-        when(accounts.insert(org.mockito.ArgumentMatchers.any())).thenAnswer(call -> { inserted.set(call.getArgument(0)); return inserted.get(); });
-        var proposal = proposal("users", Map.of("name", "New account", "email", "new-account@example.test"));
-        failure(() -> decide(proposal, "approve"), 400, "INVALID_PASSWORD"); assertThat(inserted.get()).isNull();
-        String password = "Synthetic-only-password-123";
-        var input = new WorkspaceMutations.DecisionInput(UUID.randomUUID(), "approve", password);
-        var result = actions.mutate(context, proposal.conversation(), proposal.action().id(), input);
-        assertThat(result.status()).isEqualTo("succeeded"); assertThat(inserted.get().administrator()).isFalse();
-        assertThat(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().matches(password, inserted.get().passwordHash())).isTrue();
-        assertThat(json.writeValueAsString(input)).doesNotContain(password);
-        assertThat(json.writeValueAsString(conversations.get("alice", proposal.conversation()))).doesNotContain(password, inserted.get().passwordHash(), "sessionVersion");
-        decide(proposal, "approve"); verify(accounts, times(1)).insert(org.mockito.ArgumentMatchers.any());
-        when(accounts.list()).thenReturn(List.of(inserted.get())); assertThat(read("users", "", "count", 0, 0).total()).isEqualTo(1);
-        assertThat(json.writeValueAsString(read("users", "", "detail", 0, 0))).doesNotContain(password, inserted.get().passwordHash(), "sessionVersion");
-        when(accounts.findById("alice")).thenReturn(Optional.of(new Accounts.User("alice", "alice@example.test", "Normal", "test-only", false, true, 0)));
-        failure(() -> read("users", "", "count", 0, 0), 403, "FORBIDDEN");
-        failure(() -> proposal("users", Map.of("name", "Forbidden", "email", "forbidden@example.test")), 403, "FORBIDDEN");
-        assertThat(read("profile", "", "detail", 0, 0).total()).isEqualTo(1); assertThat(read("settings", "", "detail", 0, 0).total()).isEqualTo(1);
+    @Test void assistantCannotReadOrChangeAccountsProfilesOrPersonalSettings() {
+        failure(() -> read("users", "", "count", 0, 0), 422, "AI_CREATE_INVALID");
+        failure(() -> read("profile", "", "detail", 0, 0), 422, "AI_CREATE_INVALID");
+        failure(() -> read("settings", "", "detail", 0, 0), 422, "AI_CREATE_INVALID");
+        failure(() -> proposal("users", Map.of("name", "New account", "email", "new-account@example.test")), 422, "AI_CREATE_INVALID");
+        verify(accounts, never()).list();
+        verify(accounts, never()).insert(org.mockito.ArgumentMatchers.any());
     }
 }

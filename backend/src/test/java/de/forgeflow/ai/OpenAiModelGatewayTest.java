@@ -17,6 +17,12 @@ import static org.assertj.core.api.Assertions.*;
 import static de.forgeflow.ai.AiTestSupport.*;
 
 class OpenAiModelGatewayTest {
+    @Test void frenchConversationsRequestFrenchAnswers() {
+        var captured = new AtomicReference<Prompt>();
+        var gateway = new OpenAiModelGateway(prompt -> { captured.set(prompt); return response("Bonjour", "stop"); });
+        assertThat(gateway.reply("fr", List.of(), "Bonjour").text()).isEqualTo("Bonjour");
+        assertThat(captured.get().getInstructions().getFirst().getText()).contains("Réponds en français.").doesNotContain("Antworte auf Deutsch.");
+    }
     @Test void codeGenerationHasNoToolsAndOnlyExplicitInstructions(){
         var captured=new AtomicReference<Prompt>();var gateway=new OpenAiModelGateway(prompt->{captured.set(prompt);return response("SELECT 1;","stop");});
         assertThat(gateway.generateCode("sql","A harmless SELECT").text()).isEqualTo("SELECT 1;");

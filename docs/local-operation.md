@@ -85,6 +85,22 @@ Diese beiden Befehle nacheinander in zwei verschiedenen Terminals ausführen.
 Das erste läuft bis zum Stoppen im Vordergrund. Das Backend nutzt das Profil postgres;
 Vite nutzt den API-Modus und einen festen Port 5173.
 
+## Suite-Demo mit allen Zusatz-Apps
+
+`npm.cmd run start:demo` startet eine flüchtige Suite-Sitzung plus Knowledge Hub
+(3000/8000, Fake-Provider), FlowPilot (5174/8001, Mock), PulseWatch (5177/8082,
+H2-Demo/Fixtures) und DataScout (5176/8002, Offline-Fixtures). Docker Desktop und
+die eingerichteten Nachbarprojekte werden benötigt. Kein Suite-Login erforderlich.
+Die lokalen Startskripte setzen explizite lokale App-URLs im Prozess, auch wenn
+`frontend/.env.local` noch Produktions-URLs enthält. Die Datei wird nicht geändert.
+
+Bei bereits laufendem Offline-DataScout: `npm.cmd run start:demo -- -UseExistingDataScout`.
+Seine Container bleiben nach dem Stoppen erhalten. Ohne diesen Schalter prüft der
+Launcher alle Ports und verwaltet nur seine selbst gestarteten Dienste. Lokale
+Bereitschaftsprüfungen umgehen Systemproxies und erlauben nur HTTP-Loopback-Ziele.
+Falls PulseWatch beim Maven-Start an Spotless scheitert, zuerst im PulseWatch-Backend
+`mvn.cmd spotless:apply` ausführen und danach die Tests prüfen.
+
 ## Vergessenes lokales Anwendungspasswort zuruecksetzen
 
 ```powershell
@@ -119,7 +135,7 @@ und verändert keine Dokumente, Arbeitsabläufe oder Formulareingaben. Standalon
 beide Apps eine eigene Sprachwahl im Kopfbereich, gespeichert pro Browser-Origin;
 eine eingebettete Sitzung überschreibt diese Standalone-Voreinstellung nicht.
 
-`start-frontend.ps1` startet und überwacht über `start-showcase.ps1` die vier Zusatzdienste;
+`start-frontend.ps1` startet und überwacht über `start-showcase.ps1` die sechs Zusatzdienste;
 somit gilt der automatische Start sowohl für getrennte Terminals als auch `start-local.ps1`.
 Strg+C beendet die zu diesem Start gehörenden Kindprozesse. Bereits belegte Ports werden
 gemeldet; vorhandene Standalone-Prozesse werden nicht übernommen oder beendet.
@@ -129,11 +145,15 @@ gemeldet; vorhandene Standalone-Prozesse werden nicht übernommen oder beendet.
 | ForgeFlow | localhost:5173 | 127.0.0.1:3001 | Bestehendes PostgreSQL-Profil und Login |
 | Knowledge Hub | localhost:3000 | 127.0.0.1:8000 | local-demo, fake, eigener Demo-Workspace |
 | FlowPilot | localhost:5174 | 127.0.0.1:8001 | demo, Mock-AI und Mock-HTTP, keine Redis-Queue |
+| PulseWatch | localhost:5177 | 127.0.0.1:8082 | demo, flüchtiges H2, nur lokale Fixtures |
 
-Voraussetzungen sind die Nachbarordner `../ai-knowledge-hub` und
-`../flowpilot-codex-starter`, deren npm-Abhängigkeiten und Python-Umgebungen `backend/.venv`.
+Voraussetzungen sind die Nachbarordner `../ai-knowledge-hub`,
+`../flowpilot-codex-starter` und `../pulse-watch`, deren Abhängigkeiten sowie JDK 21/Maven
+für PulseWatch. Python-Umgebungen der Python-Apps liegen unter `backend/.venv`.
 Knowledge Hub benötigt weiterhin seine eingerichtete PostgreSQL-/pgvector-Datenbank und
-Migrationen. Konfigurationsdateien der Nachbarprojekte werden beim Start nicht verändert.
+Migrationen. PulseWatch verwendet nur flüchtiges H2 und den eingebauten Fixture-Modus; es
+braucht keine lokale PostgreSQL-Einrichtung und versendet keine E-Mails. Konfigurationsdateien
+der Nachbarprojekte werden beim Start nicht verändert.
 Knowledge Hub verwendet den gesonderten Demo-Workspace
 `6c7b62be-707f-4ca3-90fa-8126ea17d894`, FlowPilot separate Dateien unter
 `backend/.local/showcase/flowpilot/`. Diese lokalen Demo-Daten sind nicht an ForgeFlow-Konten
@@ -141,7 +161,8 @@ gebunden und gehören nicht zum ForgeFlow-Datenbankbackup. Normale private Knowl
 Konten und bisherige FlowPilot-Daten bleiben außerhalb dieses Demo-Bereichs.
 
 Eigene Logs pro Zusatzdienst: `knowledge-backend`, `knowledge-frontend`, `flow-backend`,
-`flow-frontend` jeweils `.log` und `-error.log` unter `backend/.local/logs/`.
+`flow-frontend`, `pulse-backend` und `pulse-frontend` jeweils `.log` und `-error.log` unter
+`backend/.local/logs/`.
 Bereitschaft wird mit echten Health-, Frontend- und Datenbank-Leseanfragen geprüft.
 Die internen Probes verwenden IPv4, damit Windows-IPv6-Fallbacks nicht zum Starttimeout führen.
 
@@ -150,15 +171,24 @@ Für einen gezielten Start ohne Zusatzdienste vor `start-frontend.ps1` setzen:
 `Remove-Item Env:FORGEFLOW_SKIP_SHOWCASE`. Der direkte Vite-Aufruf `npm.cmd run dev` startet
 weiterhin nur die Suite-Oberfläche; der gemeinsame Start erfolgt über die genannten Skripte.
 
-Die App-Adressen sind über `VITE_KNOWLEDGE_HUB_URL` und `VITE_FLOWPILOT_URL` in
-`frontend/.env.local` überschreibbar (lokale Vorgaben 3000/5174). Produktionsbuilds benötigen
-explizite HTTPS-Adressen. Fehlende/ungültige Ziele zeigen einen Konfigurationshinweis.
+Die App-Adressen sind über `VITE_KNOWLEDGE_HUB_URL`, `VITE_FLOWPILOT_URL` und
+`VITE_PULSEWATCH_URL` in `frontend/.env.local` überschreibbar (lokale Vorgaben
+3000/5174/5177). Produktionsbuilds benötigen explizite HTTPS-Adressen. Fehlende/ungültige
+Ziele zeigen einen Konfigurationshinweis.
 Die Einbettungsadapter akzeptieren ausschließlich das konfigurierte Elternfenster und
 bekannte Routen; es werden weder Passwörter noch Sitzungs-Token über postMessage übertragen.
+PulseWatch übernimmt alle sieben Suite-Farbpaletten sofort und behält standalone sein eigenes
+Design. Sein Demo-Backend verwendet keine Suite-Anmeldedaten; dort erfolgt die Anmeldung über
+die vorhandenen Demo-Konten.
 Für eine eigene Suite-Bereitstellung müssen zusätzlich die Frontends der Nachbarprojekte
 mit `NEXT_PUBLIC_SUITE_ORIGIN` (Knowledge Hub) bzw. `VITE_SUITE_ORIGIN` (FlowPilot) auf die
-exakte Suite-Origin gebaut werden. Knowledge Hubs Standard bleibt X-Frame-Options DENY;
-der Suite-Modus erlaubt nur die konfigurierte Origin über CSP frame-ancestors.
+exakte Suite-Origin gebaut werden. PulseWatch akzeptiert lokal ausschließlich
+`http://localhost:5173` und kann für eine HTTPS-Bereitstellung explizit mit
+`VITE_SUITE_ORIGIN` auf die exakte Suite-Origin gebaut werden. Das PulseWatch-Docker-Frontend
+setzt weiterhin `X-Frame-Options: DENY` und `frame-ancestors 'none'`; ein Produktiv-Einbetten
+erfordert eine explizite, auf die Suite-Origin begrenzte CSP-Änderung. Knowledge Hubs Standard
+bleibt ebenfalls X-Frame-Options DENY; der Suite-Modus erlaubt nur die konfigurierte Origin
+über CSP frame-ancestors.
 Der lokale Knowledge-Hub-Start verwendet einen Same-Origin-API-Proxy unter `/suite-api`.
 
 Für Standalone beide Apps mit ihren bisherigen README-Befehlen und eigenen Umgebungen starten.
@@ -270,3 +300,57 @@ Direkte `TEST_POSTGRES_URL`-Werte müssen auf eine Datenbank mit Suffix `_test` 
 
 Für den aktuellen Stand: [HANDOFF.md](HANDOFF.md).
 Visuelle Prüfung: [browser-check.md](browser-check.md).
+
+## DataScout in der lokalen Suite (7. November 2026)
+
+DataScout ist als lokales Demo-Modul mit Dashboard, Erfassung und Jobs eingebunden.
+Sein Frontend verwendet localhost:5176, die API 127.0.0.1:8002, PostgreSQL weiter
+127.0.0.1:55432. Der gemeinsame Start in start-showcase.ps1 baut/startet dafür die
+Container mit DataScouts compose.yaml plus compose.suite.yaml. Docker Desktop muss
+laufen; ../data-scout/infra/.env muss laut dessen README bereits eingerichtet sein.
+Vorhandene .env-Dateien und das PostgreSQL-Volume werden nicht ersetzt.
+
+Ein zuvor eigenständig gestartetes DataScout belegt 5173/8000. Vor dem erstmaligen
+Suite-Start dessen backend/worker/frontend stoppen; sonst greifen die normalen
+Portprüfungen. Keine fremden Prozesse werden automatisch beendet. Der gemeinsame
+Start meldet belegte Ports; beim regulären Stop beendet er seine DataScout-Appcontainer,
+erhält PostgreSQL und alle Volumes. Eigentumsmarker ermöglichen auch den übergeordneten Startskripten die gezielte
+Docker-Bereinigung nach dem Beenden ihrer Kindprozesse. Bei hartem Kill des gesamten
+Hauptprozesses ist keine Bereinigung möglich; dann die drei Appdienste gezielt stoppen.
+
+```powershell
+# Im DataScout-Ordner, vor dem erstmaligen Wechsel aus dem Standalone-Betrieb:
+docker compose --env-file infra/.env -f infra/compose.yaml stop backend worker frontend
+# Im Dev-Suite-Ordner:
+npm.cmd run start:local
+```
+
+In der flüchtigen Frontend-Demo erscheint DataScout standardmäßig. Bei bestehendem
+API-Betrieb bleiben gespeicherte globale App-Auswahlen erhalten: Ein Administrator
+aktiviert DataScout unter Einstellungen → Anwendungen. Die App-Key-Allowlist und der
+API-Vertrag unterstützen nun elf Anwendungen; keine bestehenden Migrationen geändert.
+Die Auswahl wird über den vorhandenen geschützten, revisionierten Endpunkt gespeichert.
+Nach Backendänderungen muss auch das Suite-Backend neu gebaut/gestartet werden.
+
+Die Einbettung verwendet den bestehenden hello/init/ready/navigate-Handshake. DataScout
+prüft exakte lokale Eltern-Origin UND Elternfenster, akzeptiert nur drei bekannte
+Bereiche und validierte Hex-Farbwerte, behält seine Komponenten beim Tabwechsel und
+sendet keine Tokens oder Identität. Es übernimmt die Suite-Farbpalette; seine UI ist
+derzeit Englisch. Der Host sendet dafür explizit Englisch, auch bei deutscher/französischer Suite.
+
+Dies ist dieselbe gemeinsame lokale Fixture-Demo für alle lokalen Suite-Konten,
+keine SSO-/Kontotrennung. Ein Hinweis steht in der eingebetteten App. Beide DataScout-
+Prozesse erzwingen den Offline-Modus. Produktionsbuilds der Suite verstecken das Modul
+und erlauben keine DataScout-URL, selbst bei gesetzter VITE_DATASCOUT_URL; DataScouts
+Produktionsbridge ist ebenfalls aus. Keine neue öffentliche Route oder Bereitstellung.
+Serveranbindung benötigt zusätzlich serverseitige Anmeldung und Daten-/Jobtrennung.
+
+Direktaufruf ohne Suite: http://localhost:5176. Dann bleiben DataScouts eigene Kopfzeile
+und alle Bereiche sichtbar. Für den alten Standalone-Modus ohne Suite-Override wieder
+DataScouts normales Compose up ausführen; zuerst die Suite stoppen (Port 5173).
+DataScouts allgemeines check.ps1 startet ebenfalls den Standalone-Modus; bei laufender
+Suite stattdessen seine Tests per Compose exec und die Suite-Integrationsprüfung verwenden.
+
+## Benutzernamen und persönliche App-Rechte
+
+Siehe [Kontoverwaltung und sichere Administrator-Einrichtung](account-access.md). Anmeldung mit Benutzername oder E-Mail; Konten und App-Zuweisungen können nur Administratoren verwalten.

@@ -67,7 +67,7 @@ class AiStreamingHttpTest {
     private HttpResponse<InputStream> start(Session session, UUID requestId) throws Exception {
         var result = session.client.send(request("/ai/conversations/" + session.conversation + "/messages/stream").header("X-CSRF-Token", session.csrf)
             .header("Accept", "text/event-stream, application/json").POST(HttpRequest.BodyPublishers.ofString(
-                json.writeValueAsString(java.util.Map.of("requestId", requestId, "message", "Hallo")))).build(), HttpResponse.BodyHandlers.ofInputStream());
+                json.writeValueAsString(java.util.Map.of("requestId", requestId, "message", "Hallo", "context", java.util.Map.of("route", "/projectManager/projects"))))).build(), HttpResponse.BodyHandlers.ofInputStream());
         assertThat(result.statusCode()).isEqualTo(200);
         assertThat(result.headers().firstValue("X-Accel-Buffering")).contains("no");
         // A ready event must flush before the model produces any output.
@@ -83,7 +83,7 @@ class AiStreamingHttpTest {
             assertThat(subscribed.await(2, TimeUnit.SECONDS)).isTrue();
             var concurrent = session.client.send(request("/ai/conversations/" + session.conversation + "/messages/stream")
                 .header("X-CSRF-Token", session.csrf).header("Accept", "text/event-stream, application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(java.util.Map.of("requestId", UUID.randomUUID(), "message", "Again")))).build(), HttpResponse.BodyHandlers.ofString());
+                .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(java.util.Map.of("requestId", UUID.randomUUID(), "message", "Again", "context", java.util.Map.of("route", "/projectManager/projects"))))).build(), HttpResponse.BodyHandlers.ofString());
             assertThat(concurrent.statusCode()).isEqualTo(409);
             assertThat(json.readTree(concurrent.body()).get("error").get("code").stringValue()).isEqualTo("AI_CONVERSATION_BUSY");
             var stopped = session.client.send(request("/ai/conversations/" + session.conversation + "/requests/" + requestId + "/cancel")

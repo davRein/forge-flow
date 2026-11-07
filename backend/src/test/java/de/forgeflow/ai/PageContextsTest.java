@@ -2,6 +2,8 @@ package de.forgeflow.ai;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.Instant;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 import de.forgeflow.ai.AgentDtos.PageContext;
@@ -44,6 +46,31 @@ class PageContextsTest {
         failure(() -> registry.session(context, () -> true, project(18)), 404, "AI_PAGE_CONTEXT_UNAVAILABLE");
         verify(storage, times(2)).load("alice"); verifyNoMoreInteractions(storage);
         assertThat(PageContexts.metadata(project(17))).doesNotContain("Private name", "revision-1", "alice");
+    }
+    @Test void assistantRequestsRequireAnExplicitSupportedContext() {
+        assertThat(PageContexts.requireSupported(new PageContext("/projectManager/projects", null, null)).route()).isEqualTo("/projectManager/projects");
+        assertThat(PageContexts.requireSupported(new PageContext("/wiki/home", null, null)).route()).isEqualTo("/wiki/home");
+        failure(() -> PageContexts.requireSupported(null), 403, "AI_APP_FORBIDDEN");
+    }
+    @Test void assistantHistoryIsSeparatedByApplicationModule() {
+        var pm = new PageContext("/projectManager/projects", null, null);
+        var wiki = new PageContext("/wiki/articles", null, null);
+        var wikiHome = new PageContext("/wiki/home", null, null);
+        var at = Instant.EPOCH;
+        var history = List.of(
+            new AgentDtos.Message(UUID.randomUUID(), "user", "project manager data", at, List.of(), pm),
+            new AgentDtos.Message(UUID.randomUUID(), "assistant", "project manager answer", at, List.of()),
+            new AgentDtos.Message(UUID.randomUUID(), "user", "wiki data", at, List.of(), wiki),
+            new AgentDtos.Message(UUID.randomUUID(), "assistant", "wiki answer", at, List.of()),
+            new AgentDtos.Message(UUID.randomUUID(), "user", "old tool-backed wiki data", at, List.of(), wiki),
+            new AgentDtos.Message(UUID.randomUUID(), "assistant", "old tool-backed wiki answer", at,
+                List.of(new AgentDtos.ToolEvent(UUID.randomUUID(), "read_workspace", "completed", null))),
+            new AgentDtos.Message(UUID.randomUUID(), "user", "legacy data", at, List.of()),
+            new AgentDtos.Message(UUID.randomUUID(), "assistant", "legacy answer", at, List.of()));
+        assertThat(PageContexts.projectManagerHistory(history)).extracting(AgentDtos.Message::content)
+            .containsExactly("project manager data", "project manager answer");
+        assertThat(PageContexts.historyForModule(history, wikiHome)).extracting(AgentDtos.Message::content)
+            .containsExactly("wiki data", "wiki answer");
     }
     @Test void pageHelpWithoutASelectedProjectNeedsNoWorkspaceAndRevocationDuringValidationStopsIt() {
         var storage = mock(WorkspaceStorage.class); var active = new AtomicBoolean(true);

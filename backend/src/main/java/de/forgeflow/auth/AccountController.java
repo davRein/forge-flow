@@ -28,10 +28,12 @@ public class AccountController {
         @Override public String toString() { return "Password[credentials=REDACTED]"; }
     }
     public record NewUser(@NotBlank @Size(max=1000) String name, @NotBlank @Email @Size(max=254) String email,
-            @NotBlank @Size(max=72) String password) {
+            @NotBlank @Size(max=72) String password, @Size(max=64) String username, @Size(max=12) List<String> allowedApps) {
+        public NewUser(String name, String email, String password) { this(name, email, password, null, null); }
         @Override public String toString() { return "NewUser[credentials=REDACTED]"; }
     }
     public record Active(@NotNull Boolean active) {}
+    public record Access(@NotBlank @Size(max=64) String username, @NotNull @Size(max=12) List<String> allowedApps, @NotNull @Min(0) Long sessionVersion) {}
     private final Accounts accounts;
     private final BCryptPasswordEncoder encoder;
     private final SecurityContextRepository contexts;
@@ -68,7 +70,7 @@ public class AccountController {
         boolean changedEmail = !before.email().equals(email);
         if (changedEmail) verify(input.currentPassword(), before);
         var next = new Accounts.User(before.id(), email, input.name().strip(), before.passwordHash(),
-            before.administrator(), true, before.sessionVersion() + (changedEmail ? 1 : 0), before.portalOnly());
+            before.administrator(), true, before.sessionVersion() + (changedEmail ? 1 : 0), before.portalOnly(), before.expiresAt(), before.username(), before.allowedApps());
         Accounts.User saved = accounts.replace(next, before.sessionVersion());
         return changedEmail ? AccountSessions.renew(saved, request, response, contexts, csrf)
             : AccountSessions.response(saved, request, response, csrf);
@@ -79,25 +81,42 @@ public class AccountController {
         verify(input.currentPassword(), before);
         AccountRules.password(input.newPassword());
         var next = new Accounts.User(before.id(), before.email(), before.name(), encoder.encode(input.newPassword()),
-            before.administrator(), true, before.sessionVersion() + 1, before.portalOnly());
+            before.administrator(), true, before.sessionVersion() + 1, before.portalOnly(), before.expiresAt(), before.username(), before.allowedApps());
         accounts.replace(next, before.sessionVersion());
         var session = request.getSession(false);
         if (session != null) session.invalidate();
         SecurityContextHolder.clearContext();
         return ResponseEntity.noContent().build();
     }
+    private static Map<String, Object> managedProfile(Accounts.User user) {
+        var profile = AccountSessions.profile(user);
+        profile.put("sessionVersion", user.sessionVersion());
+        return profile;
+    }
     @GetMapping("/users")
     List<Map<String, Object>> users(Authentication authentication) {
         administrator(authentication);
-        return accounts.list().stream().map(AccountSessions::profile).toList();
+        return accounts.list().stream().map(AccountController::managedProfile).toList();
     }
     @PostMapping("/users")
     ResponseEntity<Map<String, Object>> create(Authentication authentication, @Valid @RequestBody NewUser input) {
         administrator(authentication);
         AccountRules.password(input.password());
-        var user = new Accounts.User(UUID.randomUUID().toString(), AccountRules.email(input.email()),
-            input.name().strip(), encoder.encode(input.password()), false, true, 0);
+        if (input.username()!=null && input.username().strip().equalsIgnoreCase("Administrator")) throw new ApiFailure(422,"RESERVED_USERNAME","Der Benutzername Administrator ist für das Administratorkonto reserviert.");
+        String id = UUID.randomUUID().toString();
+        var user = new Accounts.User(id, AccountRules.email(input.email()), input.name().strip(), encoder.encode(input.password()), false, true, 0, false, null,
+            input.username() == null ? AppPermissions.legacyUsername(id) : input.username(), input.allowedApps() == null ? AppPermissions.ALL : AppPermissions.grants(input.allowedApps()));
         return ResponseEntity.status(201).body(AccountSessions.profile(accounts.insert(user)));
+    }
+    @PutMapping("/users/{id}/access")
+    Map<String, Object> access(Authentication authentication, @PathVariable String id, @Valid @RequestBody Access input) {
+        administrator(authentication);
+        var before = accounts.findById(id).orElseThrow(() -> new ApiFailure(404, "NOT_FOUND", "Konto nicht gefunden."));
+        if (before.administrator() || before.portalOnly() || before.expiresAt() != null) throw new ApiFailure(400, "ADMIN_ACCOUNT_PROTECTED", "Dieses besondere Konto kann hier nicht geändert werden.");
+        if (input.username().strip().equalsIgnoreCase("Administrator")) throw new ApiFailure(422,"RESERVED_USERNAME","Der Benutzername Administrator ist für das Administratorkonto reserviert.");
+        AccountRules.current(before, input.sessionVersion());
+        var next = new Accounts.User(before.id(), before.email(), before.name(), before.passwordHash(), false, before.active(), before.sessionVersion()+1, false, before.expiresAt(), input.username(), AppPermissions.grants(input.allowedApps()));
+        return managedProfile(accounts.replace(next, before.sessionVersion()));
     }
     @PutMapping("/users/{id}/active")
     Map<String, Object> active(Authentication authentication, @PathVariable String id, @Valid @RequestBody Active input) {
@@ -105,9 +124,9 @@ public class AccountController {
         Accounts.User before = accounts.findById(id).orElseThrow(() -> new ApiFailure(404, "NOT_FOUND", "Konto nicht gefunden."));
         if (before.id().equals(actor.id()) || before.administrator())
             throw new ApiFailure(400, "ADMIN_ACCOUNT_PROTECTED", "Das Administratorkonto kann hier nicht deaktiviert werden.");
-        if (before.active() == input.active()) return AccountSessions.profile(before);
+        if (before.active() == input.active()) return managedProfile(before);
         var next = new Accounts.User(before.id(), before.email(), before.name(), before.passwordHash(),
-            false, input.active(), before.sessionVersion() + 1, before.portalOnly());
-        return AccountSessions.profile(accounts.replace(next, before.sessionVersion()));
+            false, input.active(), before.sessionVersion() + 1, before.portalOnly(), before.expiresAt(), before.username(), before.allowedApps());
+        return managedProfile(accounts.replace(next, before.sessionVersion()));
     }
 }

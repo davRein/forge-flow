@@ -16,6 +16,8 @@ public final class AccountSessions {
     public static Map<String, Object> profile(Accounts.User user) {
         var profile = new java.util.LinkedHashMap<String, Object>(Map.of("id", user.id(), "email", user.email(), "name", user.name(),
             "administrator", user.administrator(), "active", user.active(), "portalOnly", user.portalOnly()));
+        profile.put("username", user.username());
+        profile.put("allowedApps", user.allowedApps());
         if (user.expiresAt() != null) profile.put("expiresAt", user.expiresAt().toString());
         return profile;
     }

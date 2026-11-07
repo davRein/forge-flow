@@ -9,6 +9,9 @@ import { useSettingsText } from '../../../hooks/languageContext';
 import { createAccountRepository, passwordError, ACCOUNT_LIST_CHANGED_EVENT } from '../../../services/auth/accountRepository';
 import type { ManagedAccount } from '../../../services/auth/accountRepository';
 import { DangerButton, ErrorText, Field, FormActions, FormCard, FormGrid, Input, PrimaryButton, SecondaryButton } from '../../../components/ui/formStyles';
+import { useTranslation } from '../../../hooks/languageContext';
+import { accountAppCatalog, accountText, usernameValid } from '../../../services/auth/userAccess';
+import UserAccessEditor from './UserAccessEditor';
 import Dialog from '../../../components/ui/Dialog';
 import { useChatNavigationBlocker } from '../../../hooks/chatNavigationContext';
 import { useUnsavedChanges } from '../../../hooks/navigationGuard';
@@ -17,6 +20,15 @@ const Section = styled(FormCard)`
     max-width: 850px;
     h2 { margin-bottom: 12px; font-size: 20px; }
     p { margin-bottom: 16px; line-height: 1.6; }
+`;
+const AppChoices = styled.fieldset`
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 20px;
+    legend { padding: 0 8px; font-weight: 600; }
+    p { font-size: 12px; color: ${({ theme }) => theme.colors.textSecondary}; margin: 12px 0 0; }
+    input { accent-color: ${({ theme }) => theme.colors.primary}; }
 `;
 const AccountList = styled.ul`
     list-style: none;
@@ -36,6 +48,8 @@ type AccountAction = 'profile' | 'password' | 'create' | 'active';
 
 export default function AccountSettings({ unsavedSettings, client = apiClient }: { unsavedSettings: boolean; client?: ApiClient }) {
     const t = useSettingsText();
+    const { language } = useTranslation();
+    const a = (key: Parameters<typeof accountText>[1]) => accountText(language, key);
     const auth = useAuth();
     const workspaceStore = useWorkspacePersistence();
     const workspace = useSyncExternalStore(workspaceStore.subscribe, workspaceStore.getSnapshot, workspaceStore.getSnapshot);
@@ -52,6 +66,9 @@ export default function AccountSettings({ unsavedSettings, client = apiClient }:
     const feedbackRef = useRef<HTMLParagraphElement>(null);
     const [users, setUsers] = useState<ManagedAccount[]>([]);
     const [newName, setNewName] = useState('');
+    const [newUsername, setNewUsername] = useState('');
+    const [newApps, setNewApps] = useState<string[]>([]);
+    const [accessUser, setAccessUser] = useState<ManagedAccount | null>(null);
     const [newEmail, setNewEmail] = useState('');
     const [userPassword, setUserPassword] = useState('');
     const [userConfirmation, setUserConfirmation] = useState('');
@@ -69,10 +86,10 @@ export default function AccountSettings({ unsavedSettings, client = apiClient }:
         return () => window.removeEventListener(ACCOUNT_LIST_CHANGED_EVENT, refresh);
     }, []);
     useChatNavigationBlocker(busy || name !== (auth.user?.name ?? '') || email !== (auth.user?.email ?? '')
-        || !!(profilePassword || currentPassword || newPassword || confirmation || newName || newEmail || userPassword || userConfirmation));
+        || !!(profilePassword || currentPassword || newPassword || confirmation || newName || newUsername || newEmail || userPassword || userConfirmation || newApps.length || accessUser));
     const pendingData = unsavedSettings || workspace.status === 'saving' || !!workspace.error;
-    useUnsavedChanges(name !== (auth.user?.name ?? '') || email !== (auth.user?.email ?? '') || !!(profilePassword || currentPassword || newPassword || confirmation || newName || newEmail || userPassword || userConfirmation), () => {
-        setName(auth.user?.name ?? ''); setEmail(auth.user?.email ?? ''); setProfilePassword(''); setCurrentPassword(''); setNewPassword(''); setConfirmation(''); setNewName(''); setNewEmail(''); setUserPassword(''); setUserConfirmation(''); setTarget(null); setError(null);
+    useUnsavedChanges(name !== (auth.user?.name ?? '') || email !== (auth.user?.email ?? '') || !!(profilePassword || currentPassword || newPassword || confirmation || newName || newUsername || newEmail || userPassword || userConfirmation || newApps.length || accessUser), () => {
+        setName(auth.user?.name ?? ''); setEmail(auth.user?.email ?? ''); setProfilePassword(''); setCurrentPassword(''); setNewPassword(''); setConfirmation(''); setNewName(''); setNewUsername(''); setNewEmail(''); setUserPassword(''); setUserConfirmation(''); setNewApps([]); setAccessUser(null); setTarget(null); setError(null);
     }, busy || auth.busy);
     const disabled = auth.busy || busy || pendingData;
     const feedbackError = error ?? (action === 'profile' || action === 'password' ? auth.error : null);
@@ -133,13 +150,13 @@ export default function AccountSettings({ unsavedSettings, client = apiClient }:
         event.preventDefault();
         if (disabled) return;
         begin('create');
-        const validation = passwordError(userPassword, userConfirmation);
+        const validation = passwordError(userPassword, userConfirmation) ?? (!usernameValid(newUsername) ? a('invalidUsername') : null);
         if (validation) { setError(validation); return; }
         setBusy(true);
         try {
-            const user = await repository.create({ name: newName.trim(), email: newEmail.trim(), password: userPassword });
+            const user = await repository.create({ name: newName.trim(), email: newEmail.trim(), password: userPassword, username: newUsername.trim(), allowedApps: newApps });
             setUsers((current) => [...current, user].sort((a, b) => a.email.localeCompare(b.email)));
-            setNewName(''); setNewEmail('');
+            setNewName(''); setNewUsername(''); setNewEmail(''); setNewApps([]);
             setUserPassword(''); setUserConfirmation('');
             setMessage('Benutzerkonto angelegt.');
         } catch (reason) { setError(reason instanceof Error ? reason.message : 'Konto konnte nicht angelegt werden.'); }
@@ -195,7 +212,8 @@ export default function AccountSettings({ unsavedSettings, client = apiClient }:
                 <SecondaryButton type="button" disabled={loading || disabled} onClick={() => setReload((value) => value + 1)}>{t('Kontoliste aktualisieren')}</SecondaryButton>
                 <AccountList aria-label={t('Benutzerkonten')}>
                     {users.map((user) => <li key={user.id}>
-                        <div><strong>{user.name}</strong><small>{user.email} · {user.administrator ? t('Administrator') : t('Benutzer')} · {user.active ? t('Aktiv') : t('Deaktiviert')}</small></div>
+                        <div><strong>{user.name}</strong><small>{user.username ?? user.email} · {user.email} · {user.administrator ? t('Administrator') : t('Benutzer')} · {user.active ? t('Aktiv') : t('Deaktiviert')}</small></div>
+                        {!user.administrator && <SecondaryButton type="button" disabled={disabled || loading} onClick={() => setAccessUser(user)}>{a('permissions')}</SecondaryButton>}
                         {!user.administrator && user.id !== auth.user?.id && <SecondaryButton type="button" disabled={disabled || loading} onClick={() => { begin('active'); setTarget(user); }}>
                             {user.active ? t('Deaktivieren') : t('Aktivieren')}
                         </SecondaryButton>}
@@ -207,15 +225,22 @@ export default function AccountSettings({ unsavedSettings, client = apiClient }:
                 <p>{t('Das Passwort benötigt mindestens 12 Zeichen und höchstens 72 UTF-8-Bytes.')}</p>
                 <FormGrid>
                     <Field>{t('Name des neuen Benutzers')}<Input required maxLength={1000} autoComplete="off" value={newName} disabled={disabled} onChange={(event) => setNewName(event.target.value)} /></Field>
+                    <Field>{a('newUsername')}<Input required minLength={3} maxLength={64} autoComplete="off" value={newUsername} disabled={disabled} onChange={event => setNewUsername(event.target.value)} /></Field>
                     <Field>{t('E-Mail des neuen Benutzers')}<Input required type="email" maxLength={254} autoComplete="off" value={newEmail} disabled={disabled} onChange={(event) => setNewEmail(event.target.value)} /></Field>
                     <Field>{t('Passwort für das neue Konto')}<Input required type="password" autoComplete="new-password" value={userPassword} disabled={disabled} onChange={(event) => setUserPassword(event.target.value)} /></Field>
                     <Field>{t('Passwort für das neue Konto wiederholen')}<Input required type="password" autoComplete="new-password" value={userConfirmation} disabled={disabled} onChange={(event) => setUserConfirmation(event.target.value)} /></Field>
                 </FormGrid>
+                <AppChoices disabled={disabled}><legend>{a('apps')}</legend><FormGrid>{accountAppCatalog.map(app => <label key={app.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 6 }}><input type="checkbox" checked={newApps.includes(app.key)} onChange={event => setNewApps(current => event.target.checked ? [...current, app.key] : current.filter(key => key !== app.key))} />{t(app.label)}</label>)}</FormGrid><p>{a('help')}</p></AppChoices>
                 {feedbackFor('create')}
                 {blockedHint}
                 <FormActions><PrimaryButton type="submit" disabled={disabled}>{busy && action === 'create' ? t('Benutzer wird angelegt …') : t('Benutzer anlegen')}</PrimaryButton></FormActions>
             </Section>
         </>}
+        {accessUser && <UserAccessEditor onBusy={setBusy} user={accessUser} close={() => setAccessUser(null)} save={async value => {
+            const saved = await repository.setAccess(accessUser.id, value);
+            setUsers(current => current.map(user => user.id === saved.id ? saved : user));
+            setAccessUser(null); setAction('active'); setMessage(a('changed'));
+        }} />}
         {target && <Dialog title={target.active ? t('Benutzerkonto deaktivieren?') : t('Benutzerkonto aktivieren?')} onClose={() => { if (!busy) setTarget(null); }}>
             <p>{target.name} ({target.email}) {target.active ? t('deaktivieren? Bestehende Sitzungen werden ungültig. Die Daten bleiben erhalten.') : t('wieder aktivieren?')}</p>
             {feedbackFor('active')}

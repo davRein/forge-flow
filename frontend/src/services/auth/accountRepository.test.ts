@@ -3,6 +3,25 @@ import { createAccountRepository, passwordError } from './accountRepository.js';
 
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 export const accountTests = [
+    { name: 'App-Rechte werden mit CSRF und Versionsprüfung gespeichert; alte Sitzungen senden nichts', async run() {
+        let calls = 0;
+        const client = createApiClient('/api/v1', async (url, init) => {
+            calls++;
+            assert(String(url).endsWith('/users/user%2Fid/access') && init?.method === 'PUT', 'Expliziter Rechte-Endpunkt erforderlich');
+            assert(new Headers(init.headers).get('X-CSRF-Token') === 'rights-token', 'CSRF fehlt');
+            const body = JSON.parse(String(init.body));
+            assert(body.username === 'new.name' && body.sessionVersion === 7 && body.allowedApps.length === 0, 'Leere App-Auswahl und erwartete Version müssen erhalten bleiben');
+            return new Response(JSON.stringify({ id: 'user/id', name: 'U', email: 'u@example.test', administrator: false, active: true, username: 'new.name', allowedApps: [], sessionVersion: 8 }));
+        });
+        client.setSession('rights-token');
+        const repository = createAccountRepository(client);
+        const input = { username: 'new.name', allowedApps: [], sessionVersion: 7 };
+        const saved = await repository.setAccess('user/id', input);
+        assert(saved.allowedApps?.length === 0 && saved.sessionVersion === 8, 'Serverbestätigung fehlt');
+        client.setSession('another-session');
+        let rejected = false; try { await repository.setAccess('user/id', input); } catch { rejected = true; }
+        assert(rejected && calls === 1, 'Veraltetes Repository darf keine neue Kontositzung verwenden');
+    } },
     { name: 'Kontoverwaltung übernimmt nur öffentliche Felder und prüft Benutzerrechte', async run() {
         const user = { id: 'U', name: 'Test', email: 'u@example.test', administrator: false, active: true, passwordHash: 'darf-nicht-übernommen-werden' };
         const client = createApiClient('/api/v1', async () => new Response(JSON.stringify([user])));

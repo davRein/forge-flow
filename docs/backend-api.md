@@ -164,7 +164,7 @@ auch im PostgreSQL-Profil flüchtig. Einrichtung: [Backend-README](../backend/RE
 ## Kontoverwaltung und Sitzungswiderruf
 
 Sitzungsprofile enthalten zusätzlich `administrator` und `active`; keine Hashes oder
-internen Sitzungsversionen. Konten haben eine stabile Kennung, die auch bei einer Änderung
+internen Sitzungsversionen. Nur administrative Kontolisten und Rechte-/Statusänderungen liefern die optimistische `sessionVersion` als Konfliktkennung, niemals als Sitzungstoken. Konten haben eine stabile Kennung, die auch bei einer Änderung
 der E-Mail-Adresse erhalten bleibt. Gespeicherte Sitzungen verwenden diese Kennung und eine
 serverseitig geprüfte Sitzungsversion, damit die Wiederverwendung einer E-Mail-Adresse keine
 alten Sitzungen auf ein anderes Konto umleiten kann.

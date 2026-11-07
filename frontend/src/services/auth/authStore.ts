@@ -1,7 +1,8 @@
+import { decodeUserApps } from './userAccess.js';
 import { ApiError } from '../api/apiClient.js';
 import type { ApiClient } from '../api/apiClient';
 
-export type AuthUser = { id: string; email: string; name: string; administrator: boolean; portalOnly?: boolean; expiresAt?: string };
+export type AuthUser = { id: string; email: string; name: string; administrator: boolean; username?: string; allowedApps?: string[]; portalOnly?: boolean; expiresAt?: string };
 type AuthState = { status: 'local' | 'checking' | 'anonymous' | 'authenticated' | 'error'; user: AuthUser | null; busy: boolean; error: string | null; notice: string | null; epoch: number };
 function session(value: unknown): { user: AuthUser; csrfToken: string } {
     if (!value || typeof value !== 'object' || !('user' in value) || !('csrfToken' in value) || typeof value.csrfToken !== 'string') throw new Error('Ungültige Sitzungsantwort.');
@@ -11,7 +12,9 @@ function session(value: unknown): { user: AuthUser; csrfToken: string } {
     if ('administrator' in user && typeof user.administrator !== 'boolean') throw new Error('Ungültige Benutzerrechte.');
     if ('portalOnly' in user && typeof user.portalOnly !== 'boolean') throw new Error('Ungültige Benutzerrechte.');
     if ('expiresAt' in user && (typeof user.expiresAt !== 'string' || !Number.isFinite(Date.parse(user.expiresAt)))) throw new Error('Ungültige Benutzerrechte.');
-    return { user: { id: user.id, email: user.email, name: user.name, administrator: 'administrator' in user && user.administrator === true, ...('portalOnly' in user ? { portalOnly: user.portalOnly === true } : {}), ...('expiresAt' in user ? { expiresAt: user.expiresAt as string } : {}) }, csrfToken: value.csrfToken };
+    if ('username' in user && (typeof user.username !== 'string' || !user.username)) throw new Error('Ungültige Benutzerrechte.');
+    const allowedApps = decodeUserApps('allowedApps' in user ? user.allowedApps : undefined);
+    return { user: { allowedApps, ...('username' in user ? { username: user.username as string } : {}), id: user.id, email: user.email, name: user.name, administrator: 'administrator' in user && user.administrator === true, ...('portalOnly' in user ? { portalOnly: user.portalOnly === true } : {}), ...('expiresAt' in user ? { expiresAt: user.expiresAt as string } : {}) }, csrfToken: value.csrfToken };
 }
 
 export function createAuthStore(client: ApiClient, enabled: boolean) {

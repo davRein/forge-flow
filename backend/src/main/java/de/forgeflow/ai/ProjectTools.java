@@ -87,6 +87,7 @@ public final class ProjectTools {
         public void verify() {
             if (!active.getAsBoolean()) throw new de.forgeflow.api.ApiFailure(409, "AI_CANCELLED", "Antwort abgebrochen. Teilantworten wurden verworfen.");
             context.verify(accounts);
+            de.forgeflow.auth.AppPermissions.require(accounts.findById(context.userId()).orElseThrow(), "projectManager");
         }
         public List<ToolCallback> callbacks() {
             return NAMES.stream().sorted().map(name -> (ToolCallback) new ToolCallback() {

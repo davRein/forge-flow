@@ -95,9 +95,11 @@ class NoRedirect(HTTPRedirectHandler):
 
 
 class SuiteClient:
-    def __init__(self, url: str, issuer: str, opener: OpenerDirector | None = None) -> None:
+    def __init__(self, url: str, issuer: str, opener: OpenerDirector | None = None, *, app: str | None = None) -> None:
         validate_configuration(url, issuer)
-        self.url, self.issuer = url, issuer
+        if app not in {None, "knowledgeHub", "flowPilot"}:
+            raise ValueError("Unknown suite application.")
+        self.url, self.issuer = url + ("?app=" + app if app else ""), issuer
         self.opener = opener or build_opener(ProxyHandler({}), NoRedirect())
 
     def identify(self, cookie_header: str) -> SuiteIdentity:

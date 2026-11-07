@@ -29,6 +29,7 @@ public class ConfiguredAccounts implements Accounts {
     @Override public synchronized User insert(User user) {
         if (users.containsKey(user.id()) || findByEmail(user.email()).isPresent())
             throw new ApiFailure(409, "EMAIL_IN_USE", "Diese E-Mail-Adresse wird bereits verwendet.");
+        if (findByUsername(user.username()).isPresent()) throw new ApiFailure(409, "USERNAME_IN_USE", "Dieser Benutzername wird bereits verwendet.");
         users.put(user.id(), user);
         return user;
     }
@@ -36,8 +37,9 @@ public class ConfiguredAccounts implements Accounts {
         AccountRules.current(users.get(user.id()), expectedSessionVersion);
         if (findByEmail(user.email()).filter(existing -> !existing.id().equals(user.id())).isPresent())
             throw new ApiFailure(409, "EMAIL_IN_USE", "Diese E-Mail-Adresse wird bereits verwendet.");
+        if (findByUsername(user.username()).filter(existing -> !existing.id().equals(user.id())).isPresent()) throw new ApiFailure(409, "USERNAME_IN_USE", "Dieser Benutzername wird bereits verwendet.");
         var previous = users.get(user.id());
-        var updated = new User(user.id(), user.email(), user.name(), user.passwordHash(), user.administrator(), user.active(), user.sessionVersion(), user.portalOnly(), previous.expiresAt());
+        var updated = new User(user.id(), user.email(), user.name(), user.passwordHash(), user.administrator(), user.active(), user.sessionVersion(), user.portalOnly(), previous.expiresAt(), user.username(), user.allowedApps());
         users.put(user.id(), updated);
         return updated;
     }

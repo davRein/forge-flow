@@ -43,17 +43,11 @@ public final class AgentActions {
     }
     private WorkspaceMutations.Action mutate(AgentExecutionContext context, UUID conversationId, UUID actionId, NavigationActions.DecisionInput input, String initialPassword) {
         context.verify(accounts);
+        if (initialPassword != null) throw WorkspaceMutations.invalid("Benutzerkonten liegen außerhalb des Projektmanager-Zugriffs.");
         return conversations.mutate(context.userId(), conversationId, actionId, context.sessionVersion(), input, action -> {
+            WorkspaceMutations.validate(action);
             var saved = storage.load(context.userId()); context.verify(accounts);
             var workspaceTools = new WorkspaceTools(storage, tools.jackson.databind.json.JsonMapper.builder().build(), java.time.Clock.systemUTC(), accounts);
-            if ("users".equals(action.entity())) {
-                workspaceTools.administrator(context.userId()); de.forgeflow.auth.AccountRules.password(initialPassword);
-                String hash = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder(12).encode(initialPassword);
-                context.verify(accounts);
-                var data = action.data(); var user = new Accounts.User(data.get("id").asText(), data.get("email").asText(), data.get("name").asText(), hash, false, true, 0);
-                accounts.insert(user); return saved.revision();
-            }
-            if (initialPassword != null) throw WorkspaceMutations.invalid("Ein Initialpasswort ist nur für neue Benutzerkonten zulässig.");
             if (!saved.revision().equals(action.revision())) throw WorkspaceMutations.conflict();
             var next = workspaceTools.apply(saved.data(), action); context.verify(accounts);
             return storage.save(context.userId(), saved.revision(), next, workspaceTools.incoming(action));
