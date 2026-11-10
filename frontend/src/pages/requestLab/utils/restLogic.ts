@@ -1,4 +1,4 @@
-import { formatJson, validateJson } from './jsonLogic.js';
+import { formatJson, validateJson } from '../../devTools/utils/jsonLogic.js';
 
 export const httpMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'] as const;
 export type HttpMethod = typeof httpMethods[number];

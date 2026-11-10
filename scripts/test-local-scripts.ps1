@@ -66,5 +66,33 @@ foreach ($address in @([Net.IPAddress]::Loopback, [Net.IPAddress]::IPv6Loopback)
     Assert-LocalPortFree -Port $testPort
 }
 $passed++
-Write-Output "$passed Prüfgruppen erfolgreich: Syntax, DPAPI, lokale Zielkonfiguration, Backup-Integrität, Wiederherstellungsschutz und IPv4/IPv6-Portprüfung."
+# Docker cleanup is fenced by a process-owner marker; never stop unrelated containers.
+$previousConfigRoot = $script:LocalConfigRoot
+$script:LocalConfigRoot = $testRoot
+$script:dockerCleanupCalls = @()
+function docker { $script:dockerCleanupCalls += ,@($args); $global:LASTEXITCODE = 0 }
+try {
+    $owner = 90000123
+    Stop-LocalDataScout $owner
+    Assert-Check ($script:dockerCleanupCalls.Count -eq 0) 'Ohne Eigentumsmarker darf nichts gestoppt werden.'
+    $marker = Get-LocalDataScoutMarker $owner
+    [IO.File]::WriteAllText($marker, 'synthetic ownership fixture')
+    Stop-LocalDataScout $owner
+    Assert-Check ($script:dockerCleanupCalls.Count -eq 1) 'Eigene Docker-Dienste wurden nicht gestoppt.'
+    $call = $script:dockerCleanupCalls[0]
+    Assert-Check (($call[-4..-1] -join ' ') -eq 'stop backend worker frontend') 'Falsche Docker-Dienste oder destruktiver Befehl.'
+    Assert-Check (-not (Test-Path -LiteralPath $marker)) 'Eigentumsmarker wurde nicht freigegeben.'
+    Stop-LocalDataScout $owner
+    Assert-Check ($script:dockerCleanupCalls.Count -eq 1) 'Stoppen muss ohne Marker wirkungslos bleiben.'
+} finally {
+    Remove-Item Function:docker
+    $script:LocalConfigRoot = $previousConfigRoot
+}
+$passed++
+# Validate the probe boundary before it can perform any network request.
+foreach ($uri in @('https://localhost:5173', 'http://example.invalid', 'http://user:fixture@127.0.0.1:5173', 'file:///C:/fixture')) {
+    Assert-Fails { Invoke-LocalRequest -Uri $uri } 'HTTP-Loopback'
+}
+$passed++
+Write-Output "$passed Prüfgruppen erfolgreich: Syntax, DPAPI, lokale Zielkonfiguration, Backup-Integrität, Wiederherstellungsschutz, IPv4/IPv6-Portprüfung Docker-Eigentümerschutz und Bereitschaftszielschutz."
 Write-Output 'Ein echter Dump-/Restore-Test benötigt die lokale Datenbankeinrichtung und das Administratorkennwort.'

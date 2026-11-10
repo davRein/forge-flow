@@ -1,8 +1,40 @@
 import { translate } from './translate.js';
+import { french } from '../../config/frenchTranslations.js';
+import { settingsEnglish } from '../../config/settingsTranslations.js';
+import { commonEnglish } from '../../config/commonTranslations.js';
+import { wikiEnglish } from '../../config/wikiTranslations.js';
+import { toolsEnglish } from '../../config/toolsTranslations.js';
+import { chatEnglish } from '../../config/chatTranslations.js';
+import { timeEnglish } from '../../config/timeTranslations.js';
+import { businessEnglish } from '../../config/businessTranslations.js';
+import { developerEnglish } from '../../config/developerTranslations.js';
+import { consistencyEnglish } from '../../config/consistencyTranslations.js';
 
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 
 export const translationTests = [
+    { name: 'Französischer Katalog deckt alle bestehenden Schlüssel ab und erhält sämtliche Platzhalter', run() {
+        const english = { ...settingsEnglish, ...commonEnglish, ...wikiEnglish, ...toolsEnglish, ...chatEnglish, ...timeEnglish, ...businessEnglish, ...developerEnglish, ...consistencyEnglish };
+        const placeholders = (value: string) => [...new Set(value.match(/\{\w+\}/g) ?? [])].sort().join(',');
+        for (const [key, source] of Object.entries(english)) {
+            assert(Object.prototype.hasOwnProperty.call(french, key), `Französische Übersetzung fehlt: ${key}`);
+            const target = french[key];
+            if (typeof source === 'string') assert(typeof target === 'string' && !!target && placeholders(source) === placeholders(target), `Platzhalter verändert: ${key}`);
+            else assert(typeof target !== 'string' && placeholders(source.one) === placeholders(target.one) && placeholders(source.other) === placeholders(target.other), `Pluralformen verändert: ${key}`);
+        }
+    } },
+    { name: 'Französisch übersetzt Navigation, Formulare, Plurale und Diagnosen ohne eigene Inhalte anzutasten', run() {
+        for (const [source, expected] of [['Einstellungen', 'Paramètres'], ['Projekte', 'Projets'], ['Nutzerverwaltung', 'Gestion des utilisateurs'],
+            ['Sprache', 'Langue'], ['Dateien', 'Fichiers'], ['Kalender', 'Calendrier'], ['English', 'Anglais'], ['Deutsch', 'Allemand']] as const)
+            assert(translate(source, 'fr') === expected, `Französischer Begriff fehlt: ${source}`);
+        assert(translate('{count} Artikel', 'fr', { count: 1 }) === '1 article', 'Französischer Singular fehlt');
+        assert(translate('{count} Artikel', 'fr', { count: 0 }) === '0 article', 'Französische Null muss die Singularform verwenden');
+        assert(translate('{count} Artikel', 'fr', { count: 2 }) === '2 articles', 'Französischer Plural fehlt');
+        assert(translate('Zeitlimit von 30 Sekunden erreicht.', 'fr') === 'Délai de 30 secondes dépassé.', 'Französische Diagnose fehlt');
+        assert(translate('Epic „Dateien {count}“ wurde erstellt', 'fr') === 'L’epic « Dateien {count} » a été créé', 'Eigene Inhalte dürfen nicht erneut übersetzt oder interpoliert werden');
+        for (const source of ['Mon projet privé', 'constructor', 'toString', '__proto__'])
+            assert(translate(source, 'fr') === source, 'Unbekannte Inhalte müssen unverändert bleiben');
+    } },
     { name: 'Suite-Menüs, Projektstatus und Systemmeldungen folgen der Sprache und erhalten eigene Inhalte', run() {
         for (const [source, expected] of [['Project Manager', 'Projektverwaltung'], ['Dev Tools', 'Entwicklerwerkzeuge'], ['TimeTracker', 'Zeiterfassung'], ['Workflows', 'Arbeitsabläufe'], ['JSON Formatter', 'JSON-Formatierer'], ['Todo', 'Offen'], ['In Progress', 'In Bearbeitung']] as const)
             assert(translate(source, 'de') === expected, `Deutscher Begriff fehlt: ${source}`);

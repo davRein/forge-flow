@@ -7,7 +7,7 @@ export const LanguageContext = createContext<AppLanguage>('en');
 
 export function useTranslation() {
     const language = useContext(LanguageContext);
-    return { language, locale: language === 'en' ? 'en-GB' : 'de-DE',
+    return { language, locale: { de: 'de-DE', en: 'en-GB', fr: 'fr-FR' }[language],
         t: (text: string, parameters?: TranslationParameters) => translate(text, language, parameters) };
 }
 

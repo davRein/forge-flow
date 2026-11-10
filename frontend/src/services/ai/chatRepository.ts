@@ -11,8 +11,8 @@ import { isWorkspaceMutation, sameCreation } from './workspaceActions.js';
 import type { WorkspaceMutation } from './workspaceActions.js';
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string; createdAt: string; tools?: ProjectToolEvent[]; context?: ChatPageContext | null };
-export type ChatConversation = { id: string; language: 'de' | 'en'; messages: ChatMessage[]; busy?: boolean };
-export type ConversationSummary = { id: string; language: 'de' | 'en'; title: string; createdAt: string; updatedAt: string; messageCount: number; busy: boolean };
+export type ChatConversation = { id: string; language: 'de' | 'en' | 'fr'; messages: ChatMessage[]; busy?: boolean };
+export type ConversationSummary = { id: string; language: 'de' | 'en' | 'fr'; title: string; createdAt: string; updatedAt: string; messageCount: number; busy: boolean };
 export type ConversationList = { storage: 'memory' | 'postgresql'; retentionSeconds: number; items: ConversationSummary[] };
 export type ExecutionRecord = { id: string; requestId: string; status: 'running' | 'succeeded' | 'failed' | 'cancelled' | 'interrupted'; startedAt: string; finishedAt: string | null; errorCode: string | null;
     steps: { number: number; name: string; arguments: string; status: 'started' | 'completed'; outcome: string | null; startedAt: string; finishedAt: string | null }[] };
@@ -26,7 +26,7 @@ const date = (value: unknown): value is string => typeof value === 'string' && N
 function list(value: unknown): value is ConversationList {
     return record(value) && ['memory', 'postgresql'].includes(String(value.storage)) && typeof value.retentionSeconds === 'number'
         && Number.isSafeInteger(value.retentionSeconds) && value.retentionSeconds > 0 && value.retentionSeconds <= 365 * 86400
-        && Array.isArray(value.items) && value.items.length <= 50 && value.items.every(item => record(item) && uuid(item.id) && ['de', 'en'].includes(String(item.language))
+        && Array.isArray(value.items) && value.items.length <= 50 && value.items.every(item => record(item) && uuid(item.id) && ['de', 'en', 'fr'].includes(String(item.language))
             && typeof item.title === 'string' && item.title.length <= 100 && date(item.createdAt) && date(item.updatedAt) && typeof item.busy === 'boolean'
             && typeof item.messageCount === 'number' && Number.isInteger(item.messageCount) && item.messageCount >= 0 && item.messageCount <= 100 && item.messageCount % 2 === 0);
 }
@@ -50,7 +50,7 @@ function message(value: unknown, role?: ChatMessage['role']): value is ChatMessa
                 && (tool.result?.action == null && tool.result?.mutation == null || index === tools.length - 1))));
 }
 function conversation(value: unknown): ChatConversation {
-    if (!record(value) || !uuid(value.id) || !['de', 'en'].includes(String(value.language)) || !Array.isArray(value.messages)
+    if (!record(value) || !uuid(value.id) || !['de', 'en', 'fr'].includes(String(value.language)) || !Array.isArray(value.messages)
         || value.busy !== undefined && typeof value.busy !== 'boolean' || value.messages.length > 100 || value.messages.length % 2 !== 0
         || !value.messages.every((item, index) => message(item, index % 2 === 0 ? 'user' : 'assistant'))) throw invalid();
     return value as ChatConversation;
@@ -59,7 +59,7 @@ export function createChatRepository(client: ApiClient) {
     const epoch = client.epoch;
     const path = (id: string) => { if (!uuid(id)) throw invalid(); return `/ai/conversations/${id}`; };
     return {
-        async create(language: 'de' | 'en', signal: AbortSignal) {
+        async create(language: 'de' | 'en' | 'fr', signal: AbortSignal) {
             return conversation(await client.request('/ai/conversations', { method: 'POST', body: { language }, signal, epoch }));
         },
         async load(id: string, signal: AbortSignal) { return conversation(await client.request(path(id), { signal, epoch })); },

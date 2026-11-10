@@ -1,4 +1,4 @@
-export type ModuleKey = 'projectManager' | 'wiki' | 'devTools' | 'timeTracker' | 'business' | 'cloud' | 'settings' | 'git' | 'knowledgeHub' | 'flowPilot';
+export type ModuleKey = 'projectManager' | 'wiki' | 'devTools' | 'timeTracker' | 'business' | 'cloud' | 'settings' | 'git' | 'knowledgeHub' | 'flowPilot' | 'pulseWatch' | 'dataScout' | 'requestLab';
 
 export type AppModule = {
     key: ModuleKey;
@@ -23,7 +23,10 @@ export const modules: AppModule[] = [
     {
         key: 'devTools',
         label: 'Dev Tools',
-        topbarItems: [{ key: 'json', label: 'JSON Formatter' }, { key: 'rest', label: 'REST-Test' }, { key: 'calculator', label: 'Rechner' }, { key: 'converter', label: 'Konverter' }, { key: 'snippeter', label: 'Snippeter' }, { key: 'dbScripter', label: 'DB Scripter' }]
+        topbarItems: [{ key: 'json', label: 'JSON Formatter' }, { key: 'calculator', label: 'Rechner' }, { key: 'converter', label: 'Konverter' }, { key: 'snippeter', label: 'Snippeter' }, { key: 'dbScripter', label: 'DB Scripter' }]
+    },
+    {
+        key: 'requestLab', label: 'RequestLab', topbarItems: [{ key: 'client', label: 'REST-Test' }]
     },
     {
         key: 'timeTracker',
@@ -47,5 +50,13 @@ export const modules: AppModule[] = [
     {
         key: 'flowPilot', label: 'FlowPilot',
         topbarItems: [{ key: 'overview', label: 'Übersicht' }, { key: 'workflows', label: 'Workflows' }, { key: 'runs', label: 'Ausführungen' }, { key: 'integrations', label: 'Integrationen' }, { key: 'jobs', label: 'Jobs & Zeitpläne' }]
+    },
+    {
+        key: 'pulseWatch', label: 'PulseWatch',
+        topbarItems: [{ key: 'overview', label: 'Übersicht' }]
+    },
+    {
+        key: 'dataScout', label: 'DataScout',
+        topbarItems: [{ key: 'dashboard', label: 'Dashboard' }, { key: 'collection', label: 'Erfassung' }, { key: 'jobs', label: 'Jobs & Zeitpläne' }]
     }
 ];

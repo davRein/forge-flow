@@ -58,7 +58,7 @@ public final class WorkspaceDtos {
     public record Settings(@Min(1) @Max(1) int version, @NotNull @Valid SettingsValues settings) {}
     public record SettingsValues(@NotNull @Pattern(regexp="dark|light|aurora|dune|forest|ink|rose") String themeMode, @NotNull @Pattern(regexp="dashboard|projects") String defaultProjectView,
         @NotNull @Pattern(regexp="low|medium|high") String defaultTaskPriority,
-        @NotNull @Pattern(regexp="de|en") String language) {
+        @NotNull @Pattern(regexp="de|en|fr") String language) {
         public SettingsValues {
             if (language == null) language = "de";
         }

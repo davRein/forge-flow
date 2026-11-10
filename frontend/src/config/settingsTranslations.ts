@@ -28,7 +28,7 @@ export const settingsEnglish: Readonly<Record<string, string>> = {
     'Projektmanager': 'Project manager',
     'Lege deine Startansicht und die Vorgaben für neue Aufgaben fest.': 'Choose your start page and defaults for new tasks.',
     'Sprache': 'Language',
-    'Wähle zwischen Deutsch und Englisch.': 'Choose between German and English.',
+    'Wähle zwischen Deutsch, Englisch und Französisch.': 'Choose between German, English and French.',
     'Allgemeine Einstellungen': 'General settings',
     'Änderungen werden übernommen …': 'Saving changes …',
     'Einstellungen sind aktuell.': 'Settings are up to date.',

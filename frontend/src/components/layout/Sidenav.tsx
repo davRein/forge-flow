@@ -82,7 +82,7 @@ export default function Sidebar({ modules, activeModule, onModuleChange }: Props
                     title={t(module.label)}
                     onClick={() => onModuleChange(module.key)}
                 >
-                    <ModuleIcon moduleKey={module.key} /><span>{t(module.label)}</span>
+                    <ModuleIcon moduleKey={module.key} boxed /><span>{t(module.label)}</span>
                 </NavItem>
             ))}
             <Footer>{t('Projekte. Wissen. Werkzeuge.')}</Footer>

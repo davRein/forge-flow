@@ -3,6 +3,12 @@ import { createLanguagePreference, languageForRegion } from './browserLanguage.j
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 
 export const browserLanguageTests = [
+    { name: 'Explizites Französisch bleibt über Seitenaufrufe unabhängig von der Browserregion erhalten', run() {
+        const values = new Map<string, string>();
+        const environment = { locale: () => 'de-DE', storage: () => ({ getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } }) };
+        createLanguagePreference(environment).remember('fr');
+        assert(createLanguagePreference(environment).getLanguage() === 'fr', 'Französische Auswahl muss erhalten bleiben');
+    } },
     { name: 'Nur eine erkennbare Browserregion DE, AT oder CH wählt Deutsch; sonst Englisch', run() {
         for (const locale of ['de-DE', 'de-AT', 'de-CH', 'en-DE', 'fr-CH', 'de-Latn-AT', 'en-ch']) {
             assert(languageForRegion(locale) === 'de', `German region missing: ${locale}`);

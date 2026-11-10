@@ -15,7 +15,7 @@ export function normalizeSettings(value: unknown, defaultLanguage: AppLanguage =
             ? input.defaultProjectView : defaultSettings.defaultProjectView,
         defaultTaskPriority: input.defaultTaskPriority === 'low' || input.defaultTaskPriority === 'medium' || input.defaultTaskPriority === 'high'
             ? input.defaultTaskPriority : defaultSettings.defaultTaskPriority,
-        language: input.language === 'en' || input.language === 'de' ? input.language : defaultLanguage
+        language: input.language === 'en' || input.language === 'de' || input.language === 'fr' ? input.language : defaultLanguage
     };
 }
 

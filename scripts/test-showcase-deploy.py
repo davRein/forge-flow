@@ -42,6 +42,9 @@ class DeploymentTests(unittest.TestCase):
         files = provision.environment_files(provision.new_settings(), {'mode': 'disabled'})
         self.assertNotIn('AI_PROVIDER=fake', files['knowledge.env'])
         self.assertNotIn('FLOWPILOT_AI_MODE=mock', files['flowpilot.env'])
+        self.assertIn('PULSEWATCH_SUITE_MODE=true', files['pulsewatch.env'])
+        self.assertIn('DB_URL=jdbc:postgresql://127.0.0.1:5432/forgeflow_pulsewatch', files['pulsewatch.env'])
+        self.assertNotIn('AUTH_BOOTSTRAP_PASSWORD=', files['pulsewatch.env'])
     def hub_fixture(self, root):
         for filename in ('app/main.py', 'app/manage.py', 'alembic/env.py', 'alembic.ini'):
             path = pathlib.Path(root) / filename
@@ -136,6 +139,18 @@ class DeploymentTests(unittest.TestCase):
         self.assertNotEqual(first['knowledge_password'], first['flowpilot_password'])
         self.assertEqual(provision.environment_files(first), provision.environment_files(first.copy()))
 
+    def test_existing_managed_settings_gain_a_pulsewatch_secret_without_rotating_old_secrets(self):
+        settings = provision.new_settings()
+        del settings['pulsewatch_password']
+        prior = settings.copy()
+        updated, changed = provision.add_missing_project_secrets(settings)
+        self.assertTrue(changed)
+        self.assertEqual({key: updated[key] for key in prior}, prior)
+        provision.validate_settings(updated)
+        unchanged, changed = provision.add_missing_project_secrets(updated)
+        self.assertFalse(changed)
+        self.assertEqual(unchanged, updated)
+
     def test_environments_keep_production_auth_and_offline_providers(self):
         files = provision.environment_files(provision.new_settings())
         self.assertIn('APP_MODE=authenticated', files['knowledge.env'])
@@ -155,9 +170,44 @@ class DeploymentTests(unittest.TestCase):
                 self.assertIn(prefix + 'SUITE_AUTH_URL=http://127.0.0.1:3001/api/v1/auth/showcase-session\n', files[filename])
                 self.assertIn(prefix + 'SUITE_ORIGIN=https://forge-flow.de\n', files[filename])
 
+    def test_pulsewatch_is_protected_by_the_live_suite_and_overwrites_client_identity(self):
+        locations = (ROOT / 'deploy/showcase/nginx-locations.conf').read_text(encoding='utf-8')
+        api = locations.split('location ^~ /pulsewatch-api/ {', 1)[1].split('\n}', 1)[0]
+        self.assertIn('auth_request /_forgeflow_showcase_access;', api)
+        self.assertIn('auth_request_set $forgeflow_user_id $upstream_http_x_forgeflow_user_id;', api)
+        self.assertIn('proxy_set_header X-ForgeFlow-User-Id $forgeflow_user_id;', api)
+        self.assertIn('proxy_set_header Cookie "PULSEWATCH_SESSION=$cookie_PULSEWATCH_SESSION";', api)
+        self.assertNotIn('proxy_set_header Cookie $http_cookie;', api)
+        self.assertIn('PULSEWATCH_SUITE_MODE=true', provision.environment_files(provision.new_settings())['pulsewatch.env'])
+
+    def test_pulsewatch_services_are_loopback_only_and_use_a_separate_database(self):
+        compose = (ROOT / 'deploy/showcase/compose.yaml').read_text(encoding='utf-8')
+        api = compose.split('  pulsewatch-api:', 1)[1].split('\n  pulsewatch-web:', 1)[0]
+        web = compose.split('  pulsewatch-web:', 1)[1].split('\n  redis:', 1)[0]
+        self.assertIn('network_mode: host', compose.split('x-service:', 1)[1].split('services:', 1)[0])
+        self.assertNotIn('ports:', api)
+        self.assertNotIn('ports:', web)
+        self.assertIn('SERVER_ADDRESS=127.0.0.1', provision.environment_files(provision.new_settings())['pulsewatch.env'])
+        self.assertIn("listen 127.0.0.1:3302;", (ROOT.parent / 'pulse-watch/infra/nginx.suite.conf').read_text(encoding='utf-8'))
+        self.assertNotEqual(provision.PROJECTS['pulsewatch'][0], 'pulsewatch')
+
+    def test_pulsewatch_build_files_are_in_declared_compose_contexts(self):
+        compose = (ROOT / 'deploy/showcase/compose.yaml').read_text(encoding='utf-8')
+        expected = {
+            'hub-api/Dockerfile', 'hub-web/Dockerfile', 'flow-api/Dockerfile',
+            'pulsewatch/backend/Dockerfile.suite',
+            'pulsewatch/infra/Dockerfile.suite-frontend',
+            'datascout/backend/Dockerfile',
+        }
+        self.assertEqual(set(release_check.validate_contexts(compose, expected)), expected)
+        dockerfile = (ROOT.parent / 'pulse-watch/infra/Dockerfile.suite-frontend').read_text(encoding='utf-8')
+        self.assertIn('ARG VITE_SUITE_ORIGIN=https://forge-flow.de', dockerfile)
+        self.assertIn('ENV VITE_SUITE_ORIGIN=${VITE_SUITE_ORIGIN}', dockerfile)
+        self.assertIn('ARG VITE_API_BASE_URL=/pulsewatch-api/api/v1', dockerfile)
+
     def test_nginx_allows_regular_suite_sessions_without_exposing_native_workspaces(self):
         locations = (ROOT / 'deploy/showcase/nginx-locations.conf').read_text(encoding='utf-8')
-        self.assertIn('proxy_pass http://127.0.0.1:3001/api/v1/auth/showcase-session;', locations)
+        self.assertIn('proxy_pass http://127.0.0.1:3001/api/v1/auth/showcase-session?app=$forgeflow_showcase_app;', locations)
         self.assertNotIn('/api/v1/auth/showcase-access;', locations)
         for path in ('knowledge-hub-api', 'flowpilot-api'):
             with self.subTest(path=path):
@@ -173,6 +223,33 @@ class DeploymentTests(unittest.TestCase):
         installer = (ROOT / 'scripts/install-linux-showcase.sh').read_text(encoding='utf-8')
         self.assertIn('compose run --rm --no-deps flow-api python -m flowpilot.suite_gateway\n', installer)
 
+    def test_datascout_auth_storage_and_worker_are_separate(self):
+        config = provision.environment_files(provision.new_settings())['datascout.env']
+        self.assertIn('DATASCOUT_SUITE_MODE=true', config)
+        self.assertIn('DATASCOUT_ENABLE_PUBLIC_API=false', config)
+        self.assertIn('/forgeflow_datascout', config)
+        compose = (ROOT / 'deploy/showcase/compose.yaml').read_text()
+        self.assertIn("'app.suite_gateway:create_suite_app', --factory", compose)
+        self.assertIn('command: [python, -m, app.suite_worker]', compose)
+        locations = (ROOT / 'deploy/showcase/nginx-locations.conf').read_text()
+        block = locations.split('location ^~ /datascout-api/ {')[1].split('\n}')[0]
+        self.assertIn('auth_request /_forgeflow_showcase_access;', block)
+        self.assertIn('proxy_set_header Cookie "FORGEFLOW_SESSION=$cookie_FORGEFLOW_SESSION";', block)
+        self.assertIn('proxy_set_header X-ForgeFlow-User-Id "";', block)
+        self.assertIn('proxy_next_upstream off;', block)
+        installer = (ROOT / 'scripts/install-linux-showcase.sh').read_text()
+        self.assertIn('compose run --rm --no-deps datascout-api python -m app.suite_gateway', installer)
+        self.assertIn('forgeflow_datascout; do', installer)
+        self.assertIn('/datascout-api/api/v1/jobs', installer)
+
+    def test_existing_secrets_gain_only_the_missing_datascout_secret(self):
+        settings = provision.new_settings()
+        del settings['datascout_password']
+        updated, changed = provision.add_missing_project_secrets(settings)
+        self.assertTrue(changed)
+        self.assertEqual({key: updated[key] for key in settings}, settings)
+        self.assertIn('datascout_password', updated)
+
     def test_invalid_managed_secrets_are_rejected(self):
         settings = provision.new_settings()
         settings['knowledge_password'] = "bad\nPASSWORD=override"
@@ -181,7 +258,7 @@ class DeploymentTests(unittest.TestCase):
 
     def test_database_targets_are_distinct_from_existing_suite_and_cloud(self):
         databases = [database for database, _ in provision.PROJECTS.values()]
-        self.assertEqual(set(databases), {'ai_knowledge_hub', 'flowpilot'})
+        self.assertEqual(set(databases), {'ai_knowledge_hub', 'flowpilot', 'forgeflow_pulsewatch', 'forgeflow_datascout'})
         self.assertNotIn('forgeflow', databases)
         self.assertNotIn('nextcloud', databases)
 

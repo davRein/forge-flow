@@ -28,7 +28,7 @@ export const showcasePageTests = [{ name: 'Restricted showcase modules require a
         path = useLocation().pathname;
         return <ShowcasePage app="knowledgeHub" section="documents" active={active} />;
     }
-    const tree = (active: boolean, language: 'de' | 'en' = 'en') => <ThemeProvider theme={darkTheme}><LanguageContext.Provider value={language}><MemoryRouter><Host active={active} /></MemoryRouter></LanguageContext.Provider></ThemeProvider>;
+    const tree = (active: boolean, language: 'de' | 'en' | 'fr' = 'en') => <ThemeProvider theme={darkTheme}><LanguageContext.Provider value={language}><MemoryRouter><Host active={active} /></MemoryRouter></LanguageContext.Provider></ThemeProvider>;
     const renderer = create(tree(true), { createNodeMock(element) { return element.type === 'iframe' ? { contentWindow: child } : {}; } });
     const project = showcaseProjects.find(project => project.key === 'knowledgeHub')!;
     const receive = async (origin: string, source: unknown, type: string, section = 'chat') => act(async () => {
@@ -47,6 +47,10 @@ export const showcasePageTests = [{ name: 'Restricted showcase modules require a
         await act(async () => renderer.update(tree(true, 'de')));
         assert(messages.some(message => message.type === 'language' && message.language === 'de'), 'App must receive the active suite language');
         assert(renderer.root.findByType('iframe').props.src === frame.props.src, 'Language changes must not reload the frame');
+        messages.length = 0;
+        await act(async () => renderer.update(tree(true, 'fr')));
+        assert(messages.some(message => message.type === 'language' && message.language === 'en'), 'Embedded apps need an explicit English fallback for French');
+        assert(renderer.root.findByType('iframe').props.src === frame.props.src, 'French fallback must retain the frame');
         await receive(new URL(project.url!).origin, child, 'route', 'unknown');
         assert(path === '/', 'Unknown routes must be ignored');
         await receive(new URL(project.url!).origin, child, 'route', 'privacy');

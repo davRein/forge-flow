@@ -5,6 +5,7 @@ import GeneralSettings from './GeneralSettings';
 import type { GeneralSettingsProps } from './GeneralSettings';
 import AccountSettings from './AccountSettings';
 import GlobalIndustrySettings from './GlobalIndustrySettings';
+import GlobalAppSettings from './GlobalAppSettings';
 import { useSettingsText } from '../../../hooks/languageContext';
 import { ErrorText, FormCard, SecondaryButton } from '../../../components/ui/formStyles';
 
@@ -57,11 +58,13 @@ const categories = [
     { key: 'users', label: 'Nutzerverwaltung', description: 'Dein Profil, Sicherheit und die Benutzerkonten deiner Anwendung.', icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3a4 4 0 0 1 0 8M22 21v-2a4 4 0 0 0-3-3.87M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0' },
     { key: 'appearance', label: 'Optik', description: 'Gestalte die Oberfläche so, wie du am liebsten arbeitest.', icon: 'M12 3a9 9 0 1 0 9 9 3 3 0 0 0-3-3h-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2ZM7.5 8h.01M6 13h.01M9 17h.01M13 17h.01' },
     { key: 'projects', label: 'Projektmanager', description: 'Lege deine Startansicht und die Vorgaben für neue Aufgaben fest.', icon: 'M3 7h18v13H3zM8 7V4h8v3M3 12h18M10 12v3h4v-3' },
-    { key: 'language', label: 'Sprache', description: 'Wähle zwischen Deutsch und Englisch.', icon: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3a17 17 0 0 1 0 18 17 17 0 0 1 0-18Z' }
+    { key: 'language', label: 'Sprache', description: 'Wähle zwischen Deutsch, Englisch und Französisch.', icon: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3a17 17 0 0 1 0 18 17 17 0 0 1 0-18Z' }
 ] as const;
 
 const globalCategory = { key: 'global', label: 'Globale Einstellungen', description: 'Verwalte gemeinsame Auswahllisten für alle Nutzer der Anwendung.', icon: 'M12 3v18M3 12h18M5 5l14 14M5 19L19 5' } as const;
-const allCategories = [...categories, globalCategory];
+const appCategory = { key: 'apps', label: 'Anwendungen', description: 'Steuere die zentral sichtbaren Anwendungen in der Seitennavigation.', icon: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z' } as const;
+const aiCategory = { key: 'ai', label: 'KI', description: 'Steuere, in welchen Anwendungen der KI-Assistent angezeigt wird.', icon: 'm12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z' } as const;
+const allCategories = [...categories, globalCategory, appCategory, aiCategory];
 
 export default function SettingsPage(props: GeneralSettingsProps) {
     const t = useSettingsText();
@@ -93,7 +96,10 @@ export default function SettingsPage(props: GeneralSettingsProps) {
                 <AccountSettings unsavedSettings={props.status === 'saving' || !!props.error} />
             </div>
             <div hidden={category.key !== 'global'}><GlobalIndustrySettings /></div>
-            {category.key !== 'users' && category.key !== 'global' && <GeneralSettings {...props} section={category.key} />}
+            <div hidden={category.key !== 'apps'}><GlobalAppSettings kind="apps" /></div>
+            <div hidden={category.key !== 'ai'}><GlobalAppSettings kind="ai" /></div>
+            {(category.key === 'appearance' || category.key === 'projects' || category.key === 'language')
+                && <GeneralSettings {...props} section={category.key} />}
         </Content>
     </Layout>;
 }

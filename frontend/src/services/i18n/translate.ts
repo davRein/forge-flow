@@ -8,6 +8,7 @@ import { timeEnglish } from '../../config/timeTranslations.js';
 import { businessEnglish } from '../../config/businessTranslations.js';
 import { developerEnglish } from '../../config/developerTranslations.js';
 import { consistencyEnglish, consistencyGerman } from '../../config/consistencyTranslations.js';
+import { french } from '../../config/frenchTranslations.js';
 
 export type TranslationValue = string | { one: string; other: string };
 export type TranslationParameters = Readonly<Record<string, string | number>>;
@@ -32,16 +33,21 @@ const diagnostics: { pattern: RegExp; key: string; names: string[] }[] = [
 
 export function translate(text: string, language: AppLanguage, parameters: TranslationParameters = {}): string {
     const key = text.replace(/\s+/g, ' ').trim();
-    const translated = Object.prototype.hasOwnProperty.call(english, key) ? english[key] : undefined;
-    let value: TranslationValue = language === 'en' ? translated ?? text : Object.prototype.hasOwnProperty.call(consistencyGerman, key) ? consistencyGerman[key] : text;
-    if (language === 'en' && value === text) {
+    const dictionary = language === 'fr' ? french : english;
+    const translated = Object.prototype.hasOwnProperty.call(dictionary, key) ? dictionary[key] : undefined;
+    let value: TranslationValue = language !== 'de' ? translated ?? text : Object.prototype.hasOwnProperty.call(consistencyGerman, key) ? consistencyGerman[key] : text;
+    if (language !== 'de' && value === text) {
         for (const diagnostic of diagnostics) {
             const match = text.match(diagnostic.pattern);
-            if (match && english[diagnostic.key] !== undefined) return translate(diagnostic.key, language,
+            if (match && dictionary[diagnostic.key] !== undefined) return translate(diagnostic.key, language,
                 Object.fromEntries(diagnostic.names.map((name, index) => [name, match[index + 1]])));
         }
     }
-    if (typeof value !== 'string') value = parameters.count === 1 ? value.one : value.other;
+    if (typeof value !== 'string') {
+        const singular = language === 'fr' && typeof parameters.count === 'number'
+            ? new Intl.PluralRules('fr').select(parameters.count) === 'one' : parameters.count === 1;
+        value = singular ? value.one : value.other;
+    }
     if (value !== text && text.trim() !== text) value = (text.match(/^\s*/)?.[0] ?? '') + value + (text.match(/\s*$/)?.[0] ?? '');
     return value.replace(/\{(\w+)\}/g, (placeholder, name: string) => Object.prototype.hasOwnProperty.call(parameters, name) ? String(parameters[name]) : placeholder);
 }

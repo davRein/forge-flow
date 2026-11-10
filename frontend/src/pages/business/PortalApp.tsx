@@ -41,5 +41,5 @@ export default function PortalApp() {
     const { t: tx } = useUiTranslation();
 
     const [language, setLanguage] = useState(getBrowserLanguage);
-    return <ThemeProvider theme={themes.dark}><GlobalStyle /><LanguageProvider language={language}><div style={{ padding: '12px 28px', textAlign: 'right' }}><Select aria-label={tx('Language')} value={language} onChange={event => { const next = event.target.value === 'de' ? 'de' : 'en'; setLanguage(next); rememberBrowserLanguage(next); }}><option value="en">{tx('English')}</option><option value="de">{tx('Deutsch')}</option></Select></div><NavigationGuardProvider><Content /></NavigationGuardProvider></LanguageProvider></ThemeProvider>;
+    return <ThemeProvider theme={themes.dark}><GlobalStyle /><LanguageProvider language={language}><div style={{ padding: '12px 28px', textAlign: 'right' }}><Select aria-label={tx('Language')} value={language} onChange={event => { const next = event.target.value === 'fr' ? 'fr' : event.target.value === 'de' ? 'de' : 'en'; setLanguage(next); rememberBrowserLanguage(next); }}><option value="en">{tx('English')}</option><option value="de">{tx('Deutsch')}</option><option value="fr" lang="fr">Français</option></Select></div><NavigationGuardProvider><Content /></NavigationGuardProvider></LanguageProvider></ThemeProvider>;
 }

@@ -51,7 +51,9 @@ export const settingsTests = [
         equal(decodeSettings(await repository.load('ben')).language, 'de');
         equal(decodeSettings({ version: 1, settings: { themeMode: 'light', defaultProjectView: 'projects', defaultTaskPriority: 'high' } }),
             { ...defaultSettings, themeMode: 'light', defaultProjectView: 'projects', defaultTaskPriority: 'high', language: 'en' });
-        equal(decodeSettings({ version: 1, settings: { language: 'fr' } }).language, 'en');
+        await repository.save('claire', encodeSettings({ ...defaultSettings, language: 'fr' }));
+        equal(decodeSettings(await repository.load('claire')).language, 'fr');
+        equal(decodeSettings({ version: 1, settings: { language: 'es' } }).language, 'en');
     } },
     { name: 'Regionsvorgabe gilt nur ohne gültige Kontosprache und schreibt beim Laden keine Einstellungen', async run() {
         let saves = 0;

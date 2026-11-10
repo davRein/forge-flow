@@ -11,7 +11,12 @@ import tempfile
 from ai_config import environments, read_configuration
 
 ROOT = pathlib.Path('/etc/forgeflow/showcase')
-PROJECTS = {'knowledge': ('ai_knowledge_hub', 'ai_knowledge_hub_app'), 'flowpilot': ('flowpilot', 'flowpilot')}
+PROJECTS = {
+    'knowledge': ('ai_knowledge_hub', 'ai_knowledge_hub_app'),
+    'flowpilot': ('flowpilot', 'flowpilot'),
+    'pulsewatch': ('forgeflow_pulsewatch', 'forgeflow_pulsewatch'),
+    'datascout': ('forgeflow_datascout', 'forgeflow_datascout'),
+}
 
 
 def private_write(path, content, owner=0):
@@ -60,6 +65,8 @@ def new_settings():
         'version': 1,
         'knowledge_password': secrets.token_urlsafe(48),
         'flowpilot_password': secrets.token_urlsafe(48),
+        'pulsewatch_password': secrets.token_urlsafe(48),
+        'datascout_password': secrets.token_urlsafe(48),
         'security_key': secrets.token_urlsafe(48),
         'redis_password': secrets.token_urlsafe(48),
         'credential_key': base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('ascii'),
@@ -67,13 +74,30 @@ def new_settings():
 
 
 def validate_settings(settings):
+    if not isinstance(settings, dict):
+        raise ValueError('Invalid managed settings; review settings privately.')
     if settings.get('version') != 1:
         raise ValueError('Unknown managed settings version; no changes made.')
-    for key in ('knowledge_password', 'flowpilot_password', 'security_key', 'redis_password'):
+    for key in ('knowledge_password', 'flowpilot_password', 'pulsewatch_password', 'datascout_password', 'security_key', 'redis_password'):
         if not isinstance(settings.get(key), str) or not re.fullmatch(r'[A-Za-z0-9_-]{48,128}', settings[key]):
             raise ValueError('Invalid managed secret; review settings privately.')
     if len(base64.b64decode(settings['credential_key'], altchars=b'-_', validate=True)) != 32:
         raise ValueError('Invalid credential key; review settings privately.')
+
+
+def add_missing_project_secrets(settings):
+    if not isinstance(settings, dict):
+        raise ValueError('Invalid managed settings; review settings privately.')
+    updated = settings.copy()
+    changed = False
+    if 'pulsewatch_password' not in updated:
+        updated['pulsewatch_password'] = secrets.token_urlsafe(48)
+        changed = True
+    if 'datascout_password' not in updated:
+        updated['datascout_password'] = secrets.token_urlsafe(48)
+        changed = True
+    validate_settings(updated)
+    return updated, changed
 
 
 def environment_files(settings, ai=None):
@@ -99,6 +123,28 @@ def environment_files(settings, ai=None):
             'FLOWPILOT_DATABASE_URL=postgresql://flowpilot:' + settings['flowpilot_password']
             + '@127.0.0.1:5432/flowpilot',
             'FLOWPILOT_REDIS_URL=redis://:' + settings['redis_password'] + '@127.0.0.1:6381/0', '',
+        ]),
+        'pulsewatch.env': '\n'.join([
+            'SPRING_PROFILES_ACTIVE=postgres',
+            'SERVER_ADDRESS=127.0.0.1',
+            'MANAGEMENT_SERVER_ADDRESS=127.0.0.1',
+            'MANAGEMENT_SERVER_PORT=8084',
+            'PORT=8082',
+            'DB_URL=jdbc:postgresql://127.0.0.1:5432/forgeflow_pulsewatch',
+            'DB_USER=forgeflow_pulsewatch',
+            'DB_PASSWORD=' + settings['pulsewatch_password'],
+            'PULSEWATCH_SUITE_MODE=true',
+            'COOKIE_SECURE=true',
+            'APP_ORIGINS=https://forge-flow.de',
+            'PROBE_MODE=fixtures',
+            'PROBES_ENABLED=true',
+            '',
+        ]),
+        'datascout.env': '\n'.join([
+            'DATASCOUT_SUITE_MODE=true', 'DATASCOUT_ENABLE_PUBLIC_API=false',
+            'DATASCOUT_CORS_ORIGINS=["https://forge-flow.de"]',
+            'DATASCOUT_DATABASE_URL=postgresql://forgeflow_datascout:' + settings['datascout_password']
+            + '@127.0.0.1:5432/forgeflow_datascout', '',
         ]),
         'redis.conf': '\n'.join([
             'bind 127.0.0.1', 'port 6381', 'protected-mode yes', 'dir /data',
@@ -130,12 +176,15 @@ def main():
     if settings_path.exists():
         if settings_path.stat().st_uid != 0 or settings_path.stat().st_mode & 0o077:
             raise ValueError('Managed settings must be private and root-owned.')
-        settings = json.loads(settings_path.read_text(encoding='utf-8'))
+        settings, settings_changed = add_missing_project_secrets(
+            json.loads(settings_path.read_text(encoding='utf-8')))
+        if settings_changed:
+            private_write(settings_path, json.dumps(settings, indent=2) + '\n')
     else:
         for database, role in PROJECTS.values():
             if database_owner(database) or role_state(role):
                 raise ValueError('An unmanaged database/role already exists; reconcile its configuration without resetting credentials.')
-        if any((ROOT / name).exists() for name in ('knowledge.env', 'flowpilot.env', 'redis.conf')):
+        if any((ROOT / name).exists() for name in ('knowledge.env', 'flowpilot.env', 'pulsewatch.env', 'datascout.env', 'redis.conf')):
             raise ValueError('Existing unmanaged service configuration; no replacement performed.')
         settings = new_settings()
         private_write(settings_path, json.dumps(settings, indent=2) + '\n')

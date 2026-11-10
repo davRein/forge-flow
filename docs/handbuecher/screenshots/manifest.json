@@ -1,0 +1,245 @@
+{
+  "capturedAt": "2026-11-06T19:35:59.561Z",
+  "source": "Actual local production UI; all APIs synthetic; no live traffic",
+  "screenshots": [
+    {
+      "key": "projekt-dashboard",
+      "route": "/projectManager/dashboard",
+      "file": "projekt-dashboard.png",
+      "capturedAt": "2026-11-06T19:31:46.552Z",
+      "synthetic": true
+    },
+    {
+      "key": "projekt-kunden",
+      "route": "/projectManager/customers?customer=1",
+      "file": "projekt-kunden.png",
+      "capturedAt": "2026-11-06T19:31:47.563Z",
+      "synthetic": true
+    },
+    {
+      "key": "projekt-aufgaben",
+      "route": "/projectManager/projects?project=1",
+      "file": "projekt-aufgaben.png",
+      "capturedAt": "2026-11-06T19:31:48.638Z",
+      "synthetic": true
+    },
+    {
+      "key": "projekt-board",
+      "route": "/projectManager/projects?project=1",
+      "file": "projekt-board.png",
+      "capturedAt": "2026-11-06T19:31:49.700Z",
+      "synthetic": true
+    },
+    {
+      "key": "projekt-sprints",
+      "route": "/projectManager/projects?project=1",
+      "file": "projekt-sprints.png",
+      "capturedAt": "2026-11-06T19:31:50.754Z",
+      "synthetic": true
+    },
+    {
+      "key": "wiki-uebersicht",
+      "route": "/wiki/home",
+      "file": "wiki-uebersicht.png",
+      "capturedAt": "2026-11-06T19:31:51.775Z",
+      "synthetic": true
+    },
+    {
+      "key": "wiki-seiten",
+      "route": "/wiki/articles",
+      "file": "wiki-seiten.png",
+      "capturedAt": "2026-11-06T19:31:52.776Z",
+      "synthetic": true
+    },
+    {
+      "key": "tools-json",
+      "route": "/devTools/json",
+      "file": "tools-json.png",
+      "capturedAt": "2026-11-06T19:31:53.797Z",
+      "synthetic": true
+    },
+    {
+      "key": "tools-rest",
+      "route": "/devTools/rest",
+      "file": "tools-rest.png",
+      "capturedAt": "2026-11-06T19:31:54.822Z",
+      "synthetic": true
+    },
+    {
+      "key": "tools-rechner",
+      "route": "/devTools/calculator",
+      "file": "tools-rechner.png",
+      "capturedAt": "2026-11-06T19:31:55.836Z",
+      "synthetic": true
+    },
+    {
+      "key": "tools-konverter",
+      "route": "/devTools/converter",
+      "file": "tools-konverter.png",
+      "capturedAt": "2026-11-06T19:31:56.828Z",
+      "synthetic": true
+    },
+    {
+      "key": "tools-snippeter",
+      "route": "/devTools/snippeter",
+      "file": "tools-snippeter.png",
+      "capturedAt": "2026-11-06T19:31:57.849Z",
+      "synthetic": true
+    },
+    {
+      "key": "tools-dbscripter",
+      "route": "/devTools/dbScripter",
+      "file": "tools-dbscripter.png",
+      "capturedAt": "2026-11-06T19:31:58.848Z",
+      "synthetic": true
+    },
+    {
+      "key": "zeit-kalender",
+      "route": "/timeTracker/calendar",
+      "file": "zeit-kalender.png",
+      "capturedAt": "2026-11-06T19:31:59.854Z",
+      "synthetic": true
+    },
+    {
+      "key": "zeit-auswertung",
+      "route": "/timeTracker/reports",
+      "file": "zeit-auswertung.png",
+      "capturedAt": "2026-11-06T19:32:00.887Z",
+      "synthetic": true
+    },
+    {
+      "key": "business-budgets",
+      "route": "/business/budgets",
+      "file": "business-budgets.png",
+      "capturedAt": "2026-11-06T19:32:01.888Z",
+      "synthetic": true
+    },
+    {
+      "key": "business-dokumente",
+      "route": "/business/documents",
+      "file": "business-dokumente.png",
+      "capturedAt": "2026-11-06T19:32:02.872Z",
+      "synthetic": true
+    },
+    {
+      "key": "business-vorlagen",
+      "route": "/business/templates",
+      "file": "business-vorlagen.png",
+      "capturedAt": "2026-11-06T19:32:03.878Z",
+      "synthetic": true
+    },
+    {
+      "key": "business-portal",
+      "route": "/business/portal",
+      "file": "business-portal.png",
+      "capturedAt": "2026-11-06T19:32:04.884Z",
+      "synthetic": true
+    },
+    {
+      "key": "business-profil",
+      "route": "/business/profile",
+      "file": "business-profil.png",
+      "capturedAt": "2026-11-06T19:32:05.900Z",
+      "synthetic": true
+    },
+    {
+      "key": "git-repositories",
+      "route": "/git/repositories",
+      "file": "git-repositories.png",
+      "capturedAt": "2026-11-06T19:33:40.986Z",
+      "synthetic": true
+    },
+    {
+      "key": "cloud-start",
+      "route": "/cloud/files",
+      "file": "cloud-start.png",
+      "capturedAt": "2026-11-06T19:32:07.911Z",
+      "synthetic": true
+    },
+    {
+      "key": "einstellungen-optik",
+      "route": "/settings/general?category=appearance",
+      "file": "einstellungen-optik.png",
+      "capturedAt": "2026-11-06T19:32:08.911Z",
+      "synthetic": true
+    },
+    {
+      "key": "einstellungen-apps",
+      "route": "/settings/general?category=apps",
+      "file": "einstellungen-apps.png",
+      "capturedAt": "2026-11-06T19:32:09.922Z",
+      "synthetic": true
+    },
+    {
+      "key": "einstellungen-ki",
+      "route": "/settings/general?category=ai",
+      "file": "einstellungen-ki.png",
+      "capturedAt": "2026-11-06T19:32:10.929Z",
+      "synthetic": true
+    },
+    {
+      "key": "einstellungen-sprache",
+      "route": "/settings/general?category=language",
+      "file": "einstellungen-sprache.png",
+      "capturedAt": "2026-11-06T19:32:11.932Z",
+      "synthetic": true
+    },
+    {
+      "key": "hub-dokumente",
+      "route": "/knowledgeHub/documents",
+      "file": "hub-dokumente.png",
+      "capturedAt": "2026-11-06T19:32:12.971Z",
+      "synthetic": true
+    },
+    {
+      "key": "hub-chat",
+      "route": "/knowledgeHub/chat",
+      "file": "hub-chat.png",
+      "capturedAt": "2026-11-06T19:33:42.151Z",
+      "synthetic": true
+    },
+    {
+      "key": "flow-uebersicht",
+      "route": "/flowPilot/overview",
+      "file": "flow-uebersicht.png",
+      "capturedAt": "2026-11-06T19:32:15.015Z",
+      "synthetic": true
+    },
+    {
+      "key": "flow-editor",
+      "route": "/flowPilot/workflows",
+      "file": "flow-editor.png",
+      "capturedAt": "2026-11-06T19:32:16.101Z",
+      "synthetic": true
+    },
+    {
+      "key": "flow-jobs",
+      "route": "/flowPilot/jobs",
+      "file": "flow-jobs.png",
+      "capturedAt": "2026-11-06T19:35:58.292Z",
+      "synthetic": true
+    },
+    {
+      "key": "pulse-dashboard",
+      "route": "/pulseWatch/overview",
+      "file": "pulse-dashboard.png",
+      "capturedAt": "2026-11-06T19:33:43.197Z",
+      "synthetic": true
+    },
+    {
+      "key": "portal-kundensicht",
+      "file": "portal-kundensicht.png",
+      "route": "portalOnly",
+      "synthetic": true
+    },
+    {
+      "key": "pulse-metriken",
+      "route": "/pulseWatch/overview",
+      "file": "pulse-metriken.png",
+      "capturedAt": "2026-11-06T19:35:59.561Z",
+      "synthetic": true
+    }
+  ],
+  "errors": [],
+  "missingApiFixtures": []
+}

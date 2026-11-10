@@ -36,7 +36,7 @@ function Editor({ store }: { store: GlobalSettingsStore }) {
                 {canEdit && <SecondaryButton type="button" disabled={busy || draft.length <= 1} aria-label={tx('{value0} {value1}', { value0: t('Branche entfernen'), value1: index + 1 })} onClick={() => change(draft.filter((_, position) => position !== index))}>{t('Entfernen')}</SecondaryButton>}</li>)}
         </ol>{canEdit && <SecondaryButton type="button" disabled={busy || draft.length >= 100} onClick={() => change([...draft, ''])}>{t('Branche hinzufügen')}</SecondaryButton>}</>}
         <FormActions><SecondaryButton type="button" disabled={busy} onClick={() => { setSaved(false); void store.load(); }}>{t(dirty ? 'Neu laden und Entwurf verwerfen' : 'Erneut laden')}</SecondaryButton>
-            {canEdit && <PrimaryButton type="button" disabled={busy || !dirty} onClick={() => void store.save(draft).then(success => setSaved(success))}>{t('Branchenliste speichern')}</PrimaryButton>}</FormActions>
+            {canEdit && <PrimaryButton type="button" disabled={busy || !dirty} onClick={() => void store.save({ industries: draft }).then(success => setSaved(success))}>{t('Branchenliste speichern')}</PrimaryButton>}</FormActions>
         {saved && <p className="saved" role="status">{t('✓ Branchenliste gespeichert.')}</p>}
     </Section>;
 }

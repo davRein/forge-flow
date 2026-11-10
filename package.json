@@ -6,6 +6,7 @@
   "workspaces": ["frontend"],
   "scripts": {
     "setup:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/configure-local.ps1",
+    "start:demo": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-frontend.ps1 -LocalDemo",
     "start:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1",
     "backup:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/backup-local.ps1",
     "restore:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restore-local.ps1",

@@ -1,5 +1,5 @@
 import type { ApiClient } from '../api/apiClient.js';
-import type { RequestDraft } from '../../pages/devTools/utils/restLogic';
+import type { RequestDraft } from '../../pages/requestLab/utils/restLogic';
 
 export type SavedRestRequest = { id: string; name: string; draft: RequestDraft };
 export type RestCollection = { id: string; name: string; requests: SavedRestRequest[] };

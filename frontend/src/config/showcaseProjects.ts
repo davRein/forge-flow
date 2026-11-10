@@ -7,9 +7,18 @@ export function showcaseProjectUrl(configured: string | undefined, developmentUr
     } catch { return null; }
 }
 
+// The production target is protected by live suite authentication and tenant storage.
+export function dataScoutUrl(configured: string | undefined, development: boolean): string | null {
+    if (!development) return configured === 'https://forge-flow.de/datascout/' ? configured : null;
+    const value = configured === undefined ? 'http://localhost:5176' : configured.trim();
+    return ['http://localhost:5176', 'http://localhost:5176/', 'http://127.0.0.1:5176', 'http://127.0.0.1:5176/'].includes(value) ? new URL(value).href : null;
+}
+
 export const showcaseProjects = [
     { key: 'knowledgeHub', label: 'AI Knowledge Hub', mark: 'K', url: showcaseProjectUrl(import.meta.env.VITE_KNOWLEDGE_HUB_URL, 'http://localhost:3000', import.meta.env.DEV), sections: ['chat', 'documents', 'account', 'privacy'] },
-    { key: 'flowPilot', label: 'FlowPilot', mark: 'fp', url: showcaseProjectUrl(import.meta.env.VITE_FLOWPILOT_URL, 'http://localhost:5174', import.meta.env.DEV), sections: ['overview', 'workflows', 'runs', 'integrations', 'jobs'] }
+    { key: 'flowPilot', label: 'FlowPilot', mark: 'fp', url: showcaseProjectUrl(import.meta.env.VITE_FLOWPILOT_URL, 'http://localhost:5174', import.meta.env.DEV), sections: ['overview', 'workflows', 'runs', 'integrations', 'jobs'] },
+    { key: 'pulseWatch', label: 'PulseWatch', mark: 'p', url: showcaseProjectUrl(import.meta.env.VITE_PULSEWATCH_URL, 'http://localhost:5177', import.meta.env.DEV), sections: ['overview'] },
+    { key: 'dataScout', label: 'DataScout', mark: 'd.', url: dataScoutUrl(import.meta.env.VITE_DATASCOUT_URL, import.meta.env.DEV), sections: ['dashboard', 'collection', 'jobs'] }
 ] as const;
 
 export type ShowcaseApp = typeof showcaseProjects[number]['key'];

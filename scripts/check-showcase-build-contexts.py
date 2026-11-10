@@ -28,9 +28,31 @@ def validate_archive(filename):
         compose = archive.extractfile(files['compose.yaml']).read().decode('utf-8')
         targets = validate_contexts(compose, files)
         for target in targets:
-            template = 'docker/Next.Dockerfile' if target.startswith('hub-web/') else 'docker/Python.Dockerfile'
+            if target.startswith('hub-web/'):
+                template = 'docker/Next.Dockerfile'
+            elif target.startswith(('hub-api/', 'flow-api/')):
+                template = 'docker/Python.Dockerfile'
+            else:
+                continue
             if archive.extractfile(files[target]).read() != archive.extractfile(files[template]).read():
                 raise ValueError('Packaged Dockerfile differs from its canonical template: ' + target)
+        pulsewatch_dockerfile = archive.extractfile(files['pulsewatch/infra/Dockerfile.suite-frontend']).read().decode('utf-8')
+        for setting in (
+            'ARG VITE_API_BASE_URL=/pulsewatch-api/api/v1',
+            'ARG VITE_SUITE_ORIGIN=https://forge-flow.de',
+            'ENV VITE_SUITE_ORIGIN=${VITE_SUITE_ORIGIN}',
+        ):
+            if setting not in pulsewatch_dockerfile:
+                raise ValueError('PulseWatch Suite build is missing required setting: ' + setting)
+        for required in ('datascout/backend/app/suite_gateway.py', 'datascout/backend/app/suite_worker.py',
+                         'datascout/backend/app/tenant.py', 'datascout/backend/requirements.lock',
+                         'datascout/frontend/dist/index.html'):
+            if required not in files:
+                raise ValueError('Missing DataScout release file: ' + required)
+        forbidden = ('.env', '.local', '.venv', '.git', 'node_modules')
+        for name in files:
+            if any(part in forbidden or part.startswith('.env.') for part in pathlib.PurePosixPath(name).parts):
+                raise ValueError('Private/development file in release: ' + name)
         for target in ('hub-api/constraints.txt', 'flow-api/constraints.txt'):
             validate_constraints(archive.extractfile(files[target]).read().decode('utf-8'))
         for context in ('hub-api', 'flow-api'):

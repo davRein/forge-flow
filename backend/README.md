@@ -1,5 +1,19 @@
 # Spring-Boot-Backend lokal betreiben
 
+V17 ergänzt Französisch (`fr`) für Kontoeinstellungen, KI-Gespräche und PDF-Berichte.
+Die Migration erweitert bestehende Datenbankprüfungen automatisch und erhält vorhandene
+Einstellungen und Chats. Frontend und Backend gemeinsam aktualisieren.
+[Sprache und Fallbacks](../docs/user-settings.md).
+
+V16 ergänzt die globale App-Auswahl und die Auswahl der Apps mit KI-Button.
+Vorgabe: alle Apps sichtbar, KI-Button ausschließlich im Projektmanager. Nur
+Administratoren ändern die globale Auswahl. Die KI besitzt serverseitig ausschließlich
+Projektmanager-Werkzeuge; Wiki, Konten, Profile und App-Einstellungen sind ausgeschlossen.
+Zusätzliche KI-Buttons erlauben allgemeinen Chat ohne Fachwerkzeuge. Frühere Beschreibungen
+der breiteren KI-Anbindung weiter unten gelten für diese ausgeschlossenen Bereiche nicht mehr.
+Die Migration läuft automatisch; Frontend und Backend gemeinsam aktualisieren.
+[Bedienung und Grenzen](../docs/frontend.md).
+
 V13 ergänzt private Business-Daten, persistente Stoppuhren, PDF-Berichte und Portal-Konten
 mit eigener Zugriffsrolle (`ff_business`, `ff_portal_links`, `ff_accounts.portal_only`).
 Migration automatisch, keine neuen Pflicht-Umgebungsvariablen; Frontend und Backend gemeinsam

@@ -8,12 +8,21 @@ import { createSessionRestCollectionsRepository } from '../../../services/rest/r
 import type { RestCollectionsRepository } from '../../../services/rest/restCollections';
 import { darkTheme } from '../../../styles/theme';
 import RestClient from './RestClient';
+import RequestLabPage from '../RequestLabPage';
+import DevToolsPage from '../../devTools/DevToolsPage';
+import DeveloperProvider from '../../../components/DeveloperProvider';
+import { AuthContext } from '../../../hooks/authContext';
+import { createAuthStore } from '../../../services/auth/authStore';
+import { createApiClient } from '../../../services/api/apiClient';
+import NavigationGuardProvider from '../../../components/navigation/NavigationGuardProvider';
+import { MemoryRouter } from 'react-router-dom';
+import { modules } from '../../../config/moduleConfig';
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 const text = (node: ReactTestInstance): string => node.children.map(child => typeof child === 'string' ? child : text(child)).join('');
 const visible = (node: ReactTestInstance): boolean => !node.props.hidden && (!node.parent || visible(node.parent));
 async function fixture(repository = createSessionRestCollectionsRepository(), active = true) {
     let renderer!: ReactTestRenderer;
-    const view = (selected: boolean) => <ThemeProvider theme={darkTheme}><LanguageContext.Provider value="en"><RestCollectionsProvider repository={repository}><RestClient active={selected} /></RestCollectionsProvider></LanguageContext.Provider></ThemeProvider>;
+    const view = (selected: boolean) => <ThemeProvider theme={darkTheme}><LanguageContext.Provider value="en"><RestCollectionsProvider repository={repository}><RequestLabPage active={selected} /></RestCollectionsProvider></LanguageContext.Provider></ThemeProvider>;
     await act(async () => { renderer = create(view(active), { createNodeMock() { return { showModal() {}, close() {}, focus() {} }; } }); });
     const nodes = (type: ElementType) => renderer.root.findAllByType(type).filter(visible);
     return { get root() { return renderer.root; }, nodes,
@@ -25,6 +34,15 @@ async function fixture(repository = createSessionRestCollectionsRepository(), ac
     };
 }
 export const restClientTests = [
+    { name: 'RequestLab is a separate app and Dev Tools no longer mount the REST client', async run() {
+        const app = modules.find(value => value.key === 'requestLab');
+        assert(app?.label === 'RequestLab' && app.topbarItems[0].key === 'client', 'RequestLab navigation missing');
+        assert(!modules.find(value => value.key === 'devTools')!.topbarItems.some(value => value.key === 'rest'), 'REST tab must leave Dev Tools');
+        const auth = createAuthStore(createApiClient('/api/v1'), false);
+        const renderer = create(<ThemeProvider theme={darkTheme}><LanguageContext.Provider value="en"><AuthContext.Provider value={auth}><MemoryRouter><NavigationGuardProvider><DeveloperProvider><DevToolsPage /></DeveloperProvider></NavigationGuardProvider></MemoryRouter></AuthContext.Provider></LanguageContext.Provider></ThemeProvider>);
+        try { assert(renderer.root.findAllByType(RestClient).length === 0, 'Dev Tools must not mount a second REST client'); }
+        finally { await act(async () => renderer.unmount()); auth.dispose(); }
+    } },
     { name: 'Saved REST requests can be updated, copied, renamed and restored after remount', async run() {
         const repository = createSessionRestCollectionsRepository(); let ui = await fixture(repository);
         try {

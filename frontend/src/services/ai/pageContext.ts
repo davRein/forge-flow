@@ -4,9 +4,16 @@ export const chatPages: Readonly<Record<string, string>> = {
     '/projectManager/dashboard': 'Projekt Dashboard', '/projectManager/projects': 'Projekte',
     '/projectManager/customers': 'Kunden', '/settings/general': 'Globale Einstellungen', '/git/repositories': 'GitHub Repositories',
     '/wiki/home': 'Dokumentationsübersicht', '/wiki/articles': 'Dokumentationsseiten', '/wiki/categories': 'Dokumentationsbereiche', '/wiki/search': 'Dokumentationssuche',
-    '/devTools/json': 'JSON Formatter', '/devTools/rest': 'REST-Test', '/devTools/calculator': 'Rechner', '/devTools/converter': 'Konverter', '/devTools/snippeter': 'Snippeter', '/devTools/dbScripter': 'DB Scripter',
+    '/devTools/json': 'JSON Formatter', '/requestLab/client': 'RequestLab: private REST client; requests and responses are not shared',
+    '/devTools/rest': 'REST-Test', '/devTools/calculator': 'Rechner', '/devTools/converter': 'Konverter', '/devTools/snippeter': 'Snippeter', '/devTools/dbScripter': 'DB Scripter',
     '/timeTracker/calendar': 'TimeTracker Kalender', '/timeTracker/reports': 'TimeTracker Auswertung', '/cloud/files': 'Cloud / Nextcloud',
-    '/projectManager/today': 'Meine Arbeit', '/business/budgets': 'Budgets', '/business/documents': 'Angebote & Rechnungen', '/business/templates': 'Vorlagen', '/business/portal': 'Kundenportal', '/business/profile': 'Abrechnungseinstellungen'
+    '/projectManager/today': 'Meine Arbeit', '/business/budgets': 'Budgets', '/business/documents': 'Angebote & Rechnungen', '/business/templates': 'Vorlagen', '/business/portal': 'Kundenportal', '/business/profile': 'Abrechnungseinstellungen',
+    '/knowledgeHub/chat': 'AI Knowledge Hub: chat', '/knowledgeHub/documents': 'AI Knowledge Hub: documents',
+    '/knowledgeHub/account': 'AI Knowledge Hub: account and privacy', '/knowledgeHub/privacy': 'AI Knowledge Hub: privacy',
+    '/flowPilot/overview': 'FlowPilot: overview', '/flowPilot/workflows': 'FlowPilot: workflows', '/flowPilot/runs': 'FlowPilot: runs',
+    '/flowPilot/integrations': 'FlowPilot: integrations', '/flowPilot/jobs': 'FlowPilot: jobs and schedules',
+    '/pulseWatch/overview': 'PulseWatch: overview',
+    '/dataScout/dashboard': 'DataScout: local demo dashboard', '/dataScout/collection': 'DataScout: fixture collection', '/dataScout/jobs': 'DataScout: local schedules'
 };
 export const chatProjectTabs: Readonly<Record<ProjectTab, string>> = {
     overview: 'Projektübersicht', tasks: 'Projektaufgaben', board: 'Kanban-Board', tickets: 'Tickets (Platzhalter)',

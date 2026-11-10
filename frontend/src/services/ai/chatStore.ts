@@ -9,7 +9,7 @@ import { isWorkspaceMutation, sameCreation } from './workspaceActions.js';
 import type { WorkspaceMutation } from './workspaceActions.js';
 
 type State = { messages: ChatMessage[]; draft: string; pending: { text: string; partial: string; tools: ProjectToolEvent[]; context: ChatPageContext | null; execution: AgentExecutionProgress | null } | null;
-    status: 'idle' | 'connecting' | 'streaming' | 'stopping' | 'loading'; notice: string | null; noticeKind: 'error' | 'info'; truncated: boolean; conversationLanguage: 'de' | 'en' | null;
+    status: 'idle' | 'connecting' | 'streaming' | 'stopping' | 'loading'; notice: string | null; noticeKind: 'error' | 'info'; truncated: boolean; conversationLanguage: 'de' | 'en' | 'fr' | null;
     actionBusy: string | null; actionErrors: Record<string, string>; conversationId: string | null; remoteBusy: boolean };
 export function createChatStore(repository: ChatRepository, requestId = () => crypto.randomUUID()) {
     let state: State = { messages: [], draft: '', pending: null, status: 'idle', notice: null, noticeKind: 'info', truncated: false, conversationLanguage: null, actionBusy: null, actionErrors: {}, conversationId: null, remoteBusy: false };
@@ -78,7 +78,7 @@ export function createChatStore(repository: ChatRepository, requestId = () => cr
             catch (error) { update({ notice: errorText(error), noticeKind: 'error' }); }
             finally { update({ status: 'idle' }); }
         },
-        async send(language: 'de' | 'en', page?: ChatPageContext | null) {
+        async send(language: 'de' | 'en' | 'fr', page?: ChatPageContext | null) {
             const text = state.draft.trim();
             if (!text || state.status !== 'idle' || state.actionBusy || state.remoteBusy || disposed) return;
             const context = copyPageContext(page);

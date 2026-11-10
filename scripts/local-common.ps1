@@ -116,3 +116,48 @@ function Assert-LocalBackup {
     if ($expected -notmatch '^[0-9A-Fa-f]{64}$' -or $expected -ne $actual) { throw 'Die Sicherung ist beschädigt: SHA256 stimmt nicht überein.' }
     return $archive.FullName
 }
+
+
+# Unique process ownership survives taskkill of child PowerShell process trees.
+function Get-LocalDataScoutOwner {
+    if ($env:FORGEFLOW_DATASCOUT_OWNER -match '^[1-9][0-9]{0,8}$') { return [int]$env:FORGEFLOW_DATASCOUT_OWNER }
+    return $PID
+}
+function Get-LocalDataScoutMarker([int]$OwnerPid) {
+    if ($OwnerPid -le 0) { throw 'Ungültiger DataScout-Prozesseigentümer.' }
+    return Join-Path $script:LocalConfigRoot ("datascout-owner-" + $OwnerPid + '.marker')
+}
+function Stop-LocalDataScout([int]$OwnerPid) {
+    $marker = Get-LocalDataScoutMarker $OwnerPid
+    if (-not (Test-Path -LiteralPath $marker)) { return }
+    $root = Join-Path (Split-Path -Parent $script:LocalProjectRoot) 'data-scout'
+    & docker compose --env-file (Join-Path $root 'infra/.env') -f (Join-Path $root 'infra/compose.yaml') -f (Join-Path $root 'infra/compose.suite.yaml') stop backend worker frontend | Out-Null
+    if ($LASTEXITCODE -eq 0) { Remove-Item -LiteralPath $marker }
+    else { Write-Warning 'DataScout konnte nicht gestoppt werden; Appdienste gezielt per Compose stoppen.' }
+}
+
+
+# Loopback probes must never use an inherited Windows/system HTTP proxy.
+function Invoke-LocalRequest {
+    param([Parameter(Mandatory)][string]$Uri, [int]$TimeoutSec = 5, [switch]$Json)
+    $target = [uri]$Uri
+    if ($target.Scheme -ne 'http' -or -not $target.IsLoopback -or $target.UserInfo) {
+        throw 'Bereitschaftsprüfung erlaubt nur HTTP-Loopback-Ziele ohne Zugangsdaten.'
+    }
+    Add-Type -AssemblyName System.Net.Http
+    $handler = [Net.Http.HttpClientHandler]::new()
+    $handler.UseProxy = $false
+    $client = [Net.Http.HttpClient]::new($handler)
+    $client.Timeout = [TimeSpan]::FromSeconds($TimeoutSec)
+    $response = $null
+    try {
+        $response = $client.GetAsync($target).GetAwaiter().GetResult()
+        $null = $response.EnsureSuccessStatusCode()
+        $content = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+        if ($Json) { return ($content | ConvertFrom-Json) }
+        return [pscustomobject]@{StatusCode=[int]$response.StatusCode; Content=$content}
+    } finally {
+        if ($response) { $response.Dispose() }
+        $client.Dispose()
+    }
+}

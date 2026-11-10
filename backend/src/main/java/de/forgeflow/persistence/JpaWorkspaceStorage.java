@@ -43,14 +43,18 @@ public class JpaWorkspaceStorage implements WorkspaceStorage {
     @Override @Transactional(readOnly = true)
     public de.forgeflow.workspace.GlobalSettings loadGlobalSettings() {
         var row = entityManager.find(GlobalSettingsRow.class, 1);
-        return new de.forgeflow.workspace.GlobalSettings(row.revision, java.util.Arrays.asList(json.readValue(row.industries, String[].class)));
+        return new de.forgeflow.workspace.GlobalSettings(row.revision, java.util.Arrays.asList(json.readValue(row.industries, String[].class)),
+            java.util.Arrays.asList(json.readValue(row.visibleApps, String[].class)), java.util.Arrays.asList(json.readValue(row.aiApps, String[].class)));
     }
     @Override @Transactional
     public de.forgeflow.workspace.GlobalSettings saveGlobalSettings(de.forgeflow.workspace.GlobalSettings input) {
         var values = input.normalized(); var row = entityManager.find(GlobalSettingsRow.class, 1, LockModeType.PESSIMISTIC_WRITE);
         if (!row.revision.equals(values.revision())) throw new ApiFailure(409, "VERSION_CONFLICT", "Die Branchenliste wurde inzwischen geändert. Bitte neu laden.");
-        row.industries = json.writeValueAsString(values.industries()); row.revision = UUID.randomUUID().toString();
-        return new de.forgeflow.workspace.GlobalSettings(row.revision, values.industries());
+        row.industries = json.writeValueAsString(values.industries());
+        row.visibleApps = json.writeValueAsString(values.visibleApps());
+        row.aiApps = json.writeValueAsString(values.aiApps());
+        row.revision = UUID.randomUUID().toString();
+        return new de.forgeflow.workspace.GlobalSettings(row.revision, values.industries(), values.visibleApps(), values.aiApps());
     }
 
     public JpaWorkspaceStorage(EntityManager entityManager, Validator validator, JsonMapper json) {

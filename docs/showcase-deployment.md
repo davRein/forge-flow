@@ -1,9 +1,53 @@
-# Suite, Knowledge Hub und FlowPilot auf forge-flow.de
+# Suite, Knowledge Hub, FlowPilot und PulseWatch auf forge-flow.de
+
+## Erweiterung DataScout, 7. November 2026
+
+Auf Benutzerwunsch ist DataScout für das vollständige nächste Release integriert.
+Veröffentlichungsstatus und Release-ID stehen in `docs/HANDOFF.md`; dieser Abschnitt
+allein bestätigt noch keinen erfolgreichen Serverlauf.
+
+- Geschützte Pfade `/datascout/` und `/datascout-api/`, interne API 127.0.0.1:8002,
+  eigener Offline-Worker im bestehenden Compose-Projekt. Keine neue öffentliche
+  Portfreigabe. Statische Dateien im gemeinsamen Nginx-Release, eigenes CSP.
+- Zusätzlich zum Nginx-Guard prüft die API jede echte Suite-Sitzung erneut am festen
+  Loopback-Endpunkt. Nur das Suite-Cookie wird weitergegeben; keine Identität aus
+  Browserheadern oder Frame-Nachrichten. POST verlangt die exakte Suite-Origin.
+- Eigene Datenbank/Rolle `forgeflow_datascout`; vollständiger Dump vor dem Update,
+  bestehende Secrets unverändert. Kontoabhängige PostgreSQL-Schemas enthalten jeweils
+  Jobs, Leases, Historie, Regeln und Inbox. Worker bleibt während jeder Ausführung
+  im Kontobereich. Anwendungstrennung mit einer Dienstrolle, kein RLS-Versprechen.
+- V18 ergänzt DataScout in der gespeicherten sichtbaren App-Auswahl und erhält die
+  übrigen Apps sowie sämtliche KI-Freigaben. Rollback sichert die vorherige Auswahl
+  und stellt nur die unverändert gebliebene V18-Ergänzung zurück, damit alte Clients
+  keine unbekannte App erhalten. Andere Anwendungsdaten werden nicht zurückgespielt.
+- Migrationen laufen vor dem Start. Bereitschaft prüft API und Worker-Heartbeat;
+  Zugriffstests verlangen anonym 401, fremde Schreib-Origin 403 und verweigern
+  gefälschte Identitätsheader. Sammlung bleibt Offline-Fixture; kein bezahlter Test.
+- Vor Paketierung DataScout mit `VITE_BASE_PATH=/datascout/`,
+  `VITE_API_PREFIX=/datascout-api`, `VITE_SUITE_ORIGIN=https://forge-flow.de` bauen.
+  Suite-Build erhält `VITE_DATASCOUT_URL=https://forge-flow.de/datascout/`.
+  Details im Nachbarprojekt: `data-scout/docs/SUITE-REMOTE.md`.
+
+
+## Aktuell veröffentlicht: 6. November 2026
+
+Release `20261106T190524Z-96f6b831` wurde tatsächlich auf forge-flow.de installiert.
+Enthält die globale Auswahl der Navigations-Apps und KI-Buttons, auf Projektmanager
+begrenzte KI-Werkzeuge sowie Französisch für ForgeFlow (V16/V17).
+Knowledge Hub, FlowPilot und PulseWatch sind im Gesamtpaket enthalten; bei Französisch
+verwenden ihre eingebetteten Oberflächen weiterhin Englisch.
+
+Vorbereitung: 284 erfolgreiche Tests gegen isoliertes echtes PostgreSQL, zwei opt-in
+Skips, produktive JAR und Suite-Build sowie 25 erfolgreiche Offline-Deploymenttests.
+Interaktiver Remote-Installer erfolgreich. Anschließend extern geprüft: Health
+`ok`/`postgresql`, ausgeliefertes `index-jRtTvLPn.js` stimmt bytegenau mit dem lokalen
+Release überein; anonyme Suite-/App-Aufrufe jeweils 401. Strg+F5 und erneut anmelden.
+Keine angemeldete visuelle Abnahme und kein kostenpflichtiger KI-Aufruf in diesem Durchlauf.
 
 ## Gemeinsame Themes und produktive KI, 5. November 2026
 
 Alle sieben Suite-Themes (Hell, Dunkel, Aurora, Dune, Forest, Ink, Rose) gelten auch
-für eingebetteten Hub und FlowPilot. Änderungen werden ohne Reload übertragen;
+für eingebetteten Hub, FlowPilot und PulseWatch. Änderungen werden ohne Reload übertragen;
 Standalone-Farbgebung bleibt erhalten. Suite-Migration V15 erweitert die erlaubten
 gespeicherten Themes; installierte Migrationen werden nicht verändert.
 
@@ -115,7 +159,8 @@ Fehlende Datenbanken und eingeschränkte Rollen werden getrennt eingerichtet:
 | --- | --- | --- |
 | forgeflow | forgeflow, unverändert | bestehende Daten, Flyway V14 |
 | ai_knowledge_hub | ai_knowledge_hub_app | pgvector, Alembic 0003_authentication |
-| flowpilot | flowpilot | Migrationen 001–005, Jobs und KI-Budget |
+| flowpilot | flowpilot | Migrationen 001–006, Jobs und KI-Budget |
+| forgeflow_pulsewatch | forgeflow_pulsewatch | Suite-UUIDs als Monitor-Eigentümer; vorhandene Native-Konten bleiben erhalten |
 | nextcloud | eigenes bestehendes Compose-Projekt | unverändert |
 
 Geheimnisse werden serverseitig unter `/etc/forgeflow/showcase/` privat erzeugt und bei
@@ -130,24 +175,32 @@ sind erforderlich. Swap und bestehende Docker-/Nextcloud-Dienste werden nicht ve
 
 ## Zugriff mit der Dev-Suite-Kennung
 
-Die Apps verwenden `/knowledge-hub` und `/flowpilot/`, ihre APIs eigene Präfixe
-`/knowledge-hub-api/` und `/flowpilot-api/`. Bestehendes HTTPS, keine neuen DNS-Einträge.
+Die Apps verwenden `/knowledge-hub`, `/flowpilot/` und `/pulsewatch/`; ihre APIs eigene Präfixe
+`/knowledge-hub-api/`, `/flowpilot-api/` und `/pulsewatch-api/`. Bestehendes HTTPS, keine neuen DNS-Einträge.
 Bei direktem Aufruf behalten beide ihre eigenen Menüs und ihre Sprachwahl.
 
-Beide Apps verwenden aktive **reguläre Suite-Konten**, nicht nur Administratoren.
+Die Apps verwenden aktive **reguläre Suite-Konten**, nicht nur Administratoren.
 Nginx prüft jede Route über `GET /api/v1/auth/showcase-session`. Anonyme, deaktivierte,
 abgelaufene und reine Kundenportal-Sitzungen erhalten keinen Zugriff. Der bisherige
 Administrator-Endpunkt bleibt aus Kompatibilitätsgründen unverändert geschützt.
 `VITE_SHOWCASE_ADMIN_ONLY=false` gibt nur die Menüeinträge frei, nicht die API.
 
-Die öffentlichen App-APIs erzwingen `X-ForgeFlow-Mode: suite` unabhängig vom Client.
+Die öffentlichen Hub-/FlowPilot-APIs erzwingen `X-ForgeFlow-Mode: suite` unabhängig vom Client.
 Die App-Backends prüfen das Suite-Cookie über eine feste interne URL. Hub verknüpft
 stabile Suite-IDs mit privaten Eigentümern; FlowPilot verwendet den Suite-Gateway und
 Suite-Worker mit getrennten PostgreSQL-Schemas und Redis-Namensräumen. Das Weglassen
 oder Ändern des Client-Headers darf keinen globalen Standalone-Workspace freigeben.
 Interne Bereitschaftsprüfungen bleiben über Loopback ohne diesen Header möglich.
 
-Kein separates Hub-Konto anlegen: Nach dem Update Strg+F5 und erneut in der Suite
+PulseWatch prüft dieselbe aktive Suite-Sitzung am Nginx-Edge. Nginx überschreibt bei
+jeder API-Anfrage eine mögliche Client-Angabe von `X-ForgeFlow-User-Id` mit der ID aus
+der erfolgreichen Suite-Auth-Subrequest. PulseWatch bindet damit Monitore an die
+Suite-UUID und stellt im Suite-Modus weder native Anmeldung noch Konto-Bootstrap bereit.
+Die lokalen Native-/Demo-Modi bleiben separat erhalten. Die additive PulseWatch-Migration
+entfernt nur den Fremdschlüssel, der bisher Monitor-Eigentümer an native PulseWatch-
+Konten band; vorhandene Datensätze und Anmeldedaten werden nicht gelöscht oder geändert.
+
+Kein separates Hub-, FlowPilot- oder PulseWatch-Konto anlegen: Nach dem Update Strg+F5 und erneut in der Suite
 anmelden. Die Registrierung bleibt geschlossen. Bereits bestehende native Konten und
 globale Standalone-Daten werden nicht automatisch per E-Mail verknüpft oder gelöscht.
 Unabhängiger lokaler Standalone-Betrieb bleibt erhalten; die öffentlichen Unterpfade
@@ -159,7 +212,8 @@ Serverkonfiguration; HTTP bleibt mock.
 
 `forgeflow-showcase.service` startet das eigene Compose-Projekt nach Docker/Neustarts.
 Container haben Ressourcenlimits, read-only Dateisysteme, reduzierte Rechte und begrenzte
-Logs. Next und APIs binden an Loopback 3300/8000/8001; Redis an Loopback 6381, Daten unter
+Logs. Next und APIs binden an Loopback 3300/8000/8001/8082; statische PulseWatch-Assets an
+Loopback 3302; Redis an Loopback 6381, Daten unter
 `/var/lib/forgeflow-showcase/redis`. Hub-Cleanup entfernt stündlich abgelaufene Sessions
 und Rate-Limit-Zähler. Datenbanken, Schlüssel und Redis dauerhaft zusammen sichern;
 die Deployment-Sicherung ersetzt keinen regelmäßigen Backupplan.
@@ -181,7 +235,7 @@ sudo systemctl status forgeflow forgeflow-showcase nginx
 sudo docker compose --project-name forgeflow-showcase --project-directory /opt/forgeflow-showcase/current \
   --env-file /etc/forgeflow/showcase/images.env ps
 sudo docker compose --project-name forgeflow-showcase --project-directory /opt/forgeflow-showcase/current \
-  --env-file /etc/forgeflow/showcase/images.env logs --tail=80 hub-api hub-web flow-api flow-worker
+  --env-file /etc/forgeflow/showcase/images.env logs --tail=80 hub-api hub-web flow-api flow-worker pulsewatch-api pulsewatch-web
 ```
 
 ## Erneut vorbereiten und prüfen
@@ -189,15 +243,17 @@ sudo docker compose --project-name forgeflow-showcase --project-directory /opt/f
 Vor dem Paketieren Lint, Tests und aktuelle Builds aus demselben Checkout erstellen.
 Suite: `VITE_DATA_MODE=api`, `VITE_API_BASE_URL=/api/v1`,
 `VITE_KNOWLEDGE_HUB_URL=https://forge-flow.de/knowledge-hub`,
-`VITE_FLOWPILOT_URL=https://forge-flow.de/flowpilot/`, `VITE_SHOWCASE_ADMIN_ONLY=false`.
+`VITE_FLOWPILOT_URL=https://forge-flow.de/flowpilot/`,
+`VITE_PULSEWATCH_URL=https://forge-flow.de/pulsewatch/`, `VITE_SHOWCASE_ADMIN_ONLY=false`.
 FlowPilot: `VITE_BASE_PATH=/flowpilot/`, `VITE_API_PREFIX=/flowpilot-api`,
 `VITE_SUITE_ORIGIN=https://forge-flow.de`. Hub: `NEXT_PUBLIC_BASE_PATH=/knowledge-hub`,
 `NEXT_PUBLIC_API_URL=/knowledge-hub-api`, `NEXT_PUBLIC_SUITE_ORIGIN=https://forge-flow.de`,
-`FORGEFLOW_CONTAINER_BUILD=true`. Nur Prozessumgebung setzen, keine `.env` überschreiben.
+`FORGEFLOW_CONTAINER_BUILD=true`. PulseWatch: `VITE_BASE_PATH=/pulsewatch/`,
+`VITE_API_BASE_URL=/pulsewatch-api/api/v1`. Nur Prozessumgebung setzen, keine `.env` überschreiben.
 
 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-showcase-release.ps1`
 prüft Artefakt-Aktualität/URLs und erstellt das ignorierte Paket samt Manifest/Prüfsummen.
-`python scripts/test-showcase-deploy.py` prüft 21 Deployment-Grenzen offline.
+`python scripts/test-showcase-deploy.py` prüft Deployment-Grenzen offline.
 `python scripts/check-showcase-build-contexts.py` prüft die Dockerfile-Pfade direkt im
 fertigen Archiv und ist auch Teil des Paketierungsskripts.
 `python scripts/check-showcase-python-packages.py STAGING_DIRECTORY` prüft zusätzlich

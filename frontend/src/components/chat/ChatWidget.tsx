@@ -22,7 +22,7 @@ function Spark() {
 const noWorkspace = () => null;
 const noSubscribe = () => () => {};
 
-export default function ChatWidget({ store: suppliedStore }: { store?: ChatStore }) {
+export default function ChatWidget({ store: suppliedStore, visible = true }: { store?: ChatStore; visible?: boolean }) {
     const { t: tx } = useUiTranslation();
 
     const store = useMemo(() => suppliedStore ?? createChatStore(createChatRepository(apiClient)), [suppliedStore]);
@@ -42,6 +42,7 @@ export default function ChatWidget({ store: suppliedStore }: { store?: ChatStore
     const follow = useRef(true);
     const busy = state.status !== 'idle' || !!state.actionBusy;
     useEffect(() => { store.connect(); return () => store.dispose(); }, [store]);
+    useEffect(() => { if (!visible) setOpen(false); }, [visible]);
     useEffect(() => { if (open) { input.current?.focus(); follow.current = true; } }, [open]);
     useEffect(() => {
         if (open && follow.current && transcript.current) transcript.current.scrollTop = transcript.current.scrollHeight;
@@ -50,6 +51,7 @@ export default function ChatWidget({ store: suppliedStore }: { store?: ChatStore
     const send = () => { if (confirm) return; follow.current = true; void store.send(language, page); };
     const status = state.status === 'connecting' ? 'Verbindung wird aufgebaut …' : state.status === 'streaming' ? 'Antwort wird erstellt …'
         : state.status === 'stopping' ? 'Antwort wird gestoppt …' : state.status === 'loading' ? 'Verlauf wird geladen …' : state.actionBusy ? 'Aktion wird geprüft …' : 'Bereit';
+    if (!visible) return null;
     return <Dock lang={language}>
         {open && <Panel id="forgeflow-chat" role="region" aria-labelledby="forgeflow-chat-title" onKeyDown={event => {
             if (event.key === 'Escape') { event.stopPropagation(); close(); }

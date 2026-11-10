@@ -24,7 +24,8 @@ public class MemoryWorkspaceStorage implements WorkspaceStorage {
     @Override public synchronized GlobalSettings loadGlobalSettings() { return globalSettings; }
     @Override public synchronized GlobalSettings saveGlobalSettings(GlobalSettings values) {
         if (!globalSettings.revision().equals(values.revision())) throw new ApiFailure(409, "VERSION_CONFLICT", "Die Branchenliste wurde inzwischen geändert. Bitte neu laden.");
-        globalSettings = new GlobalSettings(UUID.randomUUID().toString(), values.normalized().industries()); return globalSettings;
+        var normalized = values.normalized();
+        globalSettings = new GlobalSettings(UUID.randomUUID().toString(), normalized.industries(), normalized.visibleApps(), normalized.aiApps()); return globalSettings;
     }
     @Override public synchronized Envelope load(String ownerId) {
         if(expired.contains(ownerId))return new Envelope(1,"expired",Data.empty());

@@ -20,6 +20,7 @@ const Notice = styled.div`
 
 export default function ShowcasePage({ app, section, active }: { app: ShowcaseApp; section: string; active: boolean }) {
     const { t, language } = useTranslation();
+    const embeddedLanguage = app === 'dataScout' || language === 'fr' ? 'en' : language;
     const theme = useTheme();
     const navigate = useNavigate();
     const project = showcaseProjects.find(value => value.key === app)!;
@@ -28,8 +29,8 @@ export default function ShowcasePage({ app, section, active }: { app: ShowcaseAp
     const [ready, setReady] = useState(false);
     const [failed, setFailed] = useState(false);
     const [attempt, setAttempt] = useState(0);
-    const latest = useRef({ section, active, ready, language, theme });
-    latest.current = { section, active, ready, language, theme };
+    const latest = useRef({ section, active, ready, language: embeddedLanguage, theme });
+    latest.current = { section, active, ready, language: embeddedLanguage, theme };
     const send = (message: object) => {
         if (project.url) iframe.current?.contentWindow?.postMessage({ channel: 'forgeflow-suite', ...message }, new URL(project.url).origin);
     };
@@ -58,8 +59,8 @@ export default function ShowcasePage({ app, section, active }: { app: ShowcaseAp
         if (ready && active && project.url) iframe.current?.contentWindow?.postMessage({ channel: 'forgeflow-suite', type: 'navigate', section }, new URL(project.url).origin);
     }, [ready, active, section, project]);
     useEffect(() => {
-        if (ready && project.url) iframe.current?.contentWindow?.postMessage({ channel: 'forgeflow-suite', type: 'language', language }, new URL(project.url).origin);
-    }, [ready, language, project]);
+        if (ready && project.url) iframe.current?.contentWindow?.postMessage({ channel: 'forgeflow-suite', type: 'language', language: embeddedLanguage }, new URL(project.url).origin);
+    }, [ready, embeddedLanguage, project]);
     useEffect(() => {
         if (ready && project.url) iframe.current?.contentWindow?.postMessage({ channel: 'forgeflow-suite', type: 'theme', theme }, new URL(project.url).origin);
     }, [ready, theme, project]);
@@ -73,7 +74,7 @@ export default function ShowcasePage({ app, section, active }: { app: ShowcaseAp
             <iframe key={attempt} ref={iframe} src={project.url} title={project.label}
                 hidden={!ready} style={!ready ? { height: 0, visibility: 'hidden' } : undefined}
                 sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads allow-popups"
-                referrerPolicy="strict-origin" onLoad={() => send({ type: 'init', language, theme, authMode: apiEnabled ? 'suite' : 'demo' })} />
+                referrerPolicy="strict-origin" onLoad={() => send({ type: 'init', language: embeddedLanguage, theme, authMode: apiEnabled ? 'suite' : 'demo' })} />
         </>}
     </Page>;
 }

@@ -1,0 +1,77 @@
+{
+  "version": "2026-11-06",
+  "manuals": [
+    {
+      "file": "01-Projektmanager.pdf",
+      "title": "Projektmanager",
+      "pages": 9,
+      "screenshots": 5
+    },
+    {
+      "file": "02-Git.pdf",
+      "title": "Git",
+      "pages": 5,
+      "screenshots": 1
+    },
+    {
+      "file": "03-Dokumentation.pdf",
+      "title": "Dokumentation",
+      "pages": 6,
+      "screenshots": 2
+    },
+    {
+      "file": "04-Entwicklerwerkzeuge.pdf",
+      "title": "Entwicklerwerkzeuge",
+      "pages": 10,
+      "screenshots": 6
+    },
+    {
+      "file": "05-Zeiterfassung.pdf",
+      "title": "Zeiterfassung",
+      "pages": 6,
+      "screenshots": 2
+    },
+    {
+      "file": "06-Business.pdf",
+      "title": "Business",
+      "pages": 9,
+      "screenshots": 5
+    },
+    {
+      "file": "07-Cloud.pdf",
+      "title": "Cloud",
+      "pages": 5,
+      "screenshots": 1
+    },
+    {
+      "file": "08-Knowledge-Hub.pdf",
+      "title": "AI Knowledge Hub",
+      "pages": 6,
+      "screenshots": 2
+    },
+    {
+      "file": "09-FlowPilot.pdf",
+      "title": "FlowPilot",
+      "pages": 7,
+      "screenshots": 3
+    },
+    {
+      "file": "10-PulseWatch.pdf",
+      "title": "PulseWatch",
+      "pages": 6,
+      "screenshots": 2
+    },
+    {
+      "file": "11-Einstellungen.pdf",
+      "title": "Einstellungen",
+      "pages": 8,
+      "screenshots": 4
+    },
+    {
+      "file": "12-Kundenportal.pdf",
+      "title": "Kundenportal",
+      "pages": 6,
+      "screenshots": 2
+    }
+  ]
+}

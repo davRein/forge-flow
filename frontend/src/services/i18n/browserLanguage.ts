@@ -19,7 +19,7 @@ export function createLanguagePreference(environment: Environment) {
             if (sessionLanguage) return sessionLanguage;
             try {
                 const stored = environment.storage().getItem(storageKey);
-                if (stored === 'de' || stored === 'en') return stored;
+                if (stored === 'de' || stored === 'en' || stored === 'fr') return stored;
             } catch { /* Storage can be disabled; region detection still works. */ }
             return languageForRegion(environment.locale());
         },

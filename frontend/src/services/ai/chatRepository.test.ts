@@ -5,6 +5,20 @@ import type { NavigationAction } from './navigationActions.js';
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 const id = '11111111-1111-4111-8111-111111111111';
 export const chatRepositoryTests = [
+    { name: 'Französische Gespräche können angelegt, aufgelistet und erneut geladen werden', async run() {
+        const time = '2026-11-06T12:00:00Z';
+        const client = createApiClient('/api/v1', async (url, init) => {
+            if (init?.method === 'POST') assert(JSON.parse(String(init.body)).language === 'fr', 'Französisch muss an den Server gesendet werden');
+            if (init?.method !== 'POST' && String(url).endsWith('/ai/conversations')) return Response.json({ storage: 'postgresql', retentionSeconds: 2592000,
+                items: [{ id, language: 'fr', title: 'Bonjour', createdAt: time, updatedAt: time, messageCount: 0, busy: false }] });
+            return Response.json({ id, language: 'fr', messages: [], busy: false });
+        });
+        client.setSession('test-csrf');
+        const repository = createChatRepository(client), signal = new AbortController().signal;
+        assert((await repository.create('fr', signal)).language === 'fr', 'Französisches Gespräch fehlt');
+        assert((await repository.list(signal)).items[0].language === 'fr', 'Französische Gesprächsliste fehlt');
+        assert((await repository.load(id, signal)).language === 'fr', 'Französisches Gespräch muss erneut ladbar sein');
+    } },
     { name: 'Anlagebestätigung sendet nur Entscheidung und gegebenenfalls privates Initialpasswort, keine veränderbaren Nutzdaten', async run() {
         const action = { id, type: 'workspace.create' as const, entity: 'users' as const, data: { id, name: 'New account', email: 'new@example.test', administrator: false, active: true },
             revision: '1', expiresAt: '2099-01-01T00:00:00Z', status: 'proposed' as const, resultRevision: null };

@@ -8,9 +8,9 @@ import { executeRequest, formatResponseBody, httpMethods, prepareRequest } from 
 import type { HttpMethod, RequestDraft, RequestResult } from '../utils/restLogic';
 import Dialog from '../../../components/ui/Dialog';
 import { SaveToast } from '../../../components/ui/SaveToast';
-import CopyButton from './CopyButton';
+import CopyButton from '../../devTools/components/CopyButton';
 import RestLibrary from './RestLibrary';
-import { Actions, Card, DangerButton, ErrorText, Field, Input, Muted, PrimaryButton, SecondaryButton, Select, Table, Textarea } from '../styles/toolStyles';
+import { Actions, Card, DangerButton, ErrorText, Field, Input, Muted, PrimaryButton, SecondaryButton, Select, Table, Textarea } from '../../devTools/styles/toolStyles';
 import { RequestHeader, RequestLine, RequestTabs, RestLayout, ToastPosition } from '../styles/restStyles';
 
 const initialRequest: RequestDraft = { method: 'GET', url: '', headers: '', body: '', bodyType: 'none', timeout: 30 };

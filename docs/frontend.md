@@ -1,5 +1,34 @@
 # Frontend-Funktionen
 
+RequestLab ist der ausgegliederte REST-Client als eigene Suite-App mit eigenem
+Navigationssymbol und Direktlink `#/requestLab/client`. Dev Tools enthält weiterhin
+JSON Formatter, Rechner, Konverter, Snippeter und DB Scripter. Der alte REST-Link
+`#/devTools/rest` führt kompatibel zu RequestLab. [Bedienung und Grenzen](requestlab.md).
+
+Unter Einstellungen → Sprache steht zusätzlich Français bereit. ForgeFlow verwendet dann
+französische Texte sowie Datums-/Zahlenformate (`fr-FR`), speichert die Auswahl im Konto
+und verwendet sie für neue KI-Gespräche und PDF-Berichte. Eigene Inhalte werden nicht
+übersetzt. Knowledge Hub, FlowPilot und PulseWatch bleiben bei französischer Suite-Sprache
+auf Englisch; ihre bestehenden Frames und Entwürfe bleiben erhalten. [Details](user-settings.md).
+
+Unter Einstellungen → Anwendungen legen Administratoren für alle Nutzer fest, welche
+Apps links erscheinen. Mindestens eine App bleibt ausgewählt; die Einstellungen sind
+weiterhin über den Header erreichbar. Unter Einstellungen → KI wird unabhängig davon
+festgelegt, in welchen Apps der KI-Button rechts unten erscheint. Standard: nur
+Projektmanager; eine leere KI-Auswahl blendet alle Buttons aus.
+
+Die KI erhält ausschließlich im Projektmanager Werkzeuge für Kunden, Ansprechpartner,
+Projekte, Aufgaben, Epics, Sprints und Projektdateien. Schreibvorschläge benötigen
+weiterhin eine ausdrückliche Bestätigung. Andere Apps erhalten bei aktiviertem Button
+nur einen allgemeinen Chat ohne Datenwerkzeuge. Gesprächskontext wird pro App getrennt
+an das Modell übergeben. Wiki, Konten, Profile, App-Einstellungen, Business- und Zeitdaten
+sind nicht über KI-Werkzeuge zugänglich. App-Sichtbarkeit ist keine Zugriffssperre für APIs.
+Die Auswahl wird mit eigener globaler Revision gespeichert; Flyway V16 ergänzt die
+beiden Datenbankfelder. Frontend und Backend gemeinsam aktualisieren.
+
+Alle Module in der Seitennavigation haben passende Symbole in einheitlichen kleinen,
+farbigen Kästchen. Auch in der kompakten mobilen Navigation bleiben diese sichtbar.
+
 Unter „Globale Einstellungen → Optik“ stehen Hell, Dunkel, Aurora, Dune sowie
 Forest (Salbei/Waldgrün), Ink (Nachttinte/Lavendel) und Rose (Rosé/Bordeaux) bereit.
 Knowledge Hub und FlowPilot übernehmen die Palette sofort einschließlich Formularen,

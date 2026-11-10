@@ -135,9 +135,12 @@ export default function GeneralSettings({ settings, onChange, onReset, persisten
                     <Select value={settings.language} onChange={(event) => change({ ...settings, language: event.target.value as AppSettings['language'] })}>
                         <option value="de" lang="de">{tx('Deutsch')}</option>
                         <option value="en" lang="en">{tx('English')}</option>
+                        <option value="fr" lang="fr">Français</option>
                     </Select>
                 </Field>
-                <Hint>{t('Die Sprachwahl gilt für die gesamte Suite einschließlich Knowledge Hub und FlowPilot.')}</Hint>
+                <Hint>{settings.language === 'fr'
+                    ? 'Le français s’applique à ForgeFlow. Knowledge Hub et FlowPilot utilisent encore l’anglais.'
+                    : t('Die Sprachwahl gilt für die gesamte Suite einschließlich Knowledge Hub und FlowPilot.')}</Hint>
             </Section>}
             <Section>
                 <h2>{t('Standardeinstellungen')}</h2>

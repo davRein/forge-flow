@@ -16,7 +16,7 @@ import WikiPage from './wiki/WikiPage';
 import CategoryForm from './wiki/components/CategoryForm';
 import DevToolsPage from './devTools/DevToolsPage';
 import Converter from './devTools/components/Converter';
-import RestClient from './devTools/components/RestClient';
+import RestClient from './requestLab/components/RestClient';
 import CopyButton from './devTools/components/CopyButton';
 import DeveloperProvider from '../components/DeveloperProvider';
 import { AuthContext } from '../hooks/authContext';
@@ -197,9 +197,13 @@ export const localizationTests = [
             assert(ui.controls('a').map(text).join(',') === 'Overview,Pages,Spaces,Search', 'Dokumentationsnavigation muss Englisch sein');
             assert(ui.controls('a')[1].props.href === '/wiki/articles', 'Sprachwechsel darf Routen nicht ändern');
             await ui.page(createElement(Topbar, { items: modules.find(item => item.key === 'devTools')!.topbarItems, moduleKey: 'devTools' }));
-            assert(ui.controls('a').map(text).join(',') === 'JSON Formatter,REST client,Calculator,Converters,Snippeter,DB Scripter', 'Dev-Tools-Navigation muss Englisch sein');
+            assert(ui.controls('a').map(text).join(',') === 'JSON Formatter,Calculator,Converters,Snippeter,DB Scripter', 'Dev-Tools-Navigation muss Englisch sein');
             await ui.language('de');
-            assert(ui.controls('a').map(text).join(',') === 'JSON-Formatierer,REST-Test,Rechner,Konverter,Snippeter,SQL-Editor', 'Deutsche Navigation muss weiter verfügbar sein');
+            assert(ui.controls('a').map(text).join(',') === 'JSON-Formatierer,Rechner,Konverter,Snippeter,SQL-Editor', 'Deutsche Navigation muss weiter verfügbar sein');
+            await ui.page(createElement(Topbar, { items: modules.find(item => item.key === 'requestLab')!.topbarItems, moduleKey: 'requestLab' }));
+            assert(ui.controls('a').map(text).join(',') === 'REST-Test', 'RequestLab muss Deutsch anbieten');
+            await ui.language('en');
+            assert(ui.controls('a').map(text).join(',') === 'REST client', 'RequestLab muss Englisch anbieten');
         } finally { await ui.close(); }
     } }
 ];

@@ -5,6 +5,8 @@ Assert-LocalPortFree 5173
 $logRoot = Join-Path $script:LocalConfigRoot 'logs'
 New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
 $children = @()
+$previousOwner = $env:FORGEFLOW_DATASCOUT_OWNER
+$env:FORGEFLOW_DATASCOUT_OWNER = [string]$PID
 try {
     foreach ($part in @('backend', 'frontend')) {
         $entry = Join-Path $PSScriptRoot ("start-" + $part + '.ps1')
@@ -22,8 +24,8 @@ try {
         }
         if (-not $ready) {
             try {
-                $health = Invoke-RestMethod -Uri 'http://127.0.0.1:3001/api/v1/health' -TimeoutSec 1
-                $frontend = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:5173' -TimeoutSec 5
+                $health = Invoke-LocalRequest -Uri 'http://127.0.0.1:3001/api/v1/health' -TimeoutSec 1 -Json
+                $frontend = Invoke-LocalRequest -Uri 'http://127.0.0.1:5173' -TimeoutSec 5
                 if ($health.storage -eq 'postgresql' -and $frontend.StatusCode -eq 200) {
                     $ready = $true
                     Write-Output 'Backend und Frontend sind bereit: http://localhost:5173'
@@ -41,4 +43,6 @@ try {
             & taskkill.exe /PID $child.Id /T /F 2>&1 | Out-Null
         }
     }
+    Stop-LocalDataScout $PID
+    [Environment]::SetEnvironmentVariable('FORGEFLOW_DATASCOUT_OWNER', $previousOwner, 'Process')
 }

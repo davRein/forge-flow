@@ -14,44 +14,44 @@ import de.forgeflow.time.TimeTracking;
 @Component
 public class PdfReports {
     public byte[] document(BusinessData.Document value, String language) {
-        boolean en = "en".equals(language);
+        boolean en = "en".equals(language), fr = "fr".equals(language);
         try (var pdf = new Writer()) {
-            pdf.title(value.kind().equals("invoice") ? en ? "Invoice" : "Rechnung" : en ? "Quotation" : "Angebot", value.number().isEmpty() ? en ? "DRAFT" : "ENTWURF" : value.number());
-            pdf.text(value.title(), 14, true); pdf.text((en ? "Date: " : "Datum: ") + value.date() + "   |   " + (en ? "Due: " : "Fällig: ") + value.dueDate(), 10, false);
-            pdf.section(en ? "From" : "Absender"); pdf.text(value.issuer().isBlank() ? "ForgeFlow" : value.issuer(), 10, false);
-            pdf.section(en ? "To" : "Empfänger"); pdf.text(value.recipient(), 10, false);
-            pdf.section(en ? "Services" : "Leistungen");
-            var money = NumberFormat.getCurrencyInstance(en ? Locale.UK : Locale.GERMANY); money.setCurrency(Currency.getInstance(value.currency()));
+            pdf.title(value.kind().equals("invoice") ? fr ? "Facture" : en ? "Invoice" : "Rechnung" : fr ? "Devis" : en ? "Quotation" : "Angebot", value.number().isEmpty() ? fr ? "BROUILLON" : en ? "DRAFT" : "ENTWURF" : value.number());
+            pdf.text(value.title(), 14, true); pdf.text((fr ? "Date : " : en ? "Date: " : "Datum: ") + value.date() + "   |   " + (fr ? "Échéance : " : en ? "Due: " : "Fällig: ") + value.dueDate(), 10, false);
+            pdf.section(fr ? "Émetteur" : en ? "From" : "Absender"); pdf.text(value.issuer().isBlank() ? "ForgeFlow" : value.issuer(), 10, false);
+            pdf.section(fr ? "Destinataire" : en ? "To" : "Empfänger"); pdf.text(value.recipient(), 10, false);
+            pdf.section(fr ? "Prestations" : en ? "Services" : "Leistungen");
+            var money = NumberFormat.getCurrencyInstance(fr ? Locale.FRANCE : en ? Locale.UK : Locale.GERMANY); money.setCurrency(Currency.getInstance(value.currency()));
             for (int index = 0; index < value.lines().size(); index++) {
                 pdf.reserve(75);
                 var line = value.lines().get(index); pdf.text((index + 1) + ". " + line.description(), 11, true);
                 String quantity = line.minutes() > 0 ? line.minutes() / 60 + "h " + line.minutes() % 60 + "m" : line.quantity();
-                pdf.text(quantity + " x " + money.format(line.unitPriceCents() / 100.0) + "   |   " + (en ? "VAT " : "USt. ") + line.taxBasisPoints() / 100.0 + "%   |   " + money.format(BusinessRules.net(line) / 100.0), 10, false); pdf.gap(8);
+                pdf.text(quantity + " x " + money.format(line.unitPriceCents() / 100.0) + "   |   " + (fr ? "TVA " : en ? "VAT " : "USt. ") + line.taxBasisPoints() / 100.0 + "%   |   " + money.format(BusinessRules.net(line) / 100.0), 10, false); pdf.gap(8);
             }
-            var totals = BusinessRules.totals(value); pdf.reserve(110); pdf.section(en ? "Total" : "Gesamtbetrag");
-            pdf.text((en ? "Net: " : "Netto: ") + money.format(totals[0] / 100.0), 11, false);
-            pdf.text((en ? "Tax: " : "Steuer: ") + money.format(totals[1] / 100.0), 11, false);
-            pdf.text((en ? "Total: " : "Gesamt: ") + money.format(totals[2] / 100.0), 15, true);
-            if (!value.notes().isBlank()) { pdf.section(en ? "Notes" : "Hinweise"); pdf.text(value.notes(), 10, false); }
-            pdf.text((en ? "Status: " : "Status: ") + value.status(), 9, false); return pdf.finish();
+            var totals = BusinessRules.totals(value); pdf.reserve(110); pdf.section(fr ? "Total" : en ? "Total" : "Gesamtbetrag");
+            pdf.text((fr ? "Hors taxes : " : en ? "Net: " : "Netto: ") + money.format(totals[0] / 100.0), 11, false);
+            pdf.text((fr ? "Taxe : " : en ? "Tax: " : "Steuer: ") + money.format(totals[1] / 100.0), 11, false);
+            pdf.text((fr ? "Total : " : en ? "Total: " : "Gesamt: ") + money.format(totals[2] / 100.0), 15, true);
+            if (!value.notes().isBlank()) { pdf.section(fr ? "Notes" : en ? "Notes" : "Hinweise"); pdf.text(value.notes(), 10, false); }
+            pdf.text((fr ? "Statut : " : en ? "Status: " : "Status: ") + value.status(), 9, false); return pdf.finish();
         } catch (IOException error) { throw new ApiFailure(503, "PDF_UNAVAILABLE", "Das PDF konnte nicht erzeugt werden."); }
     }
     public byte[] timesheet(List<TimeTracking.Entry> entries, String name, String month, boolean comments, String language) {
-        boolean en = "en".equals(language);
+        boolean en = "en".equals(language), fr = "fr".equals(language);
         try (var pdf = new Writer()) {
-            pdf.title(en ? "Timesheet" : "Leistungsnachweis", month); pdf.text(name, 14, true);
+            pdf.title(fr ? "Feuille de temps" : en ? "Timesheet" : "Leistungsnachweis", month); pdf.text(name, 14, true);
             long minutes = 0, billable = 0;
             for (var entry : entries.stream().sorted(Comparator.comparing(TimeTracking.Entry::date).thenComparingInt(TimeTracking.Entry::startMinute)).toList()) {
                 pdf.reserve(105);
                 minutes += entry.minutes(); if (entry.billable()) billable += entry.minutes();
                 pdf.section(entry.date() + "  " + clock(entry.startMinute()) + "-" + clock(entry.startMinute() + entry.minutes() + entry.breakMinutes()));
-                pdf.text((entry.projectName().isBlank() ? en ? "No project" : "Ohne Projekt" : entry.projectName()) + "  |  " + entry.minutes() / 60 + "h " + entry.minutes() % 60 + "m" + "  |  " + (entry.billable() ? en ? "Billable" : "Abrechenbar" : en ? "Non-billable" : "Nicht abrechenbar"), 10, true);
-                if (entry.breakMinutes() > 0) pdf.text((en ? "Break: " : "Pause: ") + entry.breakMinutes() + " min", 10, false);
+                pdf.text((entry.projectName().isBlank() ? fr ? "Sans projet" : en ? "No project" : "Ohne Projekt" : entry.projectName()) + "  |  " + entry.minutes() / 60 + "h " + entry.minutes() % 60 + "m" + "  |  " + (entry.billable() ? fr ? "Facturable" : en ? "Billable" : "Abrechenbar" : fr ? "Non facturable" : en ? "Non-billable" : "Nicht abrechenbar"), 10, true);
+                if (entry.breakMinutes() > 0) pdf.text((fr ? "Pause : " : en ? "Break: " : "Pause: ") + entry.breakMinutes() + " min", 10, false);
                 if (comments && !entry.comment().isBlank()) pdf.text(entry.comment(), 10, false);
             }
-            pdf.reserve(110); pdf.section(en ? "Summary" : "Zusammenfassung");
-            pdf.text((en ? "Working time: " : "Arbeitszeit: ") + minutes / 60 + "h " + minutes % 60 + "m", 14, true);
-            pdf.text((en ? "Billable: " : "Abrechenbar: ") + billable / 60 + "h " + billable % 60 + "m", 11, false); return pdf.finish();
+            pdf.reserve(110); pdf.section(fr ? "Récapitulatif" : en ? "Summary" : "Zusammenfassung");
+            pdf.text((fr ? "Temps de travail : " : en ? "Working time: " : "Arbeitszeit: ") + minutes / 60 + "h " + minutes % 60 + "m", 14, true);
+            pdf.text((fr ? "Facturable : " : en ? "Billable: " : "Abrechenbar: ") + billable / 60 + "h " + billable % 60 + "m", 11, false); return pdf.finish();
         } catch (IOException error) { throw new ApiFailure(503, "PDF_UNAVAILABLE", "Das PDF konnte nicht erzeugt werden."); }
     }
     private static String clock(int minute) { return String.format(Locale.ROOT, "%02d:%02d", minute / 60, minute % 60); }

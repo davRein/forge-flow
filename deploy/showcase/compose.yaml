@@ -64,6 +64,76 @@ services:
     command: [python, -m, flowpilot.suite_worker]
     mem_limit: 256m
     cpus: 0.5
+  pulsewatch-api:
+    <<: *service
+    image: forgeflow-showcase-pulsewatch-api:${RELEASE_ID:?}
+    build:
+      context: ./pulsewatch/backend
+      dockerfile: Dockerfile.suite
+      args:
+        MAVEN_IMAGE: '${MAVEN_IMAGE:?}'
+        JAVA_IMAGE: '${JAVA_IMAGE:?}'
+    env_file: [/etc/forgeflow/showcase/pulsewatch.env]
+    mem_limit: 512m
+    cpus: 0.75
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://127.0.0.1:8082/api/v1/health]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+  pulsewatch-web:
+    <<: *service
+    image: forgeflow-showcase-pulsewatch-web:${RELEASE_ID:?}
+    user: '101:101'
+    build:
+      context: ./pulsewatch
+      dockerfile: infra/Dockerfile.suite-frontend
+      args:
+        NODE_IMAGE: '${NODE_IMAGE:?}'
+        NGINX_IMAGE: '${NGINX_IMAGE:?}'
+    tmpfs:
+      - '/tmp:rw,nosuid,nodev,noexec,size=32m,mode=1777'
+      - '/var/cache/nginx:rw,nosuid,nodev,noexec,size=16m,mode=755,uid=101,gid=101'
+      - '/run:rw,nosuid,nodev,noexec,size=8m,mode=755,uid=101,gid=101'
+    mem_limit: 96m
+    cpus: 0.25
+    healthcheck:
+      test: [CMD, wget, --quiet, --spider, http://127.0.0.1:3302/]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+  datascout-api:
+    <<: *service
+    image: forgeflow-showcase-datascout-api:${RELEASE_ID:?}
+    build:
+      context: ./datascout/backend
+      dockerfile: Dockerfile
+      target: runtime
+      args: {PYTHON_IMAGE: '${PYTHON_IMAGE:?}'}
+    env_file: [/etc/forgeflow/showcase/datascout.env]
+    command: [uvicorn, 'app.suite_gateway:create_suite_app', --factory, --host, 127.0.0.1, --port, '8002', --no-access-log, --no-proxy-headers]
+    mem_limit: 192m
+    cpus: 0.5
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/api/v1/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  datascout-worker:
+    <<: *service
+    image: forgeflow-showcase-datascout-api:${RELEASE_ID:?}
+    env_file: [/etc/forgeflow/showcase/datascout.env]
+    command: [python, -m, app.suite_worker]
+    mem_limit: 128m
+    cpus: 0.5
+    stop_grace_period: 15s
+    healthcheck:
+      test: [CMD, python, -m, app.scheduling.worker_health]
+      interval: 10s
+      timeout: 3s
+      start_period: 15s
+      retries: 6
   redis:
     <<: *service
     image: ${REDIS_IMAGE:?}

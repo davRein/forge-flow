@@ -1,5 +1,5 @@
 [Unit]
-Description=ForgeFlow Knowledge Hub and FlowPilot
+Description=ForgeFlow showcase applications
 Requires=docker.service
 After=docker.service postgresql.service forgeflow.service
 

@@ -2,7 +2,7 @@ import { useTranslation as useUiTranslation } from '../../../hooks/languageConte
 import { useState } from 'react';
 import { useTranslation } from '../../../hooks/languageContext';
 import type { RestCollection, SavedRestRequest } from '../../../services/rest/restCollections';
-import { ErrorText, Input, Muted } from '../styles/toolStyles';
+import { ErrorText, Input, Muted } from '../../devTools/styles/toolStyles';
 import { Library } from '../styles/restStyles';
 
 type Props = { collections: RestCollection[]; selectedId?: string; busy: boolean; status: string; error: string | null; persistence: 'account' | 'session';

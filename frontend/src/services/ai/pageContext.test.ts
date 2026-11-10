@@ -4,9 +4,8 @@ import { modules } from '../../config/moduleConfig.js';
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 export const pageContextTests = [
     { name: 'Chat-Seitenkatalog deckt echte Routen ab und schließt URLs, Suchwerte und unbekannte Felder aus', run() {
-        const nativeModules = modules.filter(module => !['knowledgeHub', 'flowPilot'].includes(module.key));
-        assert(Object.keys(chatPages).length === nativeModules.flatMap(module => module.topbarItems).length, 'Katalog muss alle nativen Seiten abdecken');
-        for (const module of nativeModules) for (const page of module.topbarItems)
+        assert(Object.keys(chatPages).length === modules.flatMap(module => module.topbarItems).length + 1, 'Katalog einschliesslich Legacy-REST-Route muss alle Seiten abdecken');
+        for (const module of modules) for (const page of module.topbarItems)
             assert(isChatPageContext({ route: `/${module.key}/${page.key}` }), 'Bekannte Route fehlt');
         for (const value of [{ route: '/wiki/search?query=test-only-secret' }, { route: 'https://example.test' }, { route: '/wiki/home', editor: 'private' },
             { route: '/projectManager/projects', projectId: 0 }, { route: '/wiki/home', projectId: 1 }, { route: '/projectManager/projects', projectTab: 'tasks' },

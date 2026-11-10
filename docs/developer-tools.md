@@ -1,5 +1,9 @@
 # Developer tools and global settings
 
+Der REST-Client ist jetzt die eigene Suite-App [RequestLab](requestlab.md), erreichbar
+unter `#/requestLab/client`. Vorhandene Collections bleiben erhalten; der bisherige
+Link `#/devTools/rest` wird weitergeleitet.
+
 The header gear beside global search opens **Settings** at `#/settings/general`.
 Profile/password, account management, appearance, language, Project Manager defaults and
 shared customer industries remain available there. Settings no longer belong to the Project
