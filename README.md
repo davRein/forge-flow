@@ -1,55 +1,58 @@
-# ForgeFlow - Installation, Start und Betrieb
+# ForgeFlow — Installation, Startup and Operations
 
-ForgeFlow verbindet Projektverwaltung, Dokumentation, Entwicklerwerkzeuge, Zeiterfassung,
-Business, Git und Cloud mit AI Knowledge Hub, FlowPilot und PulseWatch. Diese README
-beschreibt die Einrichtung und den Betrieb. Bedienung und Screenshots stehen in den
-[separaten PDF-Handbüchern](docs/handbuecher/README.md).
+ForgeFlow combines project management, documentation, developer tools, RequestLab,
+time tracking, business documents, Git and cloud access with AI Knowledge Hub,
+FlowPilot, PulseWatch and DataScout. This README covers installation and operations.
+User instructions and screenshots are available in the [German PDF manuals](docs/handbuecher/README.md).
 
-Stand: 6. November 2026. Der aktuelle vollständige Release ist auf
-**https://forge-flow.de** installiert. Die Installation ist kontengetrennt; es gibt
-kein eingebautes Standardpasswort.
+Updated on November 10, 2026. The latest recorded production release is
+`20261107T153355Z-ff262514`, including DataScout, on **https://forge-flow.de**.
+RequestLab was added locally after that release. Release history is recorded in
+[the project handoff](docs/HANDOFF.md).
 
-## Den passenden Einstieg wählen
+## Choose a starting point
 
-| Ziel | Weg |
+| Goal | Instructions |
 | --- | --- |
-| Oberfläche ausprobieren, ohne Datenbank | Abschnitt 2: flüchtige Frontend-Demo |
-| ForgeFlow lokal mit dauerhaften Daten | Abschnitte 3 und 4 |
-| Alle Apps gemeinsam lokal starten | Zusätzlich Abschnitt 5 |
-| Bereits eingerichteten Ubuntu-Server aktualisieren | Abschnitt 7 |
-| Neuer, noch nicht eingerichteter Server | Abschnitt 8; Update-Installer allein reicht nicht |
-| Eigenständiger Betrieb einer Zusatz-App | Abschnitt 5 und deren eigene README |
+| Try the interface with session-only sample data | Section 2 |
+| Run ForgeFlow locally with persistent data | Sections 3 and 4 |
+| Run all apps together locally | Also complete section 5 |
+| Update the existing Ubuntu installation | Section 7 |
+| Set up a new server | Section 8 |
+| Run an additional app independently | Section 5 and that project's README |
 
-## 1. Projektaufbau und Voraussetzungen
+## 1. Repository layout and prerequisites
 
-Befehle gelten für **Windows PowerShell**, sofern kein Bash-Block angegeben ist.
-Zuerst in die ForgeFlow-Repositorywurzel wechseln. Der konkrete Laufwerkspfad ist frei
-wählbar. Node-/Java-/Python-Prozesse nach Änderungen an PATH neu starten.
+Commands use **Windows PowerShell** unless a block is marked as Bash. Start in the
+ForgeFlow repository root. Adjust installation paths to your machine and restart
+terminals after changing PATH.
 
 ```text
 showcase/
-  dev-suite/                  diese README, npm-Workspace und gemeinsame Startskripte
+  dev-suite/                  This README, npm workspace and shared startup scripts
     frontend/                 React 18 / TypeScript / Vite
     backend/                  Java 21 / Spring Boot / Maven / Flyway
-    integrations/             Anbindung der separaten Apps
-    deploy/showcase/           Docker-, Nginx- und systemd-Konfiguration
-    scripts/                  Einrichtung, Start, Sicherung, Tests und Paketierung
-    docs/                     vertiefende technische Dokumentation
-    output/pdf/               separate Benutzerhandbücher
+    integrations/             Integration with the separate apps
+    deploy/showcase/          Docker, Nginx and systemd configuration
+    scripts/                  Setup, startup, backup, tests and release packaging
+    docs/                     Technical documentation
+    output/pdf/               Individual user manuals
   ai-knowledge-hub/            Next.js + Python/FastAPI + PostgreSQL/pgvector
   flowpilot-codex-starter/     React + Python 3.12 + optional PostgreSQL/Redis
-  pulse-watch/                React + Java 21 + PostgreSQL oder H2-Demo
+  pulse-watch/                React + Java 21 + PostgreSQL or H2 demo
+  data-scout/                 React + Python/FastAPI + PostgreSQL + worker
 ```
 
-| Komponente | Voraussetzung |
+| Component | Requirements |
 | --- | --- |
-| ForgeFlow-Frontend | Node.js 22.12+ oder 24, npm; Root-`package-lock.json` |
-| ForgeFlow-Backend | JDK 21, Maven 3.9; `JAVA_HOME` zeigt auf das JDK |
-| Dauerhafte ForgeFlow-Daten | PostgreSQL 18 mit `psql`, `pg_dump` und `pg_restore` |
-| Knowledge Hub | Python 3.12+, eigenes Backend-Venv, Node-Abhängigkeiten, PostgreSQL mit pgvector |
-| FlowPilot | Python **3.12**, gesperrte Abhängigkeiten über `backend/uv.lock`; Redis nur für Infrastruktur/Jobs |
-| PulseWatch | Node-Abhängigkeiten, JDK 21/Maven; lokale Suite-Demo verwendet flüchtiges H2 |
-| Containerbetrieb | Docker mit Linux-Containern und Compose; für Hub-Datenbank oder Ubuntu-Gesamtbetrieb |
+| ForgeFlow frontend | Node.js 22.12+ or 24, npm and the root `package-lock.json` |
+| ForgeFlow backend | JDK 21, Maven 3.9 and `JAVA_HOME` pointing to the JDK |
+| Persistent ForgeFlow data | PostgreSQL 18 with `psql`, `pg_dump` and `pg_restore` |
+| Knowledge Hub | Python 3.12+, its own backend virtual environment, Node dependencies and PostgreSQL with pgvector |
+| FlowPilot | Python **3.12** and dependencies locked in `backend/uv.lock`. Redis is used for infrastructure/jobs |
+| PulseWatch | Node dependencies and JDK 21/Maven. The local suite demo uses temporary H2 storage |
+| DataScout | Docker Desktop running Linux containers, Compose and a configured `infra/.env` |
+| Container services | Docker with Linux containers and Compose for the Hub database, DataScout and the Ubuntu multi-app deployment |
 
 ```powershell
 node --version
@@ -59,61 +62,64 @@ mvn.cmd -version
 py -0p
 ```
 
-`npm.cmd` vermeidet Probleme mit der PowerShell-Ausführungsrichtlinie.
-Npm-Befehle der Suite aus `dev-suite/` ausführen; sie delegieren an `frontend/`.
-Abhängigkeiten installieren:
+`npm.cmd` works with PowerShell execution policies that block `npm.ps1`. Run suite
+npm commands from `dev-suite/`. They delegate to the `frontend/` workspace.
+Install the locked dependencies with the following command.
 
 ```powershell
 npm.cmd ci
 ```
 
-Die Nachbarprojekte gehören nicht zum ForgeFlow-npm-Workspace. Ihre Abhängigkeiten
-werden separat installiert. Bestehende `.env`-Dateien niemals pauschal überschreiben.
+Install dependencies for each neighboring project separately. Preserve existing
+`.env` files when applying configuration examples.
 
-## 2. Schnelle Frontend-Demo ohne Backend
+## 2. Quick frontend demo
 
 ```powershell
 $env:VITE_DATA_MODE = 'local'
 npm.cmd run dev
 ```
 
-Öffnen: **http://localhost:5173**. Änderungen an den Beispieldaten gelten nur in dieser
-Sitzung und gehen beim Neuladen verloren. Dieser Weg startet nur die Suite-Oberfläche:
-Er ist kein vollständiger Test von Anmeldung, KI, Datenbank oder Zusatz-Apps.
+Open **http://localhost:5173**. Sample-data changes last for the current session and
+are lost on reload. This command starts the suite frontend. Authentication, AI,
+database persistence and embedded services require their respective backend setup.
 
-Nach dem Stoppen mit Strg+C die Prozessvorgabe entfernen:
+After stopping with Ctrl+C, remove the process override.
 
 ```powershell
 Remove-Item Env:VITE_DATA_MODE -ErrorAction SilentlyContinue
 ```
 
-Für die Suite-Demo **mit allen vier lokalen Zusatz-Apps** nach Einrichtung der
-Nachbarprojekte und bei laufendem Docker Desktop:
+To run the suite demo **with all four local additional apps**, prepare the neighboring
+projects as described in section 5, start Docker Desktop and run the following command.
 
 ```powershell
 npm.cmd run start:demo
 ```
 
-Der gemeinsame Start wartet auf alle Dienste. Die lokalen App-Adressen werden nur
-für den Prozess gesetzt; vorhandene `.env`-Dateien bleiben erhalten. Strg+C stoppt
-die selbst gestarteten Apps und erhält Datenbanken/Volumes. Läuft DataScout bereits
-auf 5176/8002 im Offline-Modus, `npm.cmd run start:demo -- -UseExistingDataScout`
-verwenden; diese vorhandenen Container werden dabei weder übernommen noch gestoppt.
-PulseWatch nutzt in der Suite Port **5177**, eigenständig weiterhin 5175.
+The launcher waits for all services and sets local app URLs in their processes.
+Ctrl+C stops the apps started by the launcher and preserves databases and volumes.
+To reuse an already running, ready DataScout on 5176/8002 in offline mode, run
+`npm.cmd run start:demo -- -UseExistingDataScout`. Those existing containers retain
+their independent lifecycle. PulseWatch uses port **5177** in the suite and 5175
+when started independently.
 
-## 3. ForgeFlow-Datenbank und erstes Konto
+RequestLab is integrated into the suite at `#/requestLab/client` and uses the suite's
+server and ports. Existing `#/devTools/rest` links redirect there.
 
-### PostgreSQL bereitstellen
+## 3. ForgeFlow database and first account
 
-PostgreSQL 18 installieren und den Dienst starten. Die Command Line Tools mitinstallieren;
-pgAdmin ist optional. Ein vorhandener PostgreSQL-Dienst kann verwendet werden.
+### Prepare PostgreSQL
+
+Install PostgreSQL 18 with the command-line tools and start its service. pgAdmin is
+optional. An existing PostgreSQL service can also host the application database.
 
 ```powershell
-$taskPgBin = 'D:\Program Files\PostgreSQL\18\bin' # an eigene Installation anpassen
+$taskPgBin = 'D:\Program Files\PostgreSQL\18\bin' # Adjust to your installation.
 & "$taskPgBin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d postgres -W
 ```
 
-Im **psql-Terminal** für eine neue, leere Installation:
+For a new installation, run these commands in the **psql terminal**.
 
 ```sql
 CREATE ROLE forgeflow LOGIN;
@@ -122,20 +128,21 @@ CREATE DATABASE forgeflow OWNER forgeflow;
 \q
 ```
 
-`\password` fragt verdeckt nach dem Datenbankpasswort. Vorhandene Datenbanken/Rollen
-nicht neu anlegen oder löschen. Bei bestehenden Installationen deren Zugang verwenden.
+`\password` prompts for the database password with hidden input. For an existing
+installation, use its configured database role and credentials.
 
 ```powershell
 & "$taskPgBin\psql.exe" -h 127.0.0.1 -p 5432 -U forgeflow -d forgeflow -W -c 'SELECT current_database(), current_user;'
 ```
 
-Erwartet: Datenbank und Benutzer jeweils `forgeflow`. Tabellen erstellt Flyway
-automatisch. Die App benötigt keinen Datenbank-Superuser.
+The expected database and user are both `forgeflow`. Flyway creates the application
+tables automatically. A regular database owner role is sufficient.
 
-### Frontend konfigurieren
+### Configure the frontend
 
-Eine noch nicht vorhandene Datei `frontend/.env.local` aus
-[frontend/.env.example](frontend/.env.example) anlegen. Für ForgeFlow mindestens:
+If `frontend/.env.local` is missing, create it using
+[frontend/.env.example](frontend/.env.example). For API-backed ForgeFlow, include
+these settings.
 
 ```dotenv
 VITE_DATA_MODE=api
@@ -143,101 +150,102 @@ VITE_API_BASE_URL=/api/v1
 VITE_NEXTCLOUD_URL=https://cloud.forge-flow.de
 ```
 
-Cloud ist optional. Eine leere Cloud-URL deaktiviert den Öffnen-Link.
-Alle `VITE_*`- und `NEXT_PUBLIC_*`-Werte gelangen in den Browser:
-dort niemals Passwörter, Schlüssel oder Token speichern.
+Cloud access is optional. An empty cloud URL disables its external link. All
+`VITE_*` and `NEXT_PUBLIC_*` values are exposed to the browser. Store passwords,
+private keys and tokens in server-side configuration.
 
-### Ersten Administrator anlegen
+### Create the first administrator
 
-Nur für eine **neue Anwendung ohne vorhandene Konten** erforderlich:
+Perform this bootstrap for a **new application database with no existing accounts**.
+There is no built-in application password.
 
 ```powershell
 mvn.cmd -f backend/pom.xml compile dependency:build-classpath "-Dmdep.outputFile=target/classpath.txt"
 java -cp ("backend/target/classes;" + (Get-Content -Raw backend/target/classpath.txt).Trim()) de.forgeflow.auth.HashPassword
 ```
 
-Eigenes Anwendungspasswort eingeben: mindestens 12 Zeichen, höchstens 72 UTF-8-Bytes.
-Danach im selben Terminal konfigurieren:
+Enter an application password of at least 12 characters and at most 72 UTF-8 bytes.
+Then configure the backend in the same terminal.
 
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = 'postgres'
 $env:DB_URL = 'jdbc:postgresql://127.0.0.1:5432/forgeflow'
 $env:DB_USER = 'forgeflow'
-$taskDbSecret = Read-Host 'Datenbankpasswort für forgeflow' -AsSecureString
+$taskDbSecret = Read-Host 'Database password for forgeflow' -AsSecureString
 $env:DB_PASSWORD = [System.Net.NetworkCredential]::new('', $taskDbSecret).Password
 $env:AUTH_USER_ID = 'initial-admin'
-$env:AUTH_USER_EMAIL = Read-Host 'E-Mail für das Anwendungskonto'
+$env:AUTH_USER_EMAIL = Read-Host 'Application account email'
 $env:AUTH_USER_NAME = 'Administrator'
-$env:AUTH_PASSWORD_HASH = Read-Host 'Vollständigen erzeugten BCrypt-Hash einfügen'
+$env:AUTH_PASSWORD_HASH = Read-Host 'Paste the complete generated BCrypt hash'
 $env:APP_ORIGIN = 'http://localhost:5173'
 $env:COOKIE_SECURE = 'false'
 mvn.cmd -f backend/pom.xml spring-boot:run
 ```
 
-Den vollständigen Hash einschließlich `$2a$`, `$2b$` oder `$2y$` übernehmen.
-Zur Anmeldung später das ursprüngliche Anwendungspasswort verwenden.
-Datenbankpasswort und Anwendungspasswort sind unabhängig.
+Copy the complete hash, including its `$2a$`, `$2b$` or `$2y$` prefix. Use the original
+application password when signing in. The database and application passwords are
+independent credentials.
 
-Nach erfolgreichem Start mit Strg+C stoppen. Anschließend sensible Prozessvariablen löschen:
+After a successful start, stop with Ctrl+C and clear the sensitive process variables.
 
 ```powershell
 Remove-Item Env:DB_PASSWORD, Env:AUTH_PASSWORD_HASH -ErrorAction SilentlyContinue
 ```
 
-Ein normaler Neustart verwendet die gespeicherten Konten und setzt keine Passwörter
-zurück. Keine Bootstrapwerte verwenden, um bestehende Konten zu überschreiben.
+Subsequent starts use the accounts stored in PostgreSQL. Manage existing accounts
+through the application's account settings.
 
-## 4. Dauerhafter lokaler Start
+## 4. Persistent local startup
 
-Einmalig die Datenbankverbindung prüfen und Windows-DPAPI-Konfiguration speichern:
+Check the database connection and save the Windows DPAPI configuration once.
 
 ```powershell
 npm.cmd run setup:local -- -PostgresBin 'D:\Program Files\PostgreSQL\18\bin'
 ```
 
-Die Pfadangabe bei Bedarf anpassen. Das Datenbankpasswort wird ausschließlich für
-denselben Windows-Benutzer auf diesem PC verschlüsselt unter `backend/.local/` gespeichert.
+Adjust the path as needed. The database password is encrypted under `backend/.local/`
+for the same Windows user on this computer.
 
-Für den ersten Start **ohne vorbereitete Zusatz-Apps**:
+To start ForgeFlow before preparing the additional apps, use the following commands.
 
 ```powershell
 $env:FORGEFLOW_SKIP_SHOWCASE = 'true'
 npm.cmd run start:local
 ```
 
-Öffnen: **http://localhost:5173**. Backend: **http://127.0.0.1:3001/api/v1/health**.
-Erwartete Health-Antwort: `status=ok`, `storage=postgresql`.
-Mit E-Mail und Anwendungspasswort aus Abschnitt 3 anmelden.
+Open **http://localhost:5173** and sign in with the account created in section 3.
+The backend health endpoint is **http://127.0.0.1:3001/api/v1/health** and should report
+`status=ok` and `storage=postgresql`.
 
-Strg+C beendet nur die von diesem Start erzeugten Prozesse. PostgreSQL läuft weiter,
-gespeicherte Daten bleiben erhalten. Logs: `backend/.local/logs/`.
-Vor dem Backendstart wird standardmäßig eine tägliche Sicherung geprüft/erstellt.
-Das Backendprofil `memory` hingegen verliert Daten und Dateien beim Neustart.
+Ctrl+C stops processes created by this launcher. PostgreSQL continues running and
+retains stored data. Logs are written under `backend/.local/logs/`. By default, the
+launcher checks or creates a daily backup before starting the backend. The `memory`
+backend profile keeps data and attachments in memory for the process lifetime.
 
-`COOKIE_SECURE=false` gilt nur für lokales HTTP. Für die Suite exakt
-`http://localhost:5173` verwenden: `127.0.0.1` und andere Ports sind andere Origins.
-Details: [lokaler Betrieb](docs/local-operation.md).
+Use `COOKIE_SECURE=false` for local HTTP and open the suite at the exact configured
+origin, `http://localhost:5173`. Origins include the hostname and port.
+See [local operations](docs/local-operation.md).
 
-## 5. Alle Zusatz-Apps lokal einrichten
+## 5. Prepare all additional apps locally
 
-Die drei Nachbarordner aus Abschnitt 1 müssen existieren. Zuerst deren Einrichtung
-abschließen; der gemeinsame Starter installiert keine Abhängigkeiten und erzeugt
-keine Hub-Datenbank. Alle folgenden Beispiele beginnen in `dev-suite/`.
+The four neighboring repositories shown in section 1 must be present. Complete
+their setup first. The shared launcher expects installed dependencies and a prepared
+Hub database. Each example below starts in `dev-suite/`.
 
 ### AI Knowledge Hub
 
 ```powershell
 Push-Location ../ai-knowledge-hub
 if (!(Test-Path infra/.env)) { Copy-Item infra/.env.example infra/.env }
-# infra/.env: eigenes PostgreSQL-Passwort setzen.
-# Wenn ForgeFlow bereits 5432 belegt: POSTGRES_PORT=5433 setzen.
+# Set your own PostgreSQL password in infra/.env.
+# Set POSTGRES_PORT=5433 if ForgeFlow already occupies 5432.
 docker compose --env-file infra/.env -f infra/compose.yaml up -d --wait
 Push-Location backend
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e '.[dev]'
-# backend/.env: DATABASE_URL passend zur gewählten Hub-Datenbank setzen.
-# AI_PROVIDER=fake für den lokalen Demo-Betrieb verwenden.
+# Set DATABASE_URL in backend/.env to match the Hub database.
+# Use AI_PROVIDER=fake for local demo operation.
 .\.venv\Scripts\python.exe -m alembic upgrade head
 Pop-Location
 Push-Location frontend
@@ -246,13 +254,14 @@ Pop-Location
 Pop-Location
 ```
 
-Vor Alembic die richtige **eigene Hub-Datenbank** wählen. Die Extension `vector`
-muss vorhanden sein; das Compose-Init richtet sie nur bei einem neuen Volume ein.
-Alternativ einen bestehenden PostgreSQL-Server mit pgvector verwenden.
-Zugang und Port aus `infra/.env` und `infra/compose.yaml` übernehmen, bei einem
-Hub-Container auf 5433 auch in `backend/.env` Port 5433 verwenden. Nicht die
-ForgeFlow-Verbindungsdaten kopieren. Die Datenbank-URL kann URI-kodierte Zeichen benötigen.
-Details: [Hub-README](../ai-knowledge-hub/README.md).
+Select the Hub's own database before running Alembic. The `vector` extension must be
+available. Compose initialization installs it when creating a new volume. An existing
+PostgreSQL server with pgvector can also be used.
+
+Use the credentials and port from `infra/.env` and `infra/compose.yaml`. If the Hub
+container uses host port 5433, configure that port in `backend/.env` too. Use the
+Hub's database credentials and URI-encode special characters where required.
+See the [Hub README](../ai-knowledge-hub/README.md).
 
 ### FlowPilot
 
@@ -269,13 +278,12 @@ if (!(Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
 Pop-Location
 ```
 
-Der Schlüsselgenerator dient der eigenen lokalen Konfiguration; Ausgabe nur privat
-in der vorgesehenen Backend-Konfiguration übernehmen. Für den gemeinsamen Demo-Start
-sind PostgreSQL, Redis und Worker für FlowPilot nicht erforderlich.
-Für dauerhafte Workflows/Jobs: eigene PostgreSQL-/Redis-Verbindung konfigurieren,
-`python -m flowpilot.migrate` aus dem vorbereiteten Backend-Venv explizit ausführen
-und den Worker starten. Der normale API-Start migriert FlowPilot nicht automatisch.
-Details: [FlowPilot-README](../flowpilot-codex-starter/README.md).
+Save the generated integration key privately in the intended backend configuration.
+The shared demo runs with its bundled mock services. Persistent workflows and jobs
+require configured PostgreSQL/Redis connections, an explicit
+`python -m flowpilot.migrate` run from the prepared backend environment and a running
+worker. Run migrations before starting the normal API.
+See the [FlowPilot README](../flowpilot-codex-starter/README.md).
 
 ### PulseWatch
 
@@ -285,80 +293,106 @@ npm.cmd ci
 Pop-Location
 ```
 
-Der Suite-Starter baut das Java-Backend und startet ausdrücklich das Demo-Profil mit
-flüchtigem H2 und internen Prüffällen. Dafür braucht PulseWatch keine eigene Datenbank.
-Eigenständiger dauerhafter Betrieb mit eigenem Konto und PostgreSQL ist separat über
-`setup:local` / `setup:account` einzurichten:
-[PulseWatch-README](../pulse-watch/README.md).
+The suite launcher builds the Java backend and starts the demo profile with temporary
+H2 storage and internal test cases. For independent persistent operation, configure
+its account and PostgreSQL using `setup:local` and `setup:account`.
+See the [PulseWatch README](../pulse-watch/README.md).
 
-### Gemeinsamer Start
+### DataScout
+
+Start Docker Desktop with Linux containers. Prepare DataScout's private environment
+file and set a random URL-safe `POSTGRES_PASSWORD` of at least 24 letters/digits
+before the first database initialization.
+
+```powershell
+Push-Location ../data-scout
+if (!(Test-Path infra/.env)) { Copy-Item infra/.env.example infra/.env }
+# Configure POSTGRES_PASSWORD in infra/.env before starting services.
+# When switching from a running standalone instance, stop its app services.
+docker compose --env-file infra/.env -f infra/compose.yaml stop backend worker frontend
+Pop-Location
+```
+
+The shared launcher builds and starts DataScout with `infra/compose.yaml` and
+`infra/compose.suite.yaml`. Suite mode uses frontend port 5176, API port 8002 and
+PostgreSQL host port 55432. Collection runs against offline fixtures. Existing volumes
+retain their database credentials, so preserve the configured password for them.
+
+The local demo shares fixture data. The production integration checks the live
+ForgeFlow session and uses private per-account PostgreSQL schemas and an
+account-scoped worker. Its collection also runs offline.
+See the [DataScout README](../data-scout/README.md) and
+[server integration guide](../data-scout/docs/SUITE-REMOTE.md).
+
+### Start together
 
 ```powershell
 Remove-Item Env:FORGEFLOW_SKIP_SHOWCASE -ErrorAction SilentlyContinue
 npm.cmd run start:local
 ```
 
-| App | Oberfläche | Backend | Lokaler gemeinsamer Modus |
+| App | Frontend | Backend | Shared local mode |
 | --- | --- | --- | --- |
-| ForgeFlow | localhost:5173 | 127.0.0.1:3001 | PostgreSQL, reguläre Anmeldung |
-| Knowledge Hub | localhost:3000 | 127.0.0.1:8000 | local-demo, Fake-KI, eigene Datenbank |
-| FlowPilot | localhost:5174 | 127.0.0.1:8001 | Demo, Mock-KI/-HTTP |
-| PulseWatch | localhost:5177 | 127.0.0.1:8082 | Demo/H2, interne Prüffälle |
+| ForgeFlow | localhost:5173 | 127.0.0.1:3001 | PostgreSQL, regular sign-in |
+| Knowledge Hub | localhost:3000 | 127.0.0.1:8000 | local-demo, fake AI, separate database |
+| FlowPilot | localhost:5174 | 127.0.0.1:8001 | Demo, mock AI/HTTP |
+| PulseWatch | localhost:5177 | 127.0.0.1:8082 | Demo/H2, internal test cases |
+| DataScout | localhost:5176 | 127.0.0.1:8002 | Offline fixtures, separate database and worker |
 
-Alle acht Ports müssen frei sein. Der Start kann mehrere Minuten dauern.
-Die Starter ändern keine `.env` der Nachbarprojekte; ihre Demo-Vorgaben gelten nur
-im jeweiligen Prozess. In lokalen Demos sind Identitäten nicht automatisch gemeinsam.
-Der produktive Suite-Betrieb verwendet dagegen die aktive ForgeFlow-Sitzung.
-Standalone-Starts behalten ihre eigene Navigation und ihre eigene Anmeldung.
+All ten application ports must be available, together with the configured database
+ports. Startup can take several minutes. Local demo settings apply to the launched
+processes. Local additional apps use their demo identities. The production suite
+integration uses the active ForgeFlow session. Standalone apps have their own
+navigation and authentication.
 
-## 6. Erstkonfiguration in der Anwendung
+## 6. Initial application configuration
 
-1. Unter Einstellungen das Profil, Optik und die Sprache prüfen.
-   Deutsch, Englisch und Französisch sind für ForgeFlow verfügbar.
-2. Als Administrator unter **Anwendungen** die global sichtbaren Navigations-Apps wählen.
-   Ausblenden ist keine fachliche API-Zugriffssperre; Einstellungen bleiben erreichbar.
-3. Unter **KI** separat die Apps mit KI-Button wählen. Standard ist nur Projektmanager.
-   Nur dort stehen Datenwerkzeuge zur Verfügung; andere aktivierte Buttons erlauben
-   allgemeinen Chat. Schreibvorschläge benötigen Bestätigung.
-4. Unter **Globale Einstellungen** die gemeinsame Branchenliste pflegen.
-5. Weitere reguläre Benutzer als Administrator anlegen.
-6. Vor Business-Dokumenten Absender, Steuer, Währung, Bank und Zahlungsvorgaben einrichten.
-   Kundenportalkonten sehen ausschließlich ausdrücklich freigegebene Inhalte.
+1. Review your profile, appearance and language in Settings. ForgeFlow supports
+   German, English and French.
+2. As an administrator, select globally visible apps under **Applications**. API
+   authorization is enforced separately from navigation visibility.
+3. Under **AI**, select the apps that show an AI button. Project Manager is enabled
+   by default and provides domain-data tools. Other enabled apps provide general
+   chat. Write proposals require confirmation.
+4. Maintain the shared industry list under **Global settings**.
+5. Create additional regular users through administrator account management.
+6. Configure sender details, taxes, currency, bank details and payment terms before
+   creating business documents. Customer portal accounts see explicitly shared content.
 
-Französisch verwendet in Knowledge Hub, FlowPilot und PulseWatch noch den englischen
-Fallback. Cloud/Nextcloud hat eine eigene Sprach- und Kontoverwaltung.
-Funktionsgrenzen und Bedienung: [Handbücher](docs/handbuecher/README.md).
+Knowledge Hub, FlowPilot and PulseWatch use English when the suite language is French.
+DataScout's interface is currently English. Cloud/Nextcloud manages its own language
+and accounts. User instructions are in the [German manuals](docs/handbuecher/README.md).
 
-## 7. Bestehenden Ubuntu-Server vollständig aktualisieren
+## 7. Update the existing Ubuntu server
 
-Ziel dieser Installation: `forge-flow.de`; dokumentierter SSH-Zugang
-`dreinerts@185.56.150.178`. Für andere Hosts sind die fest auf diesen Server
-abgestimmten Skripte vor Nutzung anzupassen. Der Installer ist **kein generischer
-Erstinstallationsassistent**.
+The deployment scripts target `forge-flow.de` using SSH access through
+`dreinerts@185.56.150.178`. Adapt the host-specific scripts before using another
+server. The update installer requires the existing base installation described
+in section 8.
 
-### Voraussetzungen auf dem bestehenden Server
+### Server prerequisites
 
-- Ubuntu mit laufendem ForgeFlow-/PostgreSQL-18-Dienst, Nginx und gültigem HTTPS.
-- Kanonischer Ursprung `APP_ORIGIN=https://forge-flow.de`, `COOKIE_SECURE=true`.
-- Docker Engine mit Compose, Python 3, Git und PostgreSQL-Clientwerkzeuge.
-- Mindestens 1,5 GB verfügbarer RAM und 5 GiB freier Platz vor Container-Builds.
-- Eigene Konten, produktive Secrets und bestehende Datenbanken erhalten.
-- Node-/Maven-Builds der Suite laufen lokal; Container-Builds der Zusatz-Apps auf dem Server.
+- Ubuntu with running ForgeFlow and PostgreSQL 18 services, Nginx and valid HTTPS.
+- Canonical origin `APP_ORIGIN=https://forge-flow.de` and `COOKIE_SECURE=true`.
+- Docker Engine with Compose, Python 3, Git and PostgreSQL client tools.
+- At least 1.5 GB available RAM and 5 GiB free disk space before container builds.
+- Existing application accounts, production secrets and databases.
+- Local Node/Maven builds for the suite and server-side container builds for the additional apps.
 
-### Aktuelle Artefakte erstellen
+### Build current artifacts
 
-Lint und relevante Tests vor dem Paketieren ausführen. Nach Backendänderungen
-eine frische Spring-Boot-JAR bauen:
+Run lint and the relevant tests before packaging. Build a fresh Spring Boot JAR
+after backend changes.
 
 ```powershell
 npm.cmd run lint
 npm.cmd test
 mvn.cmd -f backend/pom.xml package
-# Optional mit installiertem PostgreSQL 18: isolierte echte DB-Tests plus JAR
+# Optional with PostgreSQL 18 installed, run isolated database tests and package the JAR.
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-postgres-isolated.ps1
 ```
 
-Suite-Frontend mit expliziten Produktionswerten bauen:
+Build the suite frontend with explicit production settings.
 
 ```powershell
 $env:VITE_DATA_MODE = 'api'
@@ -366,11 +400,12 @@ $env:VITE_API_BASE_URL = '/api/v1'
 $env:VITE_KNOWLEDGE_HUB_URL = 'https://forge-flow.de/knowledge-hub'
 $env:VITE_FLOWPILOT_URL = 'https://forge-flow.de/flowpilot/'
 $env:VITE_PULSEWATCH_URL = 'https://forge-flow.de/pulsewatch/'
+$env:VITE_DATASCOUT_URL = 'https://forge-flow.de/datascout/'
 $env:VITE_SHOWCASE_ADMIN_ONLY = 'false'
 npm.cmd run build
 ```
 
-FlowPilot und PulseWatch ebenfalls mit ihren Produktionspfaden bauen:
+Build FlowPilot, PulseWatch and DataScout with their production paths.
 
 ```powershell
 Push-Location ../flowpilot-codex-starter/frontend
@@ -386,23 +421,31 @@ $env:VITE_API_BASE_URL = '/pulsewatch-api/api/v1'
 $env:VITE_SUITE_ORIGIN = 'https://forge-flow.de'
 npm.cmd run build
 Pop-Location
+
+Push-Location ../data-scout/frontend
+$env:VITE_BASE_PATH = '/datascout/'
+$env:VITE_API_PREFIX = '/datascout-api'
+$env:VITE_SUITE_ORIGIN = 'https://forge-flow.de'
+npm.cmd run build
+Pop-Location
 ```
 
-Dafür ein **eigenes Build-Terminal** verwenden und danach schließen, damit die
-Produktivvariablen nicht in den nächsten lokalen Start übernommen werden.
-Knowledge Hub wird aus den mitgelieferten Quellen im Docker-Build gebaut.
-Seine Umgebungen sowie private Providerwerte verwaltet der Installer auf dem Server.
+Use a dedicated build terminal and close it afterwards so that subsequent local
+starts use their intended settings. Knowledge Hub is built from packaged sources
+inside Docker. The installer manages its environment and private provider settings
+on the server.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-showcase-release.ps1
 ```
 
-Der Paketierer prüft frische Artefakte, Produktionspfade, Docker-Kontexte, Python-Pins,
-Linux-Zeilenenden und Prüfsummen. Ausgabe:
-`node_modules/.tmp/forgeflow-showcase.tar.gz`, zugehörige `.sha256` und der
-LF-normalisierte `install-linux-showcase.sh`. Lokale Secrets und Daten werden nicht kopiert.
+The packager checks artifact freshness, production paths, Docker contexts, Python
+pins, Linux line endings and checksums. It writes
+`node_modules/.tmp/forgeflow-showcase.tar.gz`, its `.sha256` file and an LF-normalized
+`install-linux-showcase.sh`. The package includes application sources and build
+artifacts. Private configuration and data stay in their respective environments.
 
-### Übertragen und installieren
+### Transfer and install
 
 ```powershell
 scp node_modules/.tmp/forgeflow-showcase.tar.gz `
@@ -411,67 +454,69 @@ scp node_modules/.tmp/forgeflow-showcase.tar.gz `
 ssh -t dreinerts@185.56.150.178 'sudo bash ~/install-linux-showcase.sh ~/forgeflow-showcase.tar.gz'
 ```
 
-SSH- und sudo-Passwörter nur im Terminal eingeben. Auf **Deployment ready** warten.
-Der Installer sichert Anwendungen, Datenbanken und Konfiguration vor Änderungen,
-baut die Container, migriert und prüft die Dienste. V16 ergänzt die App-/KI-Auswahl,
-V17 Französisch. JAR und Frontend immer zusammen aktualisieren.
+Enter SSH and sudo passwords in the terminal. Wait for **Deployment ready**. The
+installer backs up applications, databases and configuration before making changes,
+builds containers, runs migrations and checks services. Migrations V16–V19 cover app/AI
+selection, French, DataScout and RequestLab. Deploy the JAR and frontend together.
 
-Bei Fehlern die vollständige Terminalausgabe und den privaten Sicherungspfad erhalten.
-Keine Migrationen manuell löschen und keine alte JAR unbesehen zurückspielen.
-Automatische Rücksicherung von Programm-/Nginx-Dateien ist keine Datenbank-Rückmigration.
+If installation fails, retain the complete terminal output and private backup path.
+Follow the documented rollback procedure for the installed version. Application-file
+and Nginx restoration require separate consideration of database compatibility.
 
-### Erfolg prüfen
+### Verify the update
 
 ```powershell
 Invoke-RestMethod https://forge-flow.de/api/v1/health
 curl.exe -fsS https://forge-flow.de/
 ```
 
-Erwartet: `ok` und `postgresql`, aktueller Assetname in der HTML-Seite.
-Nicht angemeldete Aufrufe von `/knowledge-hub/`, `/flowpilot/`, `/pulsewatch/`
-müssen 401 liefern. Anschließend Strg+F5 und erneut anmelden. Erst danach die
-angemeldeten Ansichten manuell prüfen. Health allein belegt keine KI-Modellberechtigung.
+Expect `ok`, `postgresql` and the current frontend asset name in the HTML. Anonymous
+requests to `/knowledge-hub/`, `/flowpilot/`, `/pulsewatch/` and `/datascout/` must
+return 401. Refresh with Ctrl+F5, sign in again and check the authenticated views.
+Verify AI model access through the configured provider separately.
 
-Vollständiger Ablauf, Rollbackgrenzen und Containerdetails:
-[Gesamtdeployment](docs/showcase-deployment.md).
+The complete procedure and rollback details are in the
+[deployment guide](docs/showcase-deployment.md).
 
-## 8. Neuer Server und optionale Integrationen
+## 8. New servers and optional integrations
 
-Ein neuer Server benötigt zuerst eine eingerichtete ForgeFlow-Basis: PostgreSQL-Rolle
-und Datenbank, Java-21-Laufzeit, Dienstbenutzer, JAR unter `/opt/forgeflow/backend.jar`,
-systemd-Dienst `forgeflow`, privates `/etc/forgeflow/backend.env`, Frontend unter
-`/var/www/forgeflow`, Nginx-Proxy auf `127.0.0.1:3001`, DNS sowie TLS/Certbot.
-Das erste Administratorkonto muss wie in Abschnitt 3 im PostgreSQL-Profil angelegt
-werden. Das Ubuntu-Update setzt diese Basis voraus und bricht sonst ab.
-[Basisserver und HTTPS](docs/linux-server.md), [Backendkonfiguration](backend/README.md).
+Prepare the ForgeFlow base installation on a new server first. It requires a
+PostgreSQL role and database, Java 21 runtime, service user, JAR at
+`/opt/forgeflow/backend.jar`, `forgeflow` systemd service, private
+`/etc/forgeflow/backend.env`, frontend at `/var/www/forgeflow`, Nginx proxy to
+`127.0.0.1:3001`, DNS and TLS/Certbot. Bootstrap the first administrator using the
+PostgreSQL profile as described in section 3. The Ubuntu update checks for this base.
+See [base server and HTTPS setup](docs/linux-server.md) and
+[backend configuration](backend/README.md).
 
-| Integration | Einrichtung / Grenze |
+| Integration | Setup and scope |
 | --- | --- |
-| ForgeFlow-KI | Nur Backend: `AI_ENABLED=true`, `OPENAI_API_KEY`, explizites `AI_MODEL`. Standard deaktiviert. [KI](docs/ai-assistant.md) |
-| Hub-/FlowPilot-KI | Produktiv übernimmt der Installer private Suite-Providerwerte; optional `/etc/forgeflow/showcase/ai.json` mit Vorrang. Keine Schlüssel im Browser. Hub-Einwilligung erforderlich; FlowPilot zunächst 5 Aufrufe pro UTC-Tag. [Providerbetrieb](docs/showcase-deployment.md) |
-| Git und externe PostgreSQL-Verbindungen | Persistentes `INTEGRATION_SECRET_KEY`, Git, Zielhosts über `DEV_DB_HOSTS`. Schlüssel mit Datenbank sichern und bei Updates erhalten. [Entwicklerintegrationen](docs/developer-tools.md) |
-| Nextcloud | Eigene DNS-/TLS-/Docker-Installation, eigenes Konto und eigene Sicherung. Kein Suite-SSO. [Nextcloud](docs/nextcloud.md) |
-| Testkonten | Sechs Stunden Laufzeit; `TRIAL_ACCOUNTS_ENABLED=false` deaktiviert neue Registrierung. Nach Ablauf bereinigt das Backend die Testdaten. |
-| FlowPilot HTTP/E-Mail | Vorhandene Adapter sind im dokumentierten Showcase simuliert. Keine echten Zustellungen versprechen. |
-| PulseWatch Alarme | Alarmereignisse und lokale Mailvorschauen; kein echter E-Mail-Versand. |
+| ForgeFlow AI | Configure `AI_ENABLED=true`, `OPENAI_API_KEY` and an explicit `AI_MODEL` on the backend. AI is disabled by default. [AI setup](docs/ai-assistant.md) |
+| Hub/FlowPilot AI | The production installer reads private suite provider settings. Optional `/etc/forgeflow/showcase/ai.json` takes precedence. Hub requires consent. FlowPilot initially allows five calls per UTC day. [Provider operations](docs/showcase-deployment.md) |
+| Git and external PostgreSQL connections | Configure a persistent `INTEGRATION_SECRET_KEY`, Git and target hosts through `DEV_DB_HOSTS`. Back up the key with the database. [Developer integrations](docs/developer-tools.md) |
+| Nextcloud | Separate DNS/TLS/Docker installation, accounts and backups. [Nextcloud setup](docs/nextcloud.md) |
+| Trial accounts | Six-hour lifetime. `TRIAL_ACCOUNTS_ENABLED=false` disables new registration. The backend cleans up expired trial data |
+| FlowPilot HTTP/email | The documented showcase uses simulated adapters |
+| PulseWatch alerts | Alert events and local email previews |
+| DataScout collection | Offline fixtures in the suite integration, with private per-account storage in production. [Server setup](../data-scout/docs/SUITE-REMOTE.md) |
 
-## 9. Sicherung, Wiederherstellung und Neustarts
+## 9. Backups, restoration and restarts
 
 ```powershell
 npm.cmd run backup:local
-# Wiederherstellung nur mit gewähltem Backup und neuem Ziel:
+# Review restore parameters for a selected backup and a new target.
 Get-Help ./scripts/restore-local.ps1 -Detailed
 ```
 
-Konkrete Restoreparameter zuerst in [Sicherung/Wiederherstellung](docs/local-operation.md)
-prüfen. Das Skript stellt nur in eine **neue** Datenbank mit Präfix `forgeflow_restore_`
-wieder her; es ersetzt keine aktive Datenbank. DPAPI-Dateien lassen sich nicht einfach
-auf einen anderen PC kopieren.
+Review the restore parameters in [local operations](docs/local-operation.md). The
+script restores into a **new** database whose name starts with `forgeflow_restore_`.
+DPAPI configuration is tied to its Windows user and computer.
 
-Auf Ubuntu privat und regelmäßig sichern: alle vier Anwendungsdatenbanken, private
-`/etc/forgeflow/`-Konfiguration, Redis-Daten, Git-Clones und gegebenenfalls Nextcloud-Volumes.
-Installer-Sicherungen sind kein laufender Backupplan. Anwendungssitzungen können nach
-Backendneustarts enden; gespeicherte Fach-/Dateidaten bleiben im PostgreSQL-Profil erhalten.
+On Ubuntu, keep regular private backups of all application databases, including
+DataScout, private `/etc/forgeflow/` configuration, Redis data, Git clones and any
+Nextcloud volumes. Plan recurring backups in addition to installer snapshots.
+Backend restarts can end application sessions. The PostgreSQL profile retains
+stored domain data and attachments.
 
 ```bash
 sudo systemctl status forgeflow forgeflow-showcase nginx
@@ -481,27 +526,29 @@ sudo docker compose --project-name forgeflow-showcase \
   --env-file /etc/forgeflow/showcase/images.env ps
 ```
 
-Private Logs vor dem Teilen auf Zugangsdaten prüfen. Nextcloud separat betreiben und sichern.
+Review private logs for credentials before sharing them. Operate and back up
+Nextcloud separately.
 
-## 10. Fehler gezielt eingrenzen
+## 10. Troubleshooting
 
-| Symptom | Prüfung |
+| Symptom | Check |
 | --- | --- |
-| `node`, `java`, `mvn` nicht gefunden | PATH, JDK 21, `JAVA_HOME`; IntelliJ-Terminal neu öffnen |
-| Port belegt / Starter beendet | Vorherigen eigenen Starter mit Strg+C stoppen; Logs unter `backend/.local/logs/` prüfen |
-| Anmeldung: Invalid request origin | Exakte Browseradresse und `APP_ORIGIN` vergleichen, lokal `localhost:5173`, öffentlich kanonische HTTPS-Domain |
-| Trotz Anmeldung keine API-Daten | `VITE_DATA_MODE=api`, laufendes Backend, gültige Sitzung; kein automatischer Demo-Fallback |
-| Zusatz-App fehlt links | Globale App-Auswahl und mögliche Administratorbeschränkung prüfen |
-| KI-Button fehlt | Globale KI-Auswahl, aktive App, API-Betrieb; Standard nur Projektmanager |
-| KI antwortet nicht | Server-Providerkonfiguration, Modellberechtigung, Quota und Limits; keine Schlüssel in den Chat kopieren |
-| Hub startet nicht / 503 | Eigene DB-Verbindung, pgvector und Alembic-Migrationen prüfen; Health kann nur Prozessbereitschaft bedeuten |
-| FlowPilot startet mit Import-/Pythonfehler | Das eigene, per uv eingerichtete Python-3.12-Venv verwenden |
-| Änderungen verschwinden | Demo-/memory-/H2-Modus prüfen; diese speichern nicht wie produktives PostgreSQL |
-| Speicher-Konflikt | Serverstand neu laden und Änderungen prüfen; nicht blind erneut überschreiben |
-| Nach Deployment alte Oberfläche | Strg+F5, Assetname prüfen; Backendneustart allein aktualisiert keine Frontenddateien |
-| SSH `Permission denied` | Gültiger Schlüssel oder interaktive Passwortanmeldung erforderlich; Paket ist dadurch noch nicht installiert |
+| `node`, `java` or `mvn` cannot be found | Check PATH, JDK 21 and `JAVA_HOME`, then reopen the IntelliJ terminal |
+| A port is occupied or the launcher exits | Stop your previous launcher with Ctrl+C and inspect `backend/.local/logs/` |
+| Sign-in reports `Invalid request origin` | Compare the browser URL with `APP_ORIGIN`, including hostname, scheme and port |
+| API data is unavailable after sign-in | Check `VITE_DATA_MODE=api`, backend availability and session validity. API errors are reported to the user |
+| An additional app is missing from navigation | Check the global app selection and any administrator-only setting |
+| The AI button is missing | Check the global AI selection, current app and API mode. Project Manager is enabled by default |
+| AI requests fail | Check server provider configuration, model access, quota and limits |
+| Hub fails to start or returns 503 | Check its database connection, pgvector and Alembic migrations. Check database readiness as well as process health |
+| FlowPilot reports Python/import errors | Use its dedicated Python 3.12 environment prepared through uv |
+| DataScout fails to start | Check Docker Desktop, `infra/.env`, database credentials and host ports 5176, 8002 and 55432 |
+| Changes disappear | Check the storage mode. Frontend local mode, memory storage and H2 demos have temporary data |
+| Saving reports a conflict | Reload the server state and review your changes before retrying |
+| The old interface appears after deployment | Refresh with Ctrl+F5 and compare the served asset name with the release |
+| SSH reports `Permission denied` | Use a valid key or interactive password authentication to complete the transfer and installation |
 
-## 11. Prüfungen und weitere Dokumentation
+## 11. Verification and further documentation
 
 ```powershell
 npm.cmd run lint
@@ -511,26 +558,15 @@ mvn.cmd -f backend/pom.xml test
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-postgres-isolated.ps1
 ```
 
-Der PostgreSQL-Helfer verwendet einen eigenen temporären Cluster; keine produktive
-Datenbank für Tests verwenden. Im eingeschränkten Agenten-PATH kann
-`scripts/verify-backend.ps1` Java/Maven portabel vorbereiten; erstmalige Downloads
-benötigen Netzwerkzugang. Build-/Testartefakte und Schlüssel nicht versionieren.
+The PostgreSQL helper uses a separate temporary cluster. Use isolated test data for
+verification. If Java/Maven are missing from the agent's PATH,
+`scripts/verify-backend.ps1` can prepare portable tools. Initial downloads require
+network access. Keep build/test artifacts and secrets outside version control.
 
-- [PDF-Handbücher mit Screenshots](docs/handbuecher/README.md)
-- [Lokaler Betrieb, Ports und Sicherungen](docs/local-operation.md)
-- [Gesamtdeployment und produktive Provider](docs/showcase-deployment.md)
-- [Backend-Setup](backend/README.md) und [API-Vertrag](docs/backend-api.md)
-- [Aktueller Stand und bekannte Grenzen](docs/HANDOFF.md)
-- [Manuelle Browserprüfung](docs/browser-check.md)
-
-## DataScout als lokale Zusatz-App
-
-Der gemeinsame Start ergänzt DataScout aus ../data-scout über Docker Compose
-(Docker Desktop, Linux-Container und eingerichtetes infra/.env vorausgesetzt).
-UI: http://localhost:5176, API: http://127.0.0.1:8002. Ein eigenständiges DataScout
-auf 5173/8000 zuerst stoppen, damit die Suite ihre bisherigen Ports verwenden kann.
-Bestehende Daten und globale App-Auswahlen bleiben erhalten. Im API-Modus aktiviert
-ein Administrator den Eintrag unter Einstellungen → Anwendungen; die Frontend-Demo
-zeigt ihn direkt. Details und Stop-/Wechselbefehle: docs/local-operation.md.
-Diese Anbindung gilt für die lokale gemeinsame Fixture-Demo. Im Produktionsbuild
-bleibt DataScout bis zu serverseitiger SSO-/Kontotrennung deaktiviert; kein Deployment.
+- [German PDF manuals with screenshots](docs/handbuecher/README.md)
+- [Local operations, ports and backups](docs/local-operation.md)
+- [Full deployment and production providers](docs/showcase-deployment.md)
+- [Backend setup](backend/README.md) and [API contract](docs/backend-api.md)
+- [Frontend documentation](docs/frontend.md)
+- [Project handoff and known limitations](docs/HANDOFF.md)
+- [Manual browser checks](docs/browser-check.md)
